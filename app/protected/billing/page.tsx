@@ -1,10 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+
+
+export const dynamic = "force-dynamic";
+
 
 
 export default async function BillingPage() {
 
 
-  const supabase = await createClient();
+  const supabase =
+    await createClient();
+
 
 
 
@@ -14,8 +21,22 @@ export default async function BillingPage() {
 
 
 
+
+
   const userId =
     claimsData?.claims?.sub;
+
+
+
+
+
+  if(!userId){
+
+    redirect("/auth/login");
+
+  }
+
+
 
 
 
@@ -40,6 +61,21 @@ export default async function BillingPage() {
 
 
 
+
+
+  if(!membership){
+
+    redirect("/protected");
+
+  }
+
+
+
+
+
+
+
+
   const { data: subscription } =
     await supabase
       .from("subscriptions")
@@ -53,9 +89,11 @@ export default async function BillingPage() {
       )
       .eq(
         "organization_id",
-        membership?.organization_id
+        membership.organization_id
       )
-      .single();
+      .maybeSingle();
+
+
 
 
 
@@ -75,12 +113,13 @@ export default async function BillingPage() {
       )
       .eq(
         "organization_id",
-        membership?.organization_id
+        membership.organization_id
       )
       .eq(
         "status",
         "ACTIVE"
       );
+
 
 
 
@@ -97,6 +136,10 @@ export default async function BillingPage() {
           count:"exact",
           head:true
         }
+      )
+      .eq(
+        "organization_id",
+        membership.organization_id
       );
 
 
@@ -108,22 +151,43 @@ export default async function BillingPage() {
 
   return (
 
-    <main className="min-h-screen bg-slate-950 p-8 text-white">
+    <main className="
+    min-h-screen
+    bg-slate-950
+    p-8
+    text-white
+    ">
 
 
-      <div className="mx-auto max-w-5xl">
+      <div className="
+      mx-auto
+      max-w-5xl
+      ">
 
 
 
 
 
-        <h1 className="text-3xl font-bold">
+        <h1 className="
+        text-3xl
+        font-bold
+        ">
+
           💳 Mi Plan
+
         </h1>
 
 
-        <p className="mt-2 text-slate-400">
+
+
+
+        <p className="
+        mt-2
+        text-slate-400
+        ">
+
           Administración de tu suscripción.
+
         </p>
 
 
@@ -132,27 +196,60 @@ export default async function BillingPage() {
 
 
 
-        <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-8">
+
+
+        <section className="
+        mt-8
+        rounded-2xl
+        border
+        border-white/10
+        bg-white/[0.03]
+        p-8
+        ">
 
 
 
-          <div className="flex justify-between items-start">
+
+
+          <div className="
+          flex
+          justify-between
+          items-start
+          ">
+
+
+
 
 
             <div>
 
 
               <p className="text-sm text-slate-400">
+
                 Plan actual
+
               </p>
 
 
-              <h2 className="mt-2 text-4xl font-bold text-blue-400">
+
+
+              <h2 className="
+              mt-2
+              text-4xl
+              font-bold
+              text-blue-400
+              ">
+
                 {subscription?.plan || "TRIAL"}
+
               </h2>
 
 
+
             </div>
+
+
+
 
 
 
@@ -167,8 +264,13 @@ export default async function BillingPage() {
               text-green-400
               "
             >
+
               {subscription?.status || "INACTIVE"}
+
             </span>
+
+
+
 
 
           </div>
@@ -178,7 +280,15 @@ export default async function BillingPage() {
 
 
 
-          <div className="mt-8 grid gap-5 md:grid-cols-2">
+
+
+          <div className="
+          mt-8
+          grid
+          gap-5
+          md:grid-cols-2
+          ">
+
 
 
 
@@ -186,28 +296,42 @@ export default async function BillingPage() {
 
               title="👥 Agentes activos"
 
-              current={agentsCount || 0}
+              current={
+                agentsCount || 0
+              }
 
-              max={subscription?.max_agents || 0}
+              max={
+                subscription?.max_agents || 0
+              }
 
             />
+
+
 
 
 
 
             <UsageCard
 
-              title="🏠 Leads"
+              title="🔥 Leads"
 
-              current={leadsCount || 0}
+              current={
+                leadsCount || 0
+              }
 
-              max={subscription?.max_leads || 0}
+              max={
+                subscription?.max_leads || 0
+              }
 
             />
 
 
 
+
+
+
           </div>
+
 
 
 
@@ -222,16 +346,37 @@ export default async function BillingPage() {
 
 
 
-        <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-8">
+
+        <section className="
+        mt-8
+        rounded-2xl
+        border
+        border-white/10
+        bg-white/[0.03]
+        p-8
+        ">
 
 
-          <h2 className="text-xl font-semibold">
+
+          <h2 className="
+          text-xl
+          font-semibold
+          ">
+
             Incluye tu plan
+
           </h2>
 
 
 
-          <div className="mt-5 space-y-3 text-slate-300">
+
+
+
+          <div className="
+          mt-5
+          space-y-3
+          text-slate-300
+          ">
 
 
             <p>
@@ -263,7 +408,10 @@ export default async function BillingPage() {
 
 
 
+
+
         </section>
+
 
 
 
@@ -281,8 +429,11 @@ export default async function BillingPage() {
           font-semibold
           "
         >
+
           Mejorar plan
+
         </button>
+
 
 
 
@@ -303,6 +454,7 @@ export default async function BillingPage() {
 
 
 
+
 function UsageCard({
 title,
 current,
@@ -314,36 +466,51 @@ max:number;
 }){
 
 
-  return (
+return (
 
-    <div
-      className="
-      rounded-xl
-      border
-      border-white/10
-      p-5
-      "
-    >
+<div className="
+rounded-xl
+border
+border-white/10
+p-5
+">
 
 
-      <p className="text-slate-400">
-        {title}
-      </p>
+<p className="text-slate-400">
 
+{title}
 
-
-      <p className="mt-3 text-3xl font-bold">
-        {current}
-        <span className="text-slate-500 text-lg">
-          {" "}
-          / {max}
-        </span>
-      </p>
+</p>
 
 
 
-    </div>
 
-  );
+<p className="
+mt-3
+text-3xl
+font-bold
+">
+
+{current}
+
+<span className="
+text-slate-500
+text-lg
+">
+
+{" "}
+/ {max}
+
+</span>
+
+
+</p>
+
+
+
+
+</div>
+
+);
 
 }

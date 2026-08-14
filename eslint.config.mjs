@@ -3,6 +3,7 @@ import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
 
 
+
 const __filename =
   fileURLToPath(import.meta.url);
 
@@ -23,6 +24,7 @@ const compat =
 
 
 
+
 const eslintConfig = [
 
   ...compat.extends(
@@ -33,26 +35,41 @@ const eslintConfig = [
 
 
 
+
+
   {
     files:[
+      "**/*.js",
+      "**/*.jsx",
       "**/*.ts",
       "**/*.tsx"
     ],
 
+
     rules:{
+
 
       "@typescript-eslint/no-explicit-any":
         "off",
 
 
+
       "@typescript-eslint/no-require-imports":
         "off",
+
+
+
+      "@typescript-eslint/no-unused-vars":
+        "off",
+
+
 
     },
 
   },
 
 ];
+
 
 
 

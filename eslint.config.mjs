@@ -32,8 +32,14 @@ const eslintConfig = [
 
 
 
+
   {
-    rules: {
+    files:[
+      "**/*.ts",
+      "**/*.tsx"
+    ],
+
+    rules:{
 
       "@typescript-eslint/no-explicit-any":
         "off",
@@ -47,6 +53,7 @@ const eslintConfig = [
   },
 
 ];
+
 
 
 

@@ -5,7 +5,7 @@ import WhatsAppButton from "./WhatsAppButton";
 import { getMatchingProperties } from "./match-actions";
 import PropertyWhatsAppButton from "./PropertyWhatsAppButton";
 
-export const instant = false;
+
 
 export default async function LeadPage({
   params,
@@ -14,11 +14,17 @@ export default async function LeadPage({
 }) {
 
 
-  const { id } = await params;
+
+  const { id } =
+    await params;
+
+
+
 
 
   const supabase =
     await createClient();
+
 
 
 
@@ -50,6 +56,7 @@ export default async function LeadPage({
         id
       )
       .maybeSingle();
+
 
 
 
@@ -127,6 +134,7 @@ export default async function LeadPage({
 
 
 
+
   return (
 
     <main className="
@@ -137,19 +145,29 @@ export default async function LeadPage({
     ">
 
 
+
       <div className="mx-auto max-w-6xl">
 
 
 
 
 
-        <h1 className="text-3xl font-bold">
+        <h1 className="
+        text-3xl
+        font-bold
+        ">
+
           {lead.full_name || "Sin nombre"}
+
         </h1>
 
 
+
+
         <p className="mt-2 text-slate-400">
+
           Detalle del cliente potencial
+
         </p>
 
 
@@ -169,9 +187,7 @@ export default async function LeadPage({
 
 
 
-
           <Card title="👤 Información">
-
 
             <p>
               📞 {lead.phone || "Sin teléfono"}
@@ -218,7 +234,6 @@ export default async function LeadPage({
             </p>
 
 
-
             <p className="mt-2">
               Probabilidad:
               {" "}
@@ -226,7 +241,6 @@ export default async function LeadPage({
                 {aiLevel}
               </b>
             </p>
-
 
 
             <p className="mt-2 text-slate-400">
@@ -237,6 +251,7 @@ export default async function LeadPage({
 
 
           </Card>
+
 
 
 
@@ -283,7 +298,16 @@ export default async function LeadPage({
 
 
           </Card>
-                    <Card title="🤖 AI Sales Assistant">
+
+
+
+
+
+
+
+
+
+          <Card title="🤖 AI Sales Assistant">
 
 
             <p>
@@ -395,8 +419,6 @@ export default async function LeadPage({
 
 
 
-
-
             {
               matches.length > 0 &&
 
@@ -404,7 +426,9 @@ export default async function LeadPage({
 
 
                 <h3 className="text-lg font-semibold">
+
                   🏠 Propiedades recomendadas
+
                 </h3>
 
 
@@ -436,9 +460,11 @@ export default async function LeadPage({
 
 
                           <p className="mt-1 text-blue-400">
+
                             Compatibilidad:
                             {" "}
                             {property.compatibility}%
+
                           </p>
 
 
@@ -508,9 +534,6 @@ export default async function LeadPage({
 
 
           </Card>
-
-
-
 
 
 
@@ -703,7 +726,9 @@ function Card({
 
 
       <h2 className="mb-4 text-xl font-semibold">
+
         {title}
+
       </h2>
 
 

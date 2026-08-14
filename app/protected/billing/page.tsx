@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 
 
 
@@ -7,9 +8,14 @@ import { redirect } from "next/navigation";
 export default async function BillingPage() {
 
 
+  await connection();
+
+
+
 
   const supabase =
     await createClient();
+
 
 
 
@@ -24,8 +30,10 @@ export default async function BillingPage() {
 
 
 
+
   const userId =
     claimsData?.claims?.sub;
+
 
 
 
@@ -37,6 +45,7 @@ export default async function BillingPage() {
     redirect("/auth/login");
 
   }
+
 
 
 
@@ -67,11 +76,13 @@ export default async function BillingPage() {
 
 
 
+
   if(!membership){
 
     redirect("/protected");
 
   }
+
 
 
 
@@ -97,6 +108,7 @@ export default async function BillingPage() {
         membership.organization_id
       )
       .maybeSingle();
+
 
 
 
@@ -134,6 +146,7 @@ export default async function BillingPage() {
 
 
 
+
   const { count: leadsCount } =
     await supabase
       .from("leads")
@@ -157,7 +170,9 @@ export default async function BillingPage() {
 
 
 
+
   return (
+
 
 
     <main className="
@@ -166,6 +181,7 @@ export default async function BillingPage() {
     p-8
     text-white
     ">
+
 
 
 
@@ -179,16 +195,20 @@ export default async function BillingPage() {
 
 
 
+
         <h1 className="
         text-3xl
         font-bold
         ">
 
 
+
           💳 Mi Plan
 
 
+
         </h1>
+
 
 
 
@@ -201,10 +221,13 @@ export default async function BillingPage() {
         ">
 
 
+
           Administración de tu suscripción.
 
 
+
         </p>
+
 
 
 
@@ -229,6 +252,7 @@ export default async function BillingPage() {
 
 
 
+
           <div className="
           flex
           justify-between
@@ -240,17 +264,22 @@ export default async function BillingPage() {
 
 
 
+
             <div>
+
 
 
 
               <p className="text-sm text-slate-400">
 
 
+
                 Plan actual
 
 
+
               </p>
+
 
 
 
@@ -264,7 +293,9 @@ export default async function BillingPage() {
               ">
 
 
+
                 {subscription?.plan || "TRIAL"}
+
 
 
               </h2>
@@ -272,7 +303,9 @@ export default async function BillingPage() {
 
 
 
+
             </div>
+
 
 
 
@@ -293,7 +326,9 @@ export default async function BillingPage() {
             >
 
 
+
               {subscription?.status || "INACTIVE"}
+
 
 
             </span>
@@ -303,7 +338,9 @@ export default async function BillingPage() {
 
 
 
+
           </div>
+
 
 
 
@@ -324,10 +361,13 @@ export default async function BillingPage() {
 
 
 
+
             <UsageCard
 
 
+
               title="👥 Agentes activos"
+
 
 
               current={
@@ -335,12 +375,15 @@ export default async function BillingPage() {
               }
 
 
+
               max={
                 subscription?.max_agents || 0
               }
 
 
+
             />
+
 
 
 
@@ -351,7 +394,9 @@ export default async function BillingPage() {
             <UsageCard
 
 
+
               title="🔥 Leads"
+
 
 
               current={
@@ -359,12 +404,15 @@ export default async function BillingPage() {
               }
 
 
+
               max={
                 subscription?.max_leads || 0
               }
 
 
+
             />
+
 
 
 
@@ -380,7 +428,9 @@ export default async function BillingPage() {
 
 
 
+
         </section>
+
 
 
 
@@ -403,16 +453,20 @@ export default async function BillingPage() {
 
 
 
+
           <h2 className="
           text-xl
           font-semibold
           ">
 
 
+
             Incluye tu plan
 
 
+
           </h2>
+
 
 
 
@@ -428,9 +482,11 @@ export default async function BillingPage() {
 
 
 
+
             <p>
               ✓ Dashboard comercial con IA
             </p>
+
 
 
 
@@ -440,9 +496,11 @@ export default async function BillingPage() {
 
 
 
+
             <p>
               ✓ Follow-ups automáticos
             </p>
+
 
 
 
@@ -452,9 +510,11 @@ export default async function BillingPage() {
 
 
 
+
             <p>
               ✓ Reportes comerciales
             </p>
+
 
 
 
@@ -465,7 +525,9 @@ export default async function BillingPage() {
 
 
 
+
         </section>
+
 
 
 
@@ -487,10 +549,13 @@ export default async function BillingPage() {
         >
 
 
+
           Mejorar plan
 
 
+
         </button>
+
 
 
 
@@ -502,13 +567,17 @@ export default async function BillingPage() {
 
 
 
+
     </main>
+
 
 
   );
 
 
+
 }
+
 
 
 
@@ -530,7 +599,9 @@ max:number;
 
 
 
+
 return (
+
 
 
 <div className="
@@ -542,13 +613,17 @@ p-5
 
 
 
+
 <p className="text-slate-400">
+
 
 
 {title}
 
 
+
 </p>
+
 
 
 
@@ -561,7 +636,9 @@ font-bold
 ">
 
 
+
 {current}
+
 
 
 <span className="
@@ -570,11 +647,14 @@ text-lg
 ">
 
 
+
 {" "}
 / {max}
 
 
+
 </span>
+
 
 
 
@@ -584,10 +664,13 @@ text-lg
 
 
 
+
 </div>
 
 
+
 );
+
 
 
 }

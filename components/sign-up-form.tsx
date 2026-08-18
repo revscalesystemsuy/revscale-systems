@@ -11,4 +11,122 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components
+import { Label } from "@/components/ui/label";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+type SignUpFormProps = React.ComponentPropsWithoutRef<"div"> & {
+  initialEmail?: string;
+};
+
+const PRODUCTION_ORIGIN = "https://revscale-systems-eta.vercel.app";
+
+export function SignUpForm({
+  className,
+  initialEmail = "",
+  ...props
+}: SignUpFormProps) {
+  const [email, setEmail] = useState(initialEmail);
+  const [password, setPassword] = useState("");
+  const [repeatPassword, setRepeatPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const supabase = createClient();
+    setIsLoading(true);
+    setError(null);
+
+    if (password !== repeatPassword) {
+      setError("Las contraseñas no coinciden");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const origin = window.location.hostname === "localhost" ? window.location.origin : PRODUCTION_ORIGIN;
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${origin}/auth/confirm?next=/protected`,
+        },
+      });
+
+      if (error) throw error;
+      router.push("/auth/sign-up-success");
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Ocurrió un error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Crear cuenta</CardTitle>
+          <CardDescription>
+            Usá el mismo email con el que solicitaste tu plan de RevScale.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSignUp}>
+            <div className="flex flex-col gap-6">
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="tu@email.com"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="password">Contraseña</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="repeat-password">Repetir contraseña</Label>
+                <Input
+                  id="repeat-password"
+                  type="password"
+                  required
+                  value={repeatPassword}
+                  onChange={(e) => setRepeatPassword(e.target.value)}
+                />
+              </div>
+
+              {error && <p className="text-sm text-red-500">{error}</p>}
+
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Creando cuenta..." : "Crear cuenta"}
+              </Button>
+            </div>
+
+            <div className="mt-4 text-center text-sm">
+              ¿Ya tenés una cuenta?{" "}
+              <Link href="/auth/login" className="underline underline-offset-4">
+                Iniciar sesión
+              </Link>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

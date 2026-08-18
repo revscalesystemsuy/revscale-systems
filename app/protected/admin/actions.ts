@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 const PLAN_LIMITS = {
   STARTER: {
@@ -46,16 +45,16 @@ async function requirePlatformAdmin() {
 
   if (!platformAdmin) throw new Error("Acceso no autorizado");
 
-  return createAdminClient();
+  return supabase;
 }
 
 export async function activatePlan(formData: FormData) {
   const requestId = String(formData.get("request_id") || "");
   if (!requestId) throw new Error("Solicitud inválida");
 
-  const admin = await requirePlatformAdmin();
+  const supabase = await requirePlatformAdmin();
 
-  const { data: request, error: requestFetchError } = await admin
+  const { data: request, error: requestFetchError } = await supabase
     .from("plan_requests")
     .select("id,organization_id,plan,status")
     .eq("id", requestId)
@@ -70,7 +69,7 @@ export async function activatePlan(formData: FormData) {
   const plan = normalizeRequestedPlan(String(request.plan));
   const limits = PLAN_LIMITS[plan];
 
-  const { data: updatedSubscription, error: subscriptionError } = await admin
+  const { data: updatedSubscription, error: subscriptionError } = await supabase
     .from("subscriptions")
     .update({
       plan,
@@ -85,7 +84,7 @@ export async function activatePlan(formData: FormData) {
   if (subscriptionError) throw new Error(subscriptionError.message);
   if (!updatedSubscription) throw new Error("No se encontró la suscripción de la organización.");
 
-  const { error: requestError } = await admin
+  const { error: requestError } = await supabase
     .from("plan_requests")
     .update({ status: "ACTIVE" })
     .eq("id", requestId);
@@ -100,9 +99,9 @@ export async function rejectPlan(formData: FormData) {
   const requestId = String(formData.get("request_id") || "");
   if (!requestId) throw new Error("Solicitud inválida");
 
-  const admin = await requirePlatformAdmin();
+  const supabase = await requirePlatformAdmin();
 
-  const { error } = await admin
+  const { error } = await supabase
     .from("plan_requests")
     .update({ status: "REJECTED" })
     .eq("id", requestId)

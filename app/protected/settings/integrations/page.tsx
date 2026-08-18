@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { generateWebIntegrationToken } from "@/lib/integrations/web-key";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
@@ -8,7 +7,6 @@ import {
   Facebook,
   Globe2,
   Instagram,
-  KeyRound,
   MessageCircle,
   PlugZap,
   ShieldCheck,
@@ -37,33 +35,13 @@ export default async function IntegrationsPage() {
 
   const { data: organization } = await supabase
     .from("organizations")
-    .select("id, name, slug")
+    .select("name")
     .eq("id", membership.organization_id)
     .single();
 
-  const organizationId = organization?.id || membership.organization_id;
-  const integrationToken = generateWebIntegrationToken(organizationId);
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "https://revscale-systems-eta.vercel.app";
-  const endpoint = `${appUrl}/api/integrations/web-leads`;
-
-  const examplePayload = JSON.stringify(
-    {
-      organization_id: organizationId,
-      token: integrationToken || "CONFIGURAR_INTEGRATIONS_SIGNING_SECRET",
-      full_name: "Nombre del cliente",
-      phone: "099123456",
-      email: "cliente@email.com",
-      operation: "COMPRA",
-      property_type: "APARTAMENTO",
-      primary_zone: "Pocitos",
-      budget_max: 250000,
-      currency: "USD",
-      bedrooms_min: 2,
-    },
-    null,
-    2
+  const webIntegrationReady = Boolean(
+    process.env.INTEGRATIONS_SIGNING_SECRET &&
+      (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
   );
 
   return (
@@ -94,8 +72,8 @@ export default async function IntegrationsPage() {
 
             <p className="mt-4 max-w-3xl text-slate-400">
               Conectá los canales donde recibe consultas tu inmobiliaria para que los leads
-              entren a RevScale y el equipo pueda priorizarlos, seguirlos y trabajarlos desde
-              un solo lugar.
+              entren automáticamente a RevScale y el equipo pueda priorizarlos, seguirlos y
+              trabajarlos desde un solo lugar.
             </p>
           </div>
 
@@ -109,66 +87,53 @@ export default async function IntegrationsPage() {
           <IntegrationCard
             icon={<Globe2 className="h-6 w-6" />}
             title="Sitio web"
-            description="Recibí automáticamente en RevScale las consultas de los formularios de tu página web."
-            status={integrationToken ? "LISTA PARA CONFIGURAR" : "FALTA VARIABLE DE ENTORNO"}
+            description="Recibí automáticamente en RevScale las consultas que llegan desde los formularios de tu página web."
+            status={webIntegrationReady ? "DISPONIBLE" : "CONFIGURACIÓN PENDIENTE"}
             statusClassName={
-              integrationToken
+              webIntegrationReady
                 ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
                 : "border-amber-400/20 bg-amber-500/10 text-amber-300"
             }
             accentClassName="border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
           >
             <div className="mt-5 rounded-xl border border-white/10 bg-slate-950/70 p-4">
-              <p className="text-sm font-semibold text-white">Qué pasa automáticamente</p>
-              <div className="mt-3 space-y-2 text-sm text-slate-400">
-                <p>1. Un cliente completa el formulario de la inmobiliaria.</p>
-                <p>2. La web envía esa consulta al endpoint de RevScale.</p>
-                <p>3. RevScale identifica la organización y busca si el lead ya existe.</p>
-                <p>4. Lo crea o actualiza y lo deja listo para scoring y seguimiento.</p>
+              <p className="text-sm font-semibold text-white">Qué hace RevScale por vos</p>
+              <div className="mt-4 space-y-3 text-sm text-slate-300">
+                <Feature text="Recibe los leads de tu web sin carga manual." />
+                <Feature text="Detecta si el contacto ya existe y evita duplicados." />
+                <Feature text="Organiza la información y calcula una prioridad inicial." />
+                <Feature text="Deja el lead listo para seguimiento, matching y próximas acciones." />
               </div>
-            </div>
-
-            <div className="mt-5 space-y-4">
-              <Credential
-                label="Endpoint de recepción"
-                value={endpoint}
-              />
-
-              <Credential
-                label="Organization ID"
-                value={organizationId}
-              />
-
-              <Credential
-                label="Clave de recepción"
-                value={integrationToken || "Todavía no configurada"}
-                secret
-              />
             </div>
 
             <div className="mt-5 rounded-xl border border-blue-400/20 bg-blue-500/[0.06] p-4">
-              <div className="flex items-start gap-3">
-                <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-blue-300" />
-                <p className="text-sm leading-6 text-slate-300">
-                  Esta clave permite únicamente enviar leads a esta organización. Para una
-                  integración final recomendamos enviarla desde el servidor de la web de la
-                  inmobiliaria y no publicarla en código visible del navegador.
-                </p>
-              </div>
+              <p className="text-sm leading-6 text-slate-300">
+                La conexión técnica se configura de forma segura por detrás. Tu equipo no tiene
+                que copiar claves, ver códigos ni modificar RevScale.
+              </p>
             </div>
+
+            <a
+              href="https://wa.me/59892715418?text=Hola%2C%20quiero%20conectar%20el%20sitio%20web%20de%20mi%20inmobiliaria%20con%20RevScale."
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-400"
+            >
+              Solicitar conexión del sitio web
+            </a>
           </IntegrationCard>
 
           <IntegrationCard
             icon={<MessageCircle className="h-6 w-6" />}
             title="WhatsApp Business"
-            description="Recibí conversaciones de WhatsApp Business y convertí mensajes entrantes en oportunidades comerciales."
-            status="SIGUIENTE ETAPA"
+            description="Centralizá conversaciones de WhatsApp Business y convertí mensajes entrantes en oportunidades comerciales."
+            status="PRÓXIMAMENTE"
             statusClassName="border-blue-400/20 bg-blue-500/10 text-blue-300"
             accentClassName="border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
           >
             <p className="mt-5 text-sm leading-6 text-slate-400">
-              La conexión se realizará mediante la plataforma oficial de WhatsApp Business de
-              Meta. La inmobiliaria autorizará su cuenta sin compartir contraseñas con RevScale.
+              La inmobiliaria podrá autorizar su cuenta de WhatsApp Business y hacer que los
+              mensajes relevantes alimenten automáticamente sus leads en RevScale.
             </p>
           </IntegrationCard>
 
@@ -176,40 +141,29 @@ export default async function IntegrationsPage() {
             icon={<Instagram className="h-6 w-6" />}
             title="Instagram"
             description="Centralizá consultas que llegan por mensajes de una cuenta profesional de Instagram."
-            status="SIGUIENTE ETAPA"
+            status="PRÓXIMAMENTE"
             statusClassName="border-blue-400/20 bg-blue-500/10 text-blue-300"
             accentClassName="border-pink-400/20 bg-pink-500/10 text-pink-300"
           >
             <p className="mt-5 text-sm leading-6 text-slate-400">
-              Los mensajes entrantes podrán alimentar el perfil comercial del lead para que el
-              equipo no tenga que revisar distintos canales por separado.
+              Las consultas podrán sumarse al perfil comercial del lead para que el equipo no
+              tenga que revisar distintos canales por separado.
             </p>
           </IntegrationCard>
 
           <IntegrationCard
             icon={<Facebook className="h-6 w-6" />}
             title="Facebook"
-            description="Conectá Messenger y, más adelante, formularios de campañas para enviar los leads a PropertyOS."
-            status="SIGUIENTE ETAPA"
+            description="Centralizá consultas de Messenger y leads provenientes de campañas."
+            status="PRÓXIMAMENTE"
             statusClassName="border-blue-400/20 bg-blue-500/10 text-blue-300"
             accentClassName="border-blue-400/20 bg-blue-500/10 text-blue-300"
           >
             <p className="mt-5 text-sm leading-6 text-slate-400">
-              RevScale podrá identificar el origen de cada oportunidad y mantener el historial
+              RevScale podrá identificar el origen de cada oportunidad y mantener su actividad
               comercial dentro del mismo lead.
             </p>
           </IntegrationCard>
-        </section>
-
-        <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          <h2 className="text-lg font-semibold">Ejemplo de datos que recibe RevScale</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            El desarrollador de la web de la inmobiliaria puede enviar este JSON mediante POST.
-          </p>
-
-          <pre className="mt-5 overflow-x-auto rounded-xl border border-white/10 bg-slate-950 p-5 text-xs leading-6 text-slate-300">
-            <code>{examplePayload}</code>
-          </pre>
         </section>
 
         <section className="mt-8 rounded-2xl border border-blue-400/20 bg-blue-500/[0.06] p-6">
@@ -220,10 +174,10 @@ export default async function IntegrationsPage() {
               </div>
 
               <div>
-                <h2 className="text-lg font-semibold">Objetivo de las integraciones</h2>
+                <h2 className="text-lg font-semibold">Todo llega a un mismo lugar</h2>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                  Que el agente no tenga que copiar consultas manualmente. RevScale recibe la
-                  información, la organiza y deja cada oportunidad preparada para priorización,
+                  El objetivo es que tu equipo no tenga que copiar consultas ni revisar cada
+                  canal por separado. RevScale organiza cada oportunidad para priorización,
                   seguimiento y matching con propiedades.
                 </p>
               </div>
@@ -231,7 +185,7 @@ export default async function IntegrationsPage() {
 
             <div className="flex items-center gap-2 whitespace-nowrap rounded-xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
               <ShieldCheck className="h-4 w-4 text-blue-300" />
-              Conexiones por organización
+              Integraciones seguras
             </div>
           </div>
         </section>
@@ -240,25 +194,11 @@ export default async function IntegrationsPage() {
   );
 }
 
-function Credential({
-  label,
-  value,
-  secret = false,
-}: {
-  label: string;
-  value: string;
-  secret?: boolean;
-}) {
+function Feature({ text }: { text: string }) {
   return (
-    <div>
-      <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
-        {label}
-      </p>
-      <div className="mt-2 overflow-x-auto rounded-xl border border-white/10 bg-slate-900 px-4 py-3">
-        <code className="whitespace-nowrap text-xs text-slate-300">
-          {secret && value !== "Todavía no configurada" ? value : value}
-        </code>
-      </div>
+    <div className="flex items-start gap-2">
+      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+      <span>{text}</span>
     </div>
   );
 }

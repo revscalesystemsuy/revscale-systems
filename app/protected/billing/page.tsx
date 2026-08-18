@@ -8,7 +8,15 @@ const FEATURES = {
   TRIAL: ["Dashboard comercial", "Gestión básica de leads"],
   STARTER: ["Dashboard comercial", "Gestión de leads", "Follow-ups", "Hasta 3 agentes", "Hasta 500 leads", "Hasta 100 propiedades"],
   PROFESSIONAL: ["Todo Starter", "Hasta 15 agentes", "Leads ilimitados", "Matching IA", "Analytics avanzado", "Reportes comerciales"],
-  ENTERPRISE: ["Todo Professional", "Agentes ilimitados", "Integraciones", "Multi-equipo", "Soporte prioritario"],
+  ENTERPRISE: [
+    "Todo Professional",
+    "Agentes ilimitados",
+    "Equipos y sucursales",
+    "Roles Director, Gerente y Agente",
+    "Asignación automática de leads",
+    "Integraciones avanzadas",
+    "Soporte prioritario",
+  ],
 };
 
 export default async function BillingPage() {

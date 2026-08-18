@@ -12,6 +12,31 @@ export default async function ProtectedLayout({
   const context = await getCurrentOrganizationContext();
   if (!context) redirect("/auth/login");
 
+  if (context.subscriptionStatus === "SUSPENDED") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white">
+        <div className="w-full max-w-xl rounded-2xl border border-amber-400/20 bg-white/[0.03] p-8 text-center">
+          <div className="text-5xl">⏸️</div>
+          <h1 className="mt-5 text-3xl font-bold">Cuenta suspendida</h1>
+          <p className="mt-4 text-slate-400">
+            El acceso a RevScale PropertyOS está temporalmente suspendido. Tus leads, propiedades,
+            historial, usuarios y configuración se conservan sin cambios.
+          </p>
+          <p className="mt-3 text-sm text-slate-500">
+            Cuando la cuenta se reactive, vas a recuperar el acceso con la misma información que tenías antes.
+          </p>
+          <a
+            href="https://wa.me/59892715418"
+            target="_blank"
+            className="mt-7 inline-block rounded-xl bg-blue-500 px-5 py-3 font-semibold text-white hover:bg-blue-400"
+          >
+            Contactar a RevScale
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   const { plan, role } = context;
   const enterprise = plan === "ENTERPRISE";
   const isDirector = role === "OWNER";

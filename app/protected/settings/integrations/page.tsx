@@ -39,11 +39,6 @@ export default async function IntegrationsPage() {
     .eq("id", membership.organization_id)
     .single();
 
-  const webIntegrationReady = Boolean(
-    process.env.INTEGRATIONS_SIGNING_SECRET &&
-      (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
-  );
-
   return (
     <main className="min-h-screen bg-slate-950 p-8 text-white">
       <div className="mx-auto max-w-6xl">
@@ -88,12 +83,8 @@ export default async function IntegrationsPage() {
             icon={<Globe2 className="h-6 w-6" />}
             title="Sitio web"
             description="Recibí automáticamente en RevScale las consultas que llegan desde los formularios de tu página web."
-            status={webIntegrationReady ? "DISPONIBLE" : "CONFIGURACIÓN PENDIENTE"}
-            statusClassName={
-              webIntegrationReady
-                ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
-                : "border-amber-400/20 bg-amber-500/10 text-amber-300"
-            }
+            status="DISPONIBLE"
+            statusClassName="border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
             accentClassName="border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
           >
             <div className="mt-5 rounded-xl border border-white/10 bg-slate-950/70 p-4">

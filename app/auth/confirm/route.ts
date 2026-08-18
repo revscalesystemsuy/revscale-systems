@@ -1,30 +1,40 @@
 import { createClient } from "@/lib/supabase/server";
 import { type EmailOtpType } from "@supabase/supabase-js";
-import { redirect } from "next/navigation";
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const token_hash = searchParams.get("token_hash");
+  const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-  const next = searchParams.get("next") ?? "/";
+  const code = searchParams.get("code");
+  const next = searchParams.get("next") || "/protected";
+  const redirectTo = new URL(next, request.url);
 
-  if (token_hash && type) {
-    const supabase = await createClient();
+  const supabase = await createClient();
 
-    const { error } = await supabase.auth.verifyOtp({
-      type,
-      token_hash,
-    });
-    if (!error) {
-      // redirect user to specified redirect URL or root of app
-      redirect(next);
-    } else {
-      // redirect the user to an error page with some instructions
-      redirect(`/auth/error?error=${error?.message}`);
-    }
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) return NextResponse.redirect(redirectTo);
+
+    return NextResponse.redirect(
+      new URL(`/auth/error?error=${encodeURIComponent(error.message)}`, request.url),
+    );
   }
 
-  // redirect the user to an error page with some instructions
-  redirect(`/auth/error?error=No token hash or type`);
+  if (tokenHash && type) {
+    const { error } = await supabase.auth.verifyOtp({
+      type,
+      token_hash: tokenHash,
+    });
+
+    if (!error) return NextResponse.redirect(redirectTo);
+
+    return NextResponse.redirect(
+      new URL(`/auth/error?error=${encodeURIComponent(error.message)}`, request.url),
+    );
+  }
+
+  return NextResponse.redirect(
+    new URL("/auth/error?error=No%20se%20recibió%20un%20código%20de%20confirmación%20válido", request.url),
+  );
 }

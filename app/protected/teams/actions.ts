@@ -16,7 +16,7 @@ async function getEnterpriseManagerContext() {
 
   const { data: membership } = await supabase
     .from("organization_members")
-    .select("organization_id,role")
+    .select("organization_id,role,team_id")
     .eq("user_id", userId)
     .eq("status", "ACTIVE")
     .single();
@@ -26,10 +26,19 @@ async function getEnterpriseManagerContext() {
   }
 
   return {
+    userId,
     organizationId: membership.organization_id,
     role: membership.role,
+    teamId: membership.team_id,
     admin: createAdminClient(),
   };
+}
+
+function parseZones(value: FormDataEntryValue | null) {
+  return String(value || "")
+    .split(",")
+    .map((zone) => zone.trim())
+    .filter(Boolean);
 }
 
 export async function createTeam(formData: FormData) {
@@ -37,10 +46,7 @@ export async function createTeam(formData: FormData) {
 
   const name = String(formData.get("name") || "").trim();
   const description = String(formData.get("description") || "").trim();
-  const zones = String(formData.get("zones") || "")
-    .split(",")
-    .map((zone) => zone.trim())
-    .filter(Boolean);
+  const zones = parseZones(formData.get("zones"));
 
   if (!name) throw new Error("Ingresá un nombre para el equipo.");
 
@@ -57,10 +63,96 @@ export async function createTeam(formData: FormData) {
   revalidatePath("/protected/teams");
 }
 
+export async function updateTeam(formData: FormData) {
+  const { organizationId, admin } = await getEnterpriseManagerContext();
+
+  const teamId = String(formData.get("team_id") || "");
+  const name = String(formData.get("name") || "").trim();
+  const description = String(formData.get("description") || "").trim();
+  const zones = parseZones(formData.get("zones"));
+  const autoAssign = String(formData.get("auto_assign") || "false") === "true";
+  const isActive = String(formData.get("is_active") || "false") === "true";
+
+  if (!teamId || !name) throw new Error("Datos de equipo inválidos.");
+
+  const { error } = await admin
+    .from("teams")
+    .update({
+      name,
+      description: description || null,
+      zones,
+      auto_assign: autoAssign,
+      is_active: isActive,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", teamId)
+    .eq("organization_id", organizationId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/protected/teams");
+}
+
+export async function deleteTeam(formData: FormData) {
+  const { organizationId, role, admin } = await getEnterpriseManagerContext();
+  if (role !== "OWNER") throw new Error("Solo el Director puede eliminar equipos.");
+
+  const teamId = String(formData.get("team_id") || "");
+  if (!teamId) throw new Error("Equipo inválido.");
+
+  const { data: team } = await admin
+    .from("teams")
+    .select("id,name")
+    .eq("id", teamId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (!team) throw new Error("Equipo no encontrado.");
+  if (team.name === "Equipo Principal") {
+    throw new Error("El Equipo Principal no se puede eliminar.");
+  }
+
+  const [{ count: membersCount }, { count: leadsCount }] = await Promise.all([
+    admin
+      .from("organization_members")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("team_id", teamId),
+    admin
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("team_id", teamId),
+  ]);
+
+  if ((membersCount || 0) > 0 || (leadsCount || 0) > 0) {
+    throw new Error("Mové primero los agentes y leads de este equipo antes de eliminarlo.");
+  }
+
+  const { error } = await admin
+    .from("teams")
+    .delete()
+    .eq("id", teamId)
+    .eq("organization_id", organizationId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/protected/teams");
+}
+
 export async function updateMemberTeam(formData: FormData) {
   const { organizationId, admin } = await getEnterpriseManagerContext();
   const memberId = String(formData.get("member_id") || "");
   const teamId = String(formData.get("team_id") || "");
+
+  if (teamId) {
+    const { data: team } = await admin
+      .from("teams")
+      .select("id")
+      .eq("id", teamId)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    if (!team) throw new Error("El equipo seleccionado no pertenece a esta organización.");
+  }
 
   const { error } = await admin
     .from("organization_members")

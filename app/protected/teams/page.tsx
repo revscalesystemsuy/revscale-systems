@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { currentPlanHasFeature } from "@/lib/plan-access";
-import { createTeam, updateMemberRole, updateMemberTeam } from "./actions";
+import {
+  createTeam,
+  deleteTeam,
+  updateMemberRole,
+  updateMemberTeam,
+  updateTeam,
+} from "./actions";
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: "Director",
@@ -35,7 +41,7 @@ export default async function TeamsPage() {
 
   const { data: currentMembership } = await supabase
     .from("organization_members")
-    .select("organization_id,role")
+    .select("organization_id,role,team_id")
     .eq("user_id", userId)
     .eq("status", "ACTIVE")
     .single();
@@ -56,7 +62,7 @@ export default async function TeamsPage() {
     supabase.from("profiles").select("id,full_name,phone"),
     supabase
       .from("leads")
-      .select("id,team_id,assigned_to")
+      .select("id,team_id,assigned_to,lead_temperature")
       .eq("organization_id", currentMembership.organization_id),
   ]);
 
@@ -69,9 +75,9 @@ export default async function TeamsPage() {
 
     return {
       ...team,
-      members: teamMembers.length,
       agents: teamMembers.filter((member) => member.role === "AGENT" && member.status === "ACTIVE").length,
       leads: teamLeads.length,
+      hot: teamLeads.filter((lead) => lead.lead_temperature === "HOT").length,
       unassigned: teamLeads.filter((lead) => !lead.assigned_to).length,
     };
   });
@@ -84,7 +90,7 @@ export default async function TeamsPage() {
             <div className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-400">Enterprise</div>
             <h1 className="mt-2 text-3xl font-bold">Equipos y sucursales</h1>
             <p className="mt-2 max-w-3xl text-slate-400">
-              Cada lead entra al equipo correspondiente por zona y se asigna al agente activo con menor carga.
+              Administrá zonas, reparto automático, carga comercial y permisos de cada equipo.
             </p>
           </div>
           <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-200">
@@ -92,22 +98,28 @@ export default async function TeamsPage() {
           </div>
         </div>
 
-        <section className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <section className="mt-8 grid gap-5 xl:grid-cols-2">
           {teamRows.map((team) => (
-            <div key={team.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-              <div className="flex items-start justify-between gap-3">
+            <article key={team.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+              <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-bold">{team.name}</h2>
                   <p className="mt-1 text-sm text-slate-400">{team.description || "Sin descripción"}</p>
                 </div>
-                <span className="rounded-full bg-green-500/10 px-3 py-1 text-xs text-green-400">
-                  {team.auto_assign ? "Auto" : "Manual"}
-                </span>
+                <div className="flex gap-2">
+                  <span className={`rounded-full px-3 py-1 text-xs ${team.is_active ? "bg-green-500/10 text-green-400" : "bg-white/5 text-slate-500"}`}>
+                    {team.is_active ? "Activo" : "Inactivo"}
+                  </span>
+                  <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs text-blue-300">
+                    {team.auto_assign ? "Auto" : "Manual"}
+                  </span>
+                </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-3 gap-3">
+              <div className="mt-5 grid grid-cols-4 gap-3">
                 <Metric label="Agentes" value={team.agents} />
                 <Metric label="Leads" value={team.leads} />
+                <Metric label="HOT" value={team.hot} />
                 <Metric label="Sin asignar" value={team.unassigned} />
               </div>
 
@@ -117,7 +129,34 @@ export default async function TeamsPage() {
                   {team.zones?.length ? team.zones.join(", ") : "General / todas las zonas"}
                 </p>
               </div>
-            </div>
+
+              {canManage && (
+                <form action={updateTeam} className="mt-6 grid gap-3 md:grid-cols-2">
+                  <input type="hidden" name="team_id" value={team.id} />
+                  <input name="name" defaultValue={team.name} className="rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm" />
+                  <input name="description" defaultValue={team.description || ""} placeholder="Descripción" className="rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm" />
+                  <input name="zones" defaultValue={(team.zones || []).join(", ")} placeholder="Pocitos, Carrasco" className="rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm md:col-span-2" />
+                  <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <input type="checkbox" name="auto_assign" value="true" defaultChecked={team.auto_assign} />
+                    Asignación automática
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <input type="checkbox" name="is_active" value="true" defaultChecked={team.is_active} />
+                    Equipo activo
+                  </label>
+                  <button className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold hover:bg-blue-400 md:col-span-2">
+                    Guardar cambios
+                  </button>
+                </form>
+              )}
+
+              {isOwner && team.name !== "Equipo Principal" && (
+                <form action={deleteTeam} className="mt-3">
+                  <input type="hidden" name="team_id" value={team.id} />
+                  <button className="text-sm text-red-300 hover:text-red-200">Eliminar equipo vacío</button>
+                </form>
+              )}
+            </article>
           ))}
         </section>
 
@@ -135,16 +174,23 @@ export default async function TeamsPage() {
 
         <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
           <h2 className="text-xl font-semibold">Personas y permisos</h2>
+          <p className="mt-2 text-sm text-slate-400">Director ve toda la organización, Gerente su equipo y Agente sus leads asignados.</p>
           <div className="mt-5 space-y-3">
             {(members || []).map((member) => {
               const profile = (profiles || []).find((item) => item.id === member.user_id);
               const assignedLeads = (leads || []).filter((lead) => lead.assigned_to === member.user_id).length;
+              const memberTeam = (teams || []).find((team) => team.id === member.team_id);
 
               return (
-                <div key={member.id} className="grid gap-4 rounded-xl border border-white/10 p-4 lg:grid-cols-[1.4fr_0.8fr_1fr_1fr] lg:items-center">
+                <div key={member.id} className="grid gap-4 rounded-xl border border-white/10 p-4 lg:grid-cols-[1.2fr_0.8fr_1fr_1fr] lg:items-center">
                   <div>
                     <p className="font-semibold">{profile?.full_name || "Sin nombre"}</p>
-                    <p className="mt-1 text-xs text-slate-500">{assignedLeads} leads asignados</p>
+                    <p className="mt-1 text-xs text-slate-500">{assignedLeads} leads · {memberTeam?.name || "Sin equipo"}</p>
+                    {assignedLeads > 0 && (
+                      <Link href={`/protected/leads?agent=${member.user_id}`} className="mt-2 inline-block text-xs text-blue-400 hover:text-blue-300">
+                        Ver sus leads →
+                      </Link>
+                    )}
                   </div>
 
                   <div>

@@ -40,6 +40,12 @@ export default async function ProtectedLayout({
           <NavItem href="/protected/interactions">Interacciones</NavItem>
           <NavItem href="/protected/followups">Follow-ups</NavItem>
           <NavItem href="/protected/agents">Agentes</NavItem>
+          <NavItem
+            href="/protected/teams"
+            locked={!planHasFeature(plan, "enterprise_operations")}
+          >
+            Equipos
+          </NavItem>
           <NavItem href="/protected/reports" locked={!planHasFeature(plan, "reports")}>
             Reportes
           </NavItem>

@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import UpgradePlanGate from "@/components/UpgradePlanGate";
 import { currentPlanHasFeature } from "@/lib/plan-access";
+import { requireEnterpriseRole } from "@/lib/organization-role";
 
 export default async function ReportsLayout({ children }: { children: ReactNode }) {
+  await requireEnterpriseRole(["OWNER", "MANAGER"]);
   const allowed = await currentPlanHasFeature("reports");
 
   if (!allowed) {

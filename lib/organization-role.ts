@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { normalizePlan } from "@/lib/plan-access";
+import { normalizePlan, planHasFeature, type PlanFeature } from "@/lib/plan-access";
 
 export type OrganizationRole = "OWNER" | "MANAGER" | "AGENT";
 
@@ -45,16 +45,56 @@ export async function getCurrentOrganizationContext() {
   };
 }
 
-export async function requireEnterpriseRole(allowedRoles: OrganizationRole[]) {
+async function requireActiveContext() {
   const context = await getCurrentOrganizationContext();
   if (!context) redirect("/auth/login");
 
-  if (context.subscriptionStatus !== "ACTIVE") {
+  if (context.subscriptionStatus !== "ACTIVE" || context.membershipStatus !== "ACTIVE") {
     redirect("/protected");
   }
 
+  return context;
+}
+
+export async function requireEnterpriseRole(allowedRoles: OrganizationRole[]) {
+  const context = await requireActiveContext();
+
   if (context.plan === "ENTERPRISE" && !allowedRoles.includes(context.role)) {
     redirect("/protected");
+  }
+
+  return context;
+}
+
+export async function requireManagementFeature(feature: PlanFeature) {
+  const context = await requireActiveContext();
+
+  if (!planHasFeature(context.plan, feature)) {
+    redirect("/protected/billing");
+  }
+
+  if (context.plan === "ENTERPRISE" && !["OWNER", "MANAGER"].includes(context.role)) {
+    redirect("/protected");
+  }
+
+  return context;
+}
+
+export async function requireCompanyAdmin() {
+  const context = await requireActiveContext();
+
+  if (context.plan === "ENTERPRISE" && context.role !== "OWNER") {
+    redirect("/protected");
+  }
+
+  return context;
+}
+
+export async function requireCompanyAdminFeature(feature: PlanFeature) {
+  const context = await requireCompanyAdmin();
+
+  if (!planHasFeature(context.plan, feature)) {
+    redirect("/protected/billing");
   }
 
   return context;

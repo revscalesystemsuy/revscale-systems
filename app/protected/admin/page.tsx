@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { activatePlan, rejectPlan } from "./actions";
 
@@ -18,8 +17,7 @@ export default async function AdminPage() {
 
   if (!platformAdmin) redirect("/protected");
 
-  const admin = createAdminClient();
-  const { data: requests } = await admin
+  const { data: requests } = await supabase
     .from("plan_requests")
     .select("id,name,company,email,phone,plan,status,organization_id,created_at")
     .order("created_at", { ascending: false });

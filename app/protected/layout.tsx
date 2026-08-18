@@ -52,6 +52,7 @@ export default async function ProtectedLayout({
           >
             Integraciones
           </NavItem>
+          <NavItem href="/protected/billing">Mi Plan</NavItem>
           <NavItem href="/protected/settings">Configuración</NavItem>
         </nav>
 

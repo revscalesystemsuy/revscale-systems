@@ -1,7 +1,8 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const PLAN_LIMITS = {
   STARTER: {
@@ -30,29 +31,46 @@ function normalizeRequestedPlan(plan: string) {
   throw new Error("Plan inválido");
 }
 
+async function requirePlatformAdmin() {
+  const supabase = await createClient();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
+
+  if (!userId) throw new Error("Sesión inválida");
+
+  const { data: platformAdmin } = await supabase
+    .from("platform_admins")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!platformAdmin) throw new Error("Acceso no autorizado");
+
+  return createAdminClient();
+}
+
 export async function activatePlan(formData: FormData) {
   const requestId = String(formData.get("request_id") || "");
+  if (!requestId) throw new Error("Solicitud inválida");
 
-  if (!requestId) {
-    throw new Error("Solicitud inválida");
-  }
+  const admin = await requirePlatformAdmin();
 
-  const supabase = await createClient();
-
-  const { data: request } = await supabase
+  const { data: request, error: requestFetchError } = await admin
     .from("plan_requests")
-    .select("id,organization_id,plan")
+    .select("id,organization_id,plan,status")
     .eq("id", requestId)
     .single();
 
-  if (!request) {
-    throw new Error("Solicitud no encontrada");
+  if (requestFetchError || !request) throw new Error("Solicitud no encontrada");
+  if (request.status !== "PENDING") throw new Error("La solicitud ya fue procesada");
+  if (!request.organization_id) {
+    throw new Error("La solicitud todavía no está vinculada a una organización.");
   }
 
   const plan = normalizeRequestedPlan(String(request.plan));
   const limits = PLAN_LIMITS[plan];
 
-  const { error: subscriptionError } = await supabase
+  const { data: updatedSubscription, error: subscriptionError } = await admin
     .from("subscriptions")
     .update({
       plan,
@@ -60,20 +78,19 @@ export async function activatePlan(formData: FormData) {
       ...limits,
       updated_at: new Date().toISOString(),
     })
-    .eq("organization_id", request.organization_id);
+    .eq("organization_id", request.organization_id)
+    .select("id")
+    .maybeSingle();
 
-  if (subscriptionError) {
-    throw new Error(subscriptionError.message);
-  }
+  if (subscriptionError) throw new Error(subscriptionError.message);
+  if (!updatedSubscription) throw new Error("No se encontró la suscripción de la organización.");
 
-  const { error: requestError } = await supabase
+  const { error: requestError } = await admin
     .from("plan_requests")
     .update({ status: "ACTIVE" })
     .eq("id", requestId);
 
-  if (requestError) {
-    throw new Error(requestError.message);
-  }
+  if (requestError) throw new Error(requestError.message);
 
   revalidatePath("/protected/admin");
   revalidatePath("/protected/billing");
@@ -81,21 +98,17 @@ export async function activatePlan(formData: FormData) {
 
 export async function rejectPlan(formData: FormData) {
   const requestId = String(formData.get("request_id") || "");
+  if (!requestId) throw new Error("Solicitud inválida");
 
-  if (!requestId) {
-    throw new Error("Solicitud inválida");
-  }
+  const admin = await requirePlatformAdmin();
 
-  const supabase = await createClient();
-
-  const { error } = await supabase
+  const { error } = await admin
     .from("plan_requests")
     .update({ status: "REJECTED" })
-    .eq("id", requestId);
+    .eq("id", requestId)
+    .eq("status", "PENDING");
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
 
   revalidatePath("/protected/admin");
 }

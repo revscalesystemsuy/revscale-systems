@@ -12,7 +12,7 @@ export default async function ProtectedLayout({
   const context = await getCurrentOrganizationContext();
   if (!context) redirect("/auth/login");
 
-  const { plan, role } = context;
+  const { plan, role, supabase, userId } = context;
   const enterprise = plan === "ENTERPRISE";
   const isDirector = role === "OWNER";
   const isManager = role === "MANAGER";
@@ -21,6 +21,12 @@ export default async function ProtectedLayout({
   const canImport = !enterprise || isDirector || isManager;
   const canSeeManagement = !enterprise || isDirector || isManager;
   const canSeeCompanyAdmin = !enterprise || isDirector;
+
+  const { count: unreadNotifications } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .is("read_at", null);
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-white">
@@ -46,6 +52,7 @@ export default async function ProtectedLayout({
 
         <nav className="mt-8 flex flex-col gap-2">
           <NavItem href="/protected">Dashboard</NavItem>
+          <NavItem href="/protected/notifications" badge={unreadNotifications || 0}>Notificaciones</NavItem>
           <NavItem href="/protected/leads">Leads</NavItem>
           <NavItem href="/protected/pipeline">Pipeline</NavItem>
           <NavItem href="/protected/properties">Propiedades</NavItem>
@@ -97,10 +104,12 @@ function NavItem({
   href,
   children,
   locked = false,
+  badge = 0,
 }: {
   href: string;
   children: ReactNode;
   locked?: boolean;
+  badge?: number;
 }) {
   return (
     <Link
@@ -108,7 +117,14 @@ function NavItem({
       className="flex items-center justify-between rounded-lg px-3 py-2 text-slate-300 transition hover:bg-white/5 hover:text-white"
     >
       <span>{children}</span>
-      {locked && <span className="text-xs text-slate-500">🔒</span>}
+      <span className="flex items-center gap-2">
+        {badge > 0 && (
+          <span className="min-w-5 rounded-full bg-blue-500 px-1.5 py-0.5 text-center text-[10px] font-bold text-white">
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
+        {locked && <span className="text-xs text-slate-500">🔒</span>}
+      </span>
     </Link>
   );
 }

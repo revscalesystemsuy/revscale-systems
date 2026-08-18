@@ -21,7 +21,7 @@ export async function getCurrentOrganizationContext() {
     .from("organization_members")
     .select("id,organization_id,role,status,team_id")
     .eq("user_id", userId)
-    .eq("status", "ACTIVE")
+    .in("status", ["ACTIVE", "SUSPENDED_BILLING"])
     .single();
 
   if (!membership) return null;
@@ -36,6 +36,7 @@ export async function getCurrentOrganizationContext() {
     supabase,
     userId,
     membershipId: membership.id,
+    membershipStatus: membership.status,
     organizationId: membership.organization_id,
     role: membership.role as OrganizationRole,
     teamId: membership.team_id as string | null,
@@ -47,6 +48,10 @@ export async function getCurrentOrganizationContext() {
 export async function requireEnterpriseRole(allowedRoles: OrganizationRole[]) {
   const context = await getCurrentOrganizationContext();
   if (!context) redirect("/auth/login");
+
+  if (context.subscriptionStatus !== "ACTIVE") {
+    redirect("/protected");
+  }
 
   if (context.plan === "ENTERPRISE" && !allowedRoles.includes(context.role)) {
     redirect("/protected");

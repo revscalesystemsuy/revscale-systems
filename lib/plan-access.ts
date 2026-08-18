@@ -1,7 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 
 export type PlanName = "TRIAL" | "STARTER" | "PROFESSIONAL" | "ENTERPRISE";
-export type PlanFeature = "matching" | "analytics" | "reports" | "integrations";
+export type PlanFeature =
+  | "ai_assistant"
+  | "matching"
+  | "analytics"
+  | "reports"
+  | "integrations";
 
 export function normalizePlan(plan?: string | null): PlanName {
   const value = String(plan || "TRIAL").toUpperCase();
@@ -12,14 +17,22 @@ export function normalizePlan(plan?: string | null): PlanName {
   return "TRIAL";
 }
 
-export function planHasFeature(plan: string | null | undefined, feature: PlanFeature) {
+export function planHasFeature(
+  plan: string | null | undefined,
+  feature: PlanFeature
+) {
   const normalized = normalizePlan(plan);
 
   if (feature === "integrations") {
     return normalized === "ENTERPRISE";
   }
 
-  if (feature === "matching" || feature === "analytics" || feature === "reports") {
+  if (
+    feature === "ai_assistant" ||
+    feature === "matching" ||
+    feature === "analytics" ||
+    feature === "reports"
+  ) {
     return normalized === "PROFESSIONAL" || normalized === "ENTERPRISE";
   }
 

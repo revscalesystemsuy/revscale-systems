@@ -8,7 +8,6 @@ async function requirePlatformAdmin() {
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
-
   if (!userId) throw new Error("Sesión inválida");
 
   const { data: platformAdmin } = await supabase
@@ -26,15 +25,11 @@ export async function activatePlan(formData: FormData) {
   if (!requestId) throw new Error("Solicitud inválida");
 
   const supabase = await requirePlatformAdmin();
-
   const { error } = await supabase.rpc("platform_admin_activate_plan_request", {
     p_request_id: requestId,
   });
 
-  if (error) {
-    const message = error.message || "No se pudo activar la solicitud.";
-    redirect(`/protected/admin?error=${encodeURIComponent(message)}`);
-  }
+  if (error) redirect(`/protected/admin?error=${encodeURIComponent(error.message || "No se pudo activar la solicitud.")}`);
 
   revalidatePath("/protected/admin");
   revalidatePath("/protected/billing");
@@ -46,17 +41,39 @@ export async function rejectPlan(formData: FormData) {
   if (!requestId) throw new Error("Solicitud inválida");
 
   const supabase = await requirePlatformAdmin();
-
   const { error } = await supabase
     .from("plan_requests")
     .update({ status: "REJECTED" })
     .eq("id", requestId)
     .eq("status", "PENDING");
 
-  if (error) {
-    redirect(`/protected/admin?error=${encodeURIComponent(error.message)}`);
-  }
+  if (error) redirect(`/protected/admin?error=${encodeURIComponent(error.message)}`);
 
   revalidatePath("/protected/admin");
   redirect("/protected/admin?success=Solicitud rechazada");
+}
+
+async function setSuspension(formData: FormData, suspend: boolean) {
+  const organizationId = String(formData.get("organization_id") || "");
+  if (!organizationId) throw new Error("Organización inválida");
+
+  const supabase = await requirePlatformAdmin();
+  const { error } = await supabase.rpc("platform_admin_set_organization_suspension", {
+    p_organization_id: organizationId,
+    p_suspend: suspend,
+  });
+
+  if (error) redirect(`/protected/admin?error=${encodeURIComponent(error.message)}`);
+
+  revalidatePath("/protected/admin");
+  revalidatePath("/protected");
+  redirect(`/protected/admin?success=${encodeURIComponent(suspend ? "Cuenta suspendida. Los datos se conservaron." : "Cuenta reactivada correctamente.")}`);
+}
+
+export async function suspendOrganization(formData: FormData) {
+  return setSuspension(formData, true);
+}
+
+export async function reactivateOrganization(formData: FormData) {
+  return setSuspension(formData, false);
 }

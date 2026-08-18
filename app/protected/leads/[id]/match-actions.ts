@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { currentPlanHasFeature } from "@/lib/plan-access";
+import { getCurrentSubscription, currentPlanHasFeature } from "@/lib/plan-access";
 
 export async function findMatchingProperties(formData: FormData) {
   const leadId = String(formData.get("lead_id") || "");
@@ -17,19 +17,24 @@ export async function getMatchingProperties(leadId: string) {
   const allowed = await currentPlanHasFeature("matching");
   if (!allowed) return [];
 
+  const subscription = await getCurrentSubscription();
+  if (!subscription?.organizationId) return [];
+
   const supabase = await createClient();
 
   const { data: lead } = await supabase
     .from("leads")
     .select("property_type,operation,primary_zone,budget_max,currency,bedrooms_min")
     .eq("id", leadId)
-    .single();
+    .eq("organization_id", subscription.organizationId)
+    .maybeSingle();
 
   if (!lead) return [];
 
   const { data: properties } = await supabase
     .from("properties")
     .select("id,title,property_type,operation,zone,price,currency,bedrooms,address,status")
+    .eq("organization_id", subscription.organizationId)
     .limit(50);
 
   const matches = properties
@@ -99,19 +104,24 @@ export async function generatePropertyWhatsApp(leadId: string, propertyId: strin
     throw new Error("El Matching IA está disponible desde el plan Professional.");
   }
 
+  const subscription = await getCurrentSubscription();
+  if (!subscription?.organizationId) throw new Error("Sin organización");
+
   const supabase = await createClient();
 
   const { data: lead } = await supabase
     .from("leads")
     .select("full_name")
     .eq("id", leadId)
-    .single();
+    .eq("organization_id", subscription.organizationId)
+    .maybeSingle();
 
   const { data: property } = await supabase
     .from("properties")
     .select("title,zone,price,currency,bedrooms")
     .eq("id", propertyId)
-    .single();
+    .eq("organization_id", subscription.organizationId)
+    .maybeSingle();
 
   if (!lead || !property) {
     throw new Error("Datos no encontrados");

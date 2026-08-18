@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { generateWebIntegrationToken } from "@/lib/integrations/web-key";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
@@ -7,6 +8,7 @@ import {
   Facebook,
   Globe2,
   Instagram,
+  KeyRound,
   MessageCircle,
   PlugZap,
   ShieldCheck,
@@ -38,6 +40,31 @@ export default async function IntegrationsPage() {
     .select("id, name, slug")
     .eq("id", membership.organization_id)
     .single();
+
+  const organizationId = organization?.id || membership.organization_id;
+  const integrationToken = generateWebIntegrationToken(organizationId);
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://revscale-systems-eta.vercel.app";
+  const endpoint = `${appUrl}/api/integrations/web-leads`;
+
+  const examplePayload = JSON.stringify(
+    {
+      organization_id: organizationId,
+      token: integrationToken || "CONFIGURAR_INTEGRATIONS_SIGNING_SECRET",
+      full_name: "Nombre del cliente",
+      phone: "099123456",
+      email: "cliente@email.com",
+      operation: "COMPRA",
+      property_type: "APARTAMENTO",
+      primary_zone: "Pocitos",
+      budget_max: 250000,
+      currency: "USD",
+      bedrooms_min: 2,
+    },
+    null,
+    2
+  );
 
   return (
     <main className="min-h-screen bg-slate-950 p-8 text-white">
@@ -83,23 +110,51 @@ export default async function IntegrationsPage() {
             icon={<Globe2 className="h-6 w-6" />}
             title="Sitio web"
             description="Recibí automáticamente en RevScale las consultas de los formularios de tu página web."
-            status="PRIMERA INTEGRACIÓN"
-            statusClassName="border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
+            status={integrationToken ? "LISTA PARA CONFIGURAR" : "FALTA VARIABLE DE ENTORNO"}
+            statusClassName={
+              integrationToken
+                ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
+                : "border-amber-400/20 bg-amber-500/10 text-amber-300"
+            }
             accentClassName="border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
           >
             <div className="mt-5 rounded-xl border border-white/10 bg-slate-950/70 p-4">
-              <p className="text-sm font-semibold text-white">Qué va a pasar</p>
+              <p className="text-sm font-semibold text-white">Qué pasa automáticamente</p>
               <div className="mt-3 space-y-2 text-sm text-slate-400">
                 <p>1. Un cliente completa el formulario de la inmobiliaria.</p>
-                <p>2. La web envía esa consulta a RevScale.</p>
-                <p>3. RevScale crea o actualiza el lead automáticamente.</p>
-                <p>4. El lead queda disponible para scoring, seguimiento y matching.</p>
+                <p>2. La web envía esa consulta al endpoint de RevScale.</p>
+                <p>3. RevScale identifica la organización y busca si el lead ya existe.</p>
+                <p>4. Lo crea o actualiza y lo deja listo para scoring y seguimiento.</p>
               </div>
             </div>
 
-            <div className="mt-4 flex items-center gap-2 text-sm text-emerald-300">
-              <CheckCircle2 className="h-4 w-4" />
-              La implementamos primero porque no depende de aprobaciones externas.
+            <div className="mt-5 space-y-4">
+              <Credential
+                label="Endpoint de recepción"
+                value={endpoint}
+              />
+
+              <Credential
+                label="Organization ID"
+                value={organizationId}
+              />
+
+              <Credential
+                label="Clave de recepción"
+                value={integrationToken || "Todavía no configurada"}
+                secret
+              />
+            </div>
+
+            <div className="mt-5 rounded-xl border border-blue-400/20 bg-blue-500/[0.06] p-4">
+              <div className="flex items-start gap-3">
+                <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-blue-300" />
+                <p className="text-sm leading-6 text-slate-300">
+                  Esta clave permite únicamente enviar leads a esta organización. Para una
+                  integración final recomendamos enviarla desde el servidor de la web de la
+                  inmobiliaria y no publicarla en código visible del navegador.
+                </p>
+              </div>
             </div>
           </IntegrationCard>
 
@@ -146,6 +201,17 @@ export default async function IntegrationsPage() {
           </IntegrationCard>
         </section>
 
+        <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+          <h2 className="text-lg font-semibold">Ejemplo de datos que recibe RevScale</h2>
+          <p className="mt-2 text-sm text-slate-400">
+            El desarrollador de la web de la inmobiliaria puede enviar este JSON mediante POST.
+          </p>
+
+          <pre className="mt-5 overflow-x-auto rounded-xl border border-white/10 bg-slate-950 p-5 text-xs leading-6 text-slate-300">
+            <code>{examplePayload}</code>
+          </pre>
+        </section>
+
         <section className="mt-8 rounded-2xl border border-blue-400/20 bg-blue-500/[0.06] p-6">
           <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
             <div className="flex gap-4">
@@ -174,6 +240,29 @@ export default async function IntegrationsPage() {
   );
 }
 
+function Credential({
+  label,
+  value,
+  secret = false,
+}: {
+  label: string;
+  value: string;
+  secret?: boolean;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </p>
+      <div className="mt-2 overflow-x-auto rounded-xl border border-white/10 bg-slate-900 px-4 py-3">
+        <code className="whitespace-nowrap text-xs text-slate-300">
+          {secret && value !== "Todavía no configurada" ? value : value}
+        </code>
+      </div>
+    </div>
+  );
+}
+
 function IntegrationCard({
   icon,
   title,
@@ -196,7 +285,9 @@ function IntegrationCard({
       <div className="flex items-start justify-between gap-4">
         <div className={`rounded-xl border p-3 ${accentClassName}`}>{icon}</div>
 
-        <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold tracking-wide ${statusClassName}`}>
+        <span
+          className={`rounded-full border px-3 py-1 text-[11px] font-semibold tracking-wide ${statusClassName}`}
+        >
           {status}
         </span>
       </div>

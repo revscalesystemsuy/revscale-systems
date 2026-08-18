@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   normalizeEmail,
   normalizePhone,
@@ -42,9 +43,16 @@ async function getImportContext() {
     throw new Error("La organización no tiene una suscripción activa.");
   }
 
+  if (
+    membership.role === "MANAGER" &&
+    String(subscription.plan || "").toUpperCase() === "ENTERPRISE" &&
+    !membership.team_id
+  ) {
+    throw new Error("El Gerente debe tener un equipo asignado antes de importar leads.");
+  }
+
   return {
-    supabase,
-    userId,
+    admin: createAdminClient(),
     organizationId: membership.organization_id,
     role: membership.role,
     teamId: membership.team_id,
@@ -71,7 +79,7 @@ function fail(message: string): never {
 
 export async function importLeads(formData: FormData) {
   try {
-    const { supabase, organizationId, role, teamId, subscription } = await getImportContext();
+    const { admin, organizationId, role, teamId, subscription } = await getImportContext();
     const { rows } = await readCsvFile(formData);
 
     const parsedRows = rows.map((row, index) => {
@@ -86,25 +94,16 @@ export async function importLeads(formData: FormData) {
       const budget = parseFlexibleNumber(pick(row, ["budget_max", "presupuesto", "presupuesto_maximo"]));
       const bedrooms = parseFlexibleNumber(pick(row, ["bedrooms_min", "dormitorios", "dormitorios_minimos"]));
 
-      if (!fullName && !phone && !email) {
-        throw new Error(`Fila ${line}: necesitás al menos nombre, teléfono o email.`);
-      }
-      if (operation && !["COMPRA", "ALQUILER"].includes(operation)) {
-        throw new Error(`Fila ${line}: operación debe ser COMPRA o ALQUILER.`);
-      }
-      if (currency && !["USD", "UYU"].includes(currency)) {
-        throw new Error(`Fila ${line}: moneda debe ser USD o UYU.`);
-      }
+      if (!fullName && !phone && !email) throw new Error(`Fila ${line}: necesitás al menos nombre, teléfono o email.`);
+      if (operation && !["COMPRA", "ALQUILER"].includes(operation)) throw new Error(`Fila ${line}: operación debe ser COMPRA o ALQUILER.`);
+      if (!["USD", "UYU"].includes(currency)) throw new Error(`Fila ${line}: moneda debe ser USD o UYU.`);
       if (budget !== null && budget < 0) throw new Error(`Fila ${line}: presupuesto inválido.`);
-      if (bedrooms !== null && (!Number.isInteger(bedrooms) || bedrooms < 0)) {
-        throw new Error(`Fila ${line}: dormitorios debe ser un entero válido.`);
-      }
+      if (bedrooms !== null && (!Number.isInteger(bedrooms) || bedrooms < 0)) throw new Error(`Fila ${line}: dormitorios debe ser un entero válido.`);
 
       let score = 30;
       if (zone) score += 20;
       if (budget) score += 25;
       if (bedrooms) score += 15;
-      const temperature = score >= 80 ? "HOT" : score >= 50 ? "WARM" : "COLD";
 
       return {
         organization_id: organizationId,
@@ -118,7 +117,7 @@ export async function importLeads(formData: FormData) {
         currency,
         bedrooms_min: bedrooms,
         lead_score: score,
-        lead_temperature: temperature,
+        lead_temperature: score >= 80 ? "HOT" : score >= 50 ? "WARM" : "COLD",
         next_action: "Contactar cliente",
         team_id: role === "MANAGER" ? teamId : null,
       };
@@ -142,14 +141,8 @@ export async function importLeads(formData: FormData) {
     }
 
     const [{ data: existing }, { count: currentCount }] = await Promise.all([
-      supabase
-        .from("leads")
-        .select("phone,email")
-        .eq("organization_id", organizationId),
-      supabase
-        .from("leads")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", organizationId),
+      admin.from("leads").select("phone,email").eq("organization_id", organizationId),
+      admin.from("leads").select("id", { count: "exact", head: true }).eq("organization_id", organizationId),
     ]);
 
     const existingPhones = new Set((existing || []).map((lead) => normalizePhone(lead.phone || "")).filter(Boolean));
@@ -168,12 +161,10 @@ export async function importLeads(formData: FormData) {
       throw new Error(`La importación supera el límite de ${maxLeads} leads de tu plan.`);
     }
 
-    if (!toInsert.length) {
-      redirect(`/protected/imports?type=leads&imported=0&duplicates=${duplicateCount}`);
+    if (toInsert.length) {
+      const { error } = await admin.from("leads").insert(toInsert);
+      if (error) throw new Error(error.message);
     }
-
-    const { error } = await supabase.from("leads").insert(toInsert);
-    if (error) throw new Error(error.message);
 
     redirect(`/protected/imports?type=leads&imported=${toInsert.length}&duplicates=${duplicateCount}`);
   } catch (error) {
@@ -184,7 +175,7 @@ export async function importLeads(formData: FormData) {
 
 export async function importProperties(formData: FormData) {
   try {
-    const { supabase, organizationId, subscription } = await getImportContext();
+    const { admin, organizationId, subscription } = await getImportContext();
     const { rows } = await readCsvFile(formData);
 
     const parsedRows = rows.map((row, index) => {
@@ -206,9 +197,8 @@ export async function importProperties(formData: FormData) {
       if (!["COMPRA", "ALQUILER"].includes(operation)) throw new Error(`Fila ${line}: operación debe ser COMPRA o ALQUILER.`);
       if (!["USD", "UYU"].includes(currency)) throw new Error(`Fila ${line}: moneda debe ser USD o UYU.`);
       if (price !== null && price < 0) throw new Error(`Fila ${line}: precio inválido.`);
-      for (const [label, value] of [["dormitorios", bedrooms], ["baños", bathrooms]] as const) {
-        if (value !== null && (!Number.isInteger(value) || value < 0)) throw new Error(`Fila ${line}: ${label} inválido.`);
-      }
+      if (bedrooms !== null && (!Number.isInteger(bedrooms) || bedrooms < 0)) throw new Error(`Fila ${line}: dormitorios inválido.`);
+      if (bathrooms !== null && (!Number.isInteger(bathrooms) || bathrooms < 0)) throw new Error(`Fila ${line}: baños inválido.`);
       if (area !== null && area < 0) throw new Error(`Fila ${line}: área inválida.`);
 
       return {
@@ -229,14 +219,8 @@ export async function importProperties(formData: FormData) {
     });
 
     const [{ data: existing }, { count: currentCount }] = await Promise.all([
-      supabase
-        .from("properties")
-        .select("title,address,zone")
-        .eq("organization_id", organizationId),
-      supabase
-        .from("properties")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", organizationId),
+      admin.from("properties").select("title,address,zone").eq("organization_id", organizationId),
+      admin.from("properties").select("id", { count: "exact", head: true }).eq("organization_id", organizationId),
     ]);
 
     const existingKeys = new Set((existing || []).map((item) => `${(item.title || "").trim().toLowerCase()}|${(item.address || "").trim().toLowerCase()}|${(item.zone || "").trim().toLowerCase()}`));
@@ -258,12 +242,10 @@ export async function importProperties(formData: FormData) {
       throw new Error(`La importación supera el límite de ${maxProperties} propiedades de tu plan.`);
     }
 
-    if (!toInsert.length) {
-      redirect(`/protected/imports?type=properties&imported=0&duplicates=${duplicateCount}`);
+    if (toInsert.length) {
+      const { error } = await admin.from("properties").insert(toInsert);
+      if (error) throw new Error(error.message);
     }
-
-    const { error } = await supabase.from("properties").insert(toInsert);
-    if (error) throw new Error(error.message);
 
     redirect(`/protected/imports?type=properties&imported=${toInsert.length}&duplicates=${duplicateCount}`);
   } catch (error) {

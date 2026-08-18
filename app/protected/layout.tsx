@@ -11,13 +11,24 @@ export default async function ProtectedLayout({
 }) {
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
 
-  if (!claimsData?.claims) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
-  const subscription = await getCurrentSubscription();
+  const [subscription, { data: membership }] = await Promise.all([
+    getCurrentSubscription(),
+    supabase
+      .from("organization_members")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("status", "ACTIVE")
+      .single(),
+  ]);
+
   const plan = subscription?.plan || "TRIAL";
+  const canImport = membership && ["OWNER", "MANAGER"].includes(membership.role);
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-white">
@@ -37,6 +48,7 @@ export default async function ProtectedLayout({
           <NavItem href="/protected/leads">Leads</NavItem>
           <NavItem href="/protected/pipeline">Pipeline</NavItem>
           <NavItem href="/protected/properties">Propiedades</NavItem>
+          {canImport && <NavItem href="/protected/imports">Importar datos</NavItem>}
           <NavItem href="/protected/interactions">Interacciones</NavItem>
           <NavItem href="/protected/followups">Follow-ups</NavItem>
           <NavItem href="/protected/agents">Agentes</NavItem>

@@ -30,6 +30,18 @@ export async function POST(request: Request) {
       return jsonError("Credenciales de integración inválidas.", 401);
     }
 
+    const supabase = createAdminClient();
+
+    const { data: subscription } = await supabase
+      .from("subscriptions")
+      .select("plan,status,max_leads")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    if (!subscription || subscription.status !== "ACTIVE" || String(subscription.plan).toUpperCase() !== "ENTERPRISE") {
+      return jsonError("La integración web está disponible en Enterprise.", 403);
+    }
+
     const fullName = cleanString(payload.full_name, 160);
     const phone = cleanString(payload.phone, 80);
     const email = cleanString(payload.email, 180).toLowerCase();
@@ -41,13 +53,8 @@ export async function POST(request: Request) {
     const bedroomsMin = cleanNumber(payload.bedrooms_min);
 
     if (!fullName && !phone && !email) {
-      return jsonError(
-        "El lead debe incluir al menos nombre, teléfono o email.",
-        400
-      );
+      return jsonError("El lead debe incluir al menos nombre, teléfono o email.", 400);
     }
-
-    const supabase = createAdminClient();
 
     const { data: organization, error: organizationError } = await supabase
       .from("organizations")
@@ -70,7 +77,6 @@ export async function POST(request: Request) {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-
       existingLead = data;
     }
 
@@ -83,18 +89,11 @@ export async function POST(request: Request) {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-
       existingLead = data;
     }
 
-    const score = calculateInitialScore({
-      primaryZone,
-      budgetMax,
-      bedroomsMin,
-    });
-
-    const temperature =
-      score >= 80 ? "HOT" : score >= 50 ? "WARM" : "COLD";
+    const score = calculateInitialScore({ primaryZone, budgetMax, bedroomsMin });
+    const temperature = score >= 80 ? "HOT" : score >= 50 ? "WARM" : "COLD";
 
     const leadData = {
       organization_id: organizationId,
@@ -112,8 +111,8 @@ export async function POST(request: Request) {
         Math.max(existingLead?.lead_score ?? 0, score) >= 80
           ? "HOT"
           : Math.max(existingLead?.lead_score ?? 0, score) >= 50
-          ? "WARM"
-          : temperature,
+            ? "WARM"
+            : temperature,
       next_action: "Contactar lead recibido desde la web",
     };
 
@@ -122,30 +121,19 @@ export async function POST(request: Request) {
         .from("leads")
         .update(leadData)
         .eq("id", existingLead.id)
+        .eq("organization_id", organizationId)
         .select("id")
         .single();
 
-      if (error) {
-        return jsonError(error.message, 500);
-      }
+      if (error) return jsonError(error.message, 500);
 
       return NextResponse.json(
-        {
-          ok: true,
-          action: "updated",
-          lead_id: data.id,
-        },
+        { ok: true, action: "updated", lead_id: data.id },
         { headers: corsHeaders }
       );
     }
 
-    const { data: subscription } = await supabase
-      .from("subscriptions")
-      .select("max_leads")
-      .eq("organization_id", organizationId)
-      .maybeSingle();
-
-    if (subscription?.max_leads) {
+    if (subscription.max_leads) {
       const { count } = await supabase
         .from("leads")
         .select("id", { count: "exact", head: true })
@@ -162,16 +150,10 @@ export async function POST(request: Request) {
       .select("id")
       .single();
 
-    if (error) {
-      return jsonError(error.message, 500);
-    }
+    if (error) return jsonError(error.message, 500);
 
     return NextResponse.json(
-      {
-        ok: true,
-        action: "created",
-        lead_id: data.id,
-      },
+      { ok: true, action: "created", lead_id: data.id },
       { headers: corsHeaders }
     );
   } catch {
@@ -180,20 +162,13 @@ export async function POST(request: Request) {
 }
 
 function cleanString(value: unknown, maxLength: number) {
-  if (typeof value !== "string") {
-    return "";
-  }
-
+  if (typeof value !== "string") return "";
   return value.trim().slice(0, maxLength);
 }
 
 function cleanNumber(value: unknown) {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
-
   return Number.isFinite(number) ? number : null;
 }
 
@@ -207,31 +182,15 @@ function calculateInitialScore({
   bedroomsMin: number | null;
 }) {
   let score = 30;
-
-  if (primaryZone) {
-    score += 20;
-  }
-
-  if (budgetMax) {
-    score += 25;
-  }
-
-  if (bedroomsMin) {
-    score += 15;
-  }
-
+  if (primaryZone) score += 20;
+  if (budgetMax) score += 25;
+  if (bedroomsMin) score += 15;
   return score;
 }
 
 function jsonError(message: string, status: number) {
   return NextResponse.json(
-    {
-      ok: false,
-      error: message,
-    },
-    {
-      status,
-      headers: corsHeaders,
-    }
+    { ok: false, error: message },
+    { status, headers: corsHeaders }
   );
 }

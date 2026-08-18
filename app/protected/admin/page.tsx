@@ -2,7 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { activatePlan, rejectPlan } from "./actions";
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ success?: string; error?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
@@ -28,6 +33,18 @@ export default async function AdminPage() {
         <h1 className="text-3xl font-bold">👑 Admin RevScale</h1>
         <p className="mt-2 text-slate-400">Gestión de clientes y activaciones.</p>
 
+        {params.success && (
+          <div className="mt-6 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-emerald-200">
+            ✅ {params.success}
+          </div>
+        )}
+
+        {params.error && (
+          <div className="mt-6 rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-amber-200">
+            ⚠️ {params.error}
+          </div>
+        )}
+
         <section className="mt-8 space-y-5">
           {requests?.map((request) => (
             <div key={request.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
@@ -42,8 +59,8 @@ export default async function AdminPage() {
                 </p>
                 <p>Estado: {request.status}</p>
                 {!request.organization_id && request.status === "PENDING" && (
-                  <p className="text-amber-300">
-                    Falta vincular esta solicitud a una organización antes de activarla.
+                  <p className="text-blue-300">
+                    Al activar, RevScale vincula automáticamente la cuenta y la inmobiliaria usando este email.
                   </p>
                 )}
               </div>
@@ -52,10 +69,7 @@ export default async function AdminPage() {
                 <div className="mt-6 flex gap-3">
                   <form action={activatePlan}>
                     <input type="hidden" name="request_id" value={request.id} />
-                    <button
-                      disabled={!request.organization_id}
-                      className="rounded-xl bg-green-500 px-5 py-3 font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-                    >
+                    <button className="rounded-xl bg-green-500 px-5 py-3 font-semibold text-white hover:bg-green-400">
                       ✅ Activar
                     </button>
                   </form>

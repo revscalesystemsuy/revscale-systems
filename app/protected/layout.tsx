@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { planHasFeature } from "@/lib/plan-access";
 import { getCurrentOrganizationContext, ROLE_LABELS } from "@/lib/organization-role";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function ProtectedLayout({
   children,
@@ -10,7 +11,13 @@ export default async function ProtectedLayout({
   children: ReactNode;
 }) {
   const context = await getCurrentOrganizationContext();
-  if (!context) redirect("/auth/login");
+
+  if (!context) {
+    const supabase = await createClient();
+    const { data: claimsData } = await supabase.auth.getClaims();
+    if (claimsData?.claims?.sub) redirect("/auth/pending-activation");
+    redirect("/auth/login");
+  }
 
   if (context.subscriptionStatus === "SUSPENDED") {
     return (

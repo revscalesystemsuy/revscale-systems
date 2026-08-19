@@ -193,6 +193,24 @@ select (
   \quit 1
 \endif
 
+-- Authenticated table grants must match the intended RLS mutation surface.
+select (
+  not has_table_privilege('authenticated', 'public.interactions', 'DELETE')
+  and not has_table_privilege('authenticated', 'public.leads', 'DELETE')
+  and not has_table_privilege('authenticated', 'public.properties', 'DELETE')
+  and not has_table_privilege('authenticated', 'public.organization_members', 'INSERT,UPDATE,DELETE')
+  and not has_table_privilege('authenticated', 'public.platform_admins', 'INSERT,UPDATE,DELETE')
+  and has_column_privilege('authenticated', 'public.notifications', 'read_at', 'UPDATE')
+  and not has_column_privilege('authenticated', 'public.notifications', 'title', 'UPDATE')
+) as authenticated_least_privilege_ok
+\gset
+\if :authenticated_least_privilege_ok
+  \echo 'PASS authenticated_least_privilege_ok'
+\else
+  \echo 'FAIL authenticated_least_privilege_ok'
+  \quit 1
+\endif
+
 rollback;
 
 \echo 'RLS regression harness completed successfully.'

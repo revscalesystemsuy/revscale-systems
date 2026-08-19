@@ -150,6 +150,49 @@ select (
   \quit 1
 \endif
 
+-- Anonymous clients must have no direct grants on public tables or sequences.
+select (
+  not exists (
+    select 1
+    from information_schema.role_table_grants
+    where table_schema = 'public'
+      and grantee = 'anon'
+  )
+  and not exists (
+    select 1
+    from information_schema.role_usage_grants
+    where object_schema = 'public'
+      and grantee = 'anon'
+  )
+) as anon_direct_object_surface_removed_ok
+\gset
+\if :anon_direct_object_surface_removed_ok
+  \echo 'PASS anon_direct_object_surface_removed_ok'
+\else
+  \echo 'FAIL anon_direct_object_surface_removed_ok'
+  \quit 1
+\endif
+
+-- Keep the anonymous RPC surface explicit and minimal.
+select (
+  has_function_privilege('anon', 'public.ingest_web_lead(uuid,text,jsonb)', 'EXECUTE')
+  and has_function_privilege('anon', 'public.submit_plan_request(text,text,text,text,text)', 'EXECUTE')
+  and 2 = (
+    select count(*)
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and has_function_privilege('anon', p.oid, 'EXECUTE')
+  )
+) as anon_rpc_surface_minimal_ok
+\gset
+\if :anon_rpc_surface_minimal_ok
+  \echo 'PASS anon_rpc_surface_minimal_ok'
+\else
+  \echo 'FAIL anon_rpc_surface_minimal_ok'
+  \quit 1
+\endif
+
 rollback;
 
 \echo 'RLS regression harness completed successfully.'

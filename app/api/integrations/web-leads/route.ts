@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { verifyWebIntegrationToken } from "@/lib/integrations/web-key";
+import { createClient } from "@supabase/supabase-js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,17 +7,26 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: corsHeaders,
+function createPublicServerClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !key) {
+    throw new Error("Supabase public configuration is missing");
+  }
+
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
 }
 
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
-
     const organizationId = cleanString(payload.organization_id, 100);
     const token = cleanString(payload.token, 200);
 
@@ -26,136 +34,38 @@ export async function POST(request: Request) {
       return jsonError("Faltan credenciales de integración.", 400);
     }
 
-    if (!verifyWebIntegrationToken(organizationId, token)) {
-      return jsonError("Credenciales de integración inválidas.", 401);
-    }
+    const leadPayload = {
+      full_name: cleanString(payload.full_name, 160) || null,
+      phone: cleanString(payload.phone, 80) || null,
+      email: cleanString(payload.email, 180).toLowerCase() || null,
+      primary_zone: cleanString(payload.primary_zone, 160) || null,
+      operation: cleanString(payload.operation, 50).toUpperCase() || null,
+      property_type: cleanString(payload.property_type, 80).toUpperCase() || null,
+      currency: cleanString(payload.currency || "USD", 10).toUpperCase(),
+      budget_max: cleanNumber(payload.budget_max),
+      bedrooms_min: cleanInteger(payload.bedrooms_min),
+    };
 
-    const supabase = createAdminClient();
-
-    const { data: subscription } = await supabase
-      .from("subscriptions")
-      .select("plan,status,max_leads")
-      .eq("organization_id", organizationId)
-      .maybeSingle();
-
-    if (!subscription || subscription.status !== "ACTIVE" || String(subscription.plan).toUpperCase() !== "ENTERPRISE") {
-      return jsonError("La integración web está disponible en Enterprise.", 403);
-    }
-
-    const fullName = cleanString(payload.full_name, 160);
-    const phone = cleanString(payload.phone, 80);
-    const email = cleanString(payload.email, 180).toLowerCase();
-    const primaryZone = cleanString(payload.primary_zone, 160);
-    const operation = cleanString(payload.operation, 50).toUpperCase();
-    const propertyType = cleanString(payload.property_type, 80).toUpperCase();
-    const currency = cleanString(payload.currency || "USD", 10).toUpperCase();
-    const budgetMax = cleanNumber(payload.budget_max);
-    const bedroomsMin = cleanNumber(payload.bedrooms_min);
-
-    if (!fullName && !phone && !email) {
+    if (!leadPayload.full_name && !leadPayload.phone && !leadPayload.email) {
       return jsonError("El lead debe incluir al menos nombre, teléfono o email.", 400);
     }
 
-    const { data: organization, error: organizationError } = await supabase
-      .from("organizations")
-      .select("id")
-      .eq("id", organizationId)
-      .single();
+    const supabase = createPublicServerClient();
+    const { data, error } = await supabase.rpc("ingest_web_lead", {
+      p_organization_id: organizationId,
+      p_token: token,
+      p_payload: leadPayload,
+    });
 
-    if (organizationError || !organization) {
-      return jsonError("Organización no encontrada.", 404);
+    if (error) {
+      const message = error.message || "No se pudo procesar el lead.";
+      if (message.includes("Credenciales")) return jsonError("Credenciales de integración inválidas.", 401);
+      if (message.includes("Enterprise")) return jsonError("La integración web está disponible en Enterprise.", 403);
+      if (message.includes("límite")) return jsonError(message, 409);
+      return jsonError(message, 400);
     }
 
-    let existingLead: { id: string; lead_score: number | null } | null = null;
-
-    if (phone) {
-      const { data } = await supabase
-        .from("leads")
-        .select("id, lead_score")
-        .eq("organization_id", organizationId)
-        .eq("phone", phone)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      existingLead = data;
-    }
-
-    if (!existingLead && email) {
-      const { data } = await supabase
-        .from("leads")
-        .select("id, lead_score")
-        .eq("organization_id", organizationId)
-        .eq("email", email)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      existingLead = data;
-    }
-
-    const score = calculateInitialScore({ primaryZone, budgetMax, bedroomsMin });
-    const temperature = score >= 80 ? "HOT" : score >= 50 ? "WARM" : "COLD";
-
-    const leadData = {
-      organization_id: organizationId,
-      ...(fullName ? { full_name: fullName } : {}),
-      ...(phone ? { phone } : {}),
-      ...(email ? { email } : {}),
-      ...(primaryZone ? { primary_zone: primaryZone } : {}),
-      ...(operation ? { operation } : {}),
-      ...(propertyType ? { property_type: propertyType } : {}),
-      ...(budgetMax !== null ? { budget_max: budgetMax } : {}),
-      ...(currency ? { currency } : {}),
-      ...(bedroomsMin !== null ? { bedrooms_min: bedroomsMin } : {}),
-      lead_score: Math.max(existingLead?.lead_score ?? 0, score),
-      lead_temperature:
-        Math.max(existingLead?.lead_score ?? 0, score) >= 80
-          ? "HOT"
-          : Math.max(existingLead?.lead_score ?? 0, score) >= 50
-            ? "WARM"
-            : temperature,
-      next_action: "Contactar lead recibido desde la web",
-    };
-
-    if (existingLead) {
-      const { data, error } = await supabase
-        .from("leads")
-        .update(leadData)
-        .eq("id", existingLead.id)
-        .eq("organization_id", organizationId)
-        .select("id")
-        .single();
-
-      if (error) return jsonError(error.message, 500);
-
-      return NextResponse.json(
-        { ok: true, action: "updated", lead_id: data.id },
-        { headers: corsHeaders }
-      );
-    }
-
-    if (subscription.max_leads) {
-      const { count } = await supabase
-        .from("leads")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", organizationId);
-
-      if (count !== null && count >= subscription.max_leads) {
-        return jsonError("La organización alcanzó el límite de leads.", 409);
-      }
-    }
-
-    const { data, error } = await supabase
-      .from("leads")
-      .insert(leadData)
-      .select("id")
-      .single();
-
-    if (error) return jsonError(error.message, 500);
-
-    return NextResponse.json(
-      { ok: true, action: "created", lead_id: data.id },
-      { headers: corsHeaders }
-    );
+    return NextResponse.json(data, { headers: corsHeaders });
   } catch {
     return jsonError("No se pudo procesar el lead.", 400);
   }
@@ -172,25 +82,11 @@ function cleanNumber(value: unknown) {
   return Number.isFinite(number) ? number : null;
 }
 
-function calculateInitialScore({
-  primaryZone,
-  budgetMax,
-  bedroomsMin,
-}: {
-  primaryZone: string;
-  budgetMax: number | null;
-  bedroomsMin: number | null;
-}) {
-  let score = 30;
-  if (primaryZone) score += 20;
-  if (budgetMax) score += 25;
-  if (bedroomsMin) score += 15;
-  return score;
+function cleanInteger(value: unknown) {
+  const number = cleanNumber(value);
+  return number !== null && Number.isInteger(number) ? number : null;
 }
 
 function jsonError(message: string, status: number) {
-  return NextResponse.json(
-    { ok: false, error: message },
-    { status, headers: corsHeaders }
-  );
+  return NextResponse.json({ ok: false, error: message }, { status, headers: corsHeaders });
 }

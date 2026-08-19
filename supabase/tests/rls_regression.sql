@@ -120,6 +120,36 @@ select (
   \quit 1
 \endif
 
+-- TRUNCATE/TRIGGER/REFERENCES must never be available to client roles on public tables.
+select not exists (
+  select 1
+  from information_schema.role_table_grants
+  where table_schema = 'public'
+    and grantee in ('anon', 'authenticated')
+    and privilege_type in ('TRUNCATE', 'TRIGGER', 'REFERENCES')
+) as unsafe_table_privileges_revoked_ok
+\gset
+\if :unsafe_table_privileges_revoked_ok
+  \echo 'PASS unsafe_table_privileges_revoked_ok'
+\else
+  \echo 'FAIL unsafe_table_privileges_revoked_ok'
+  \quit 1
+\endif
+
+-- Public plan requests must go through the hardened RPC, never direct table INSERT.
+select (
+  not has_table_privilege('anon', 'public.plan_requests', 'INSERT')
+  and not has_table_privilege('authenticated', 'public.plan_requests', 'INSERT')
+  and has_function_privilege('anon', 'public.submit_plan_request(text,text,text,text,text)', 'EXECUTE')
+) as plan_request_submission_acl_ok
+\gset
+\if :plan_request_submission_acl_ok
+  \echo 'PASS plan_request_submission_acl_ok'
+\else
+  \echo 'FAIL plan_request_submission_acl_ok'
+  \quit 1
+\endif
+
 rollback;
 
 \echo 'RLS regression harness completed successfully.'

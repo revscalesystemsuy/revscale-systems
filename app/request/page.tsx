@@ -1,13 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
+const ALLOWED_PLANS = new Set(["STARTER", "PRO", "PROFESSIONAL", "ENTERPRISE"]);
+
 export default async function RequestPage({
   searchParams,
 }: {
   searchParams: Promise<{ plan?: string }>;
 }) {
   const params = await searchParams;
-  const selectedPlan = params.plan || "STARTER";
+  const requestedPlan = String(params.plan || "STARTER").toUpperCase();
+  const selectedPlan = ALLOWED_PLANS.has(requestedPlan) ? requestedPlan : "STARTER";
 
   async function createRequest(formData: FormData) {
     "use server";
@@ -17,19 +20,19 @@ export default async function RequestPage({
     const company = String(formData.get("company") || "").trim();
     const email = String(formData.get("email") || "").trim().toLowerCase();
     const phone = String(formData.get("phone") || "").trim();
-    const plan = String(formData.get("plan") || "STARTER").toUpperCase();
+    const planCandidate = String(formData.get("plan") || "STARTER").toUpperCase();
+    const plan = ALLOWED_PLANS.has(planCandidate) ? planCandidate : "STARTER";
 
     if (!name || !company || !email) {
       throw new Error("Completá los datos obligatorios");
     }
 
-    const { error } = await supabase.from("plan_requests").insert({
-      name,
-      company,
-      email,
-      phone,
-      plan,
-      status: "PENDING",
+    const { error } = await supabase.rpc("submit_plan_request", {
+      p_name: name,
+      p_company: company,
+      p_email: email,
+      p_phone: phone,
+      p_plan: plan,
     });
 
     if (error) throw new Error(error.message);
@@ -51,10 +54,10 @@ export default async function RequestPage({
           className="mt-8 space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-6"
         >
           <input type="hidden" name="plan" value={selectedPlan} />
-          <input name="name" required placeholder="Nombre completo" className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white" />
-          <input name="company" required placeholder="Empresa inmobiliaria" className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white" />
-          <input name="email" required type="email" placeholder="Email" className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white" />
-          <input name="phone" placeholder="WhatsApp" className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white" />
+          <input name="name" required maxLength={120} placeholder="Nombre completo" className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white" />
+          <input name="company" required maxLength={160} placeholder="Empresa inmobiliaria" className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white" />
+          <input name="email" required type="email" maxLength={320} placeholder="Email" className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white" />
+          <input name="phone" maxLength={50} placeholder="WhatsApp" className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 text-white" />
 
           <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
             <p className="text-sm text-slate-400">Plan seleccionado</p>

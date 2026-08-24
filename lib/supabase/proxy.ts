@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { hasEnvVars } from "../utils";
 
-const PUBLIC_PATH_PREFIXES = ["/auth", "/demo", "/pricing", "/request"];
+const PUBLIC_PATH_PREFIXES = ["/auth", "/demo", "/pricing", "/request", "/pay"];
 
 function isPublicPath(pathname: string) {
   if (pathname === "/") return true;

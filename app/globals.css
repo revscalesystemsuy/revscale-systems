@@ -91,12 +91,12 @@
   }
 
   .revscale-real-app .text-slate-400 {
-    color: #686157 !important;
+    color: #625b52 !important;
   }
 
   .revscale-real-app .text-slate-500,
   .revscale-real-app .text-slate-600 {
-    color: #80786e !important;
+    color: #6b6359 !important;
   }
 
   .revscale-real-app .border-white\/10,
@@ -126,7 +126,7 @@
 
   .revscale-real-app input::placeholder,
   .revscale-real-app textarea::placeholder {
-    color: #9b9286;
+    color: #756e64;
   }
 
   .revscale-real-app table {

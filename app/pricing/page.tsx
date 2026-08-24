@@ -1,4 +1,5 @@
-import Link from "next/link";
+import Link from "next/link"
+import { Check } from "lucide-react"
 
 export default function PricingPage() {
   const plans = [
@@ -6,26 +7,26 @@ export default function PricingPage() {
       name: "STARTER",
       title: "Starter",
       price: "99",
-      description: "Para inmobiliarias pequeñas que quieren ordenar sus ventas.",
+      description: "Para inmobiliarias pequeñas que quieren ordenar su operación comercial.",
       features: [
         "3 agentes",
         "500 leads",
         "100 propiedades",
         "Gestión comercial de leads",
-        "Follow-ups y seguimiento",
+        "Seguimientos y tareas",
       ],
     },
     {
       name: "PROFESSIONAL",
       title: "Professional",
       price: "249",
-      description: "Para equipos comerciales que quieren crecer con IA.",
+      description: "Para equipos que necesitan priorizar oportunidades y crecer con más control.",
       popular: true,
       features: [
         "15 agentes",
         "Leads ilimitados",
-        "Matching IA",
-        "Analytics avanzado",
+        "Matching inteligente",
+        "Analítica avanzada",
         "Reportes comerciales",
       ],
     },
@@ -33,7 +34,7 @@ export default function PricingPage() {
       name: "ENTERPRISE",
       title: "Enterprise",
       price: "499",
-      description: "Para inmobiliarias grandes que necesitan operar equipos y automatizaciones.",
+      description: "Para inmobiliarias con equipos grandes, automatizaciones y procesos más complejos.",
       features: [
         "Agentes ilimitados",
         "Multi equipo",
@@ -42,61 +43,79 @@ export default function PricingPage() {
         "Soporte prioritario",
       ],
     },
-  ];
+  ]
 
   return (
-    <main className="min-h-screen bg-slate-950 p-8 text-white">
-      <div className="mx-auto max-w-6xl">
-        <div className="text-center">
-          <p className="text-sm font-semibold text-blue-400">RevScale PropertyOS</p>
-          <h1 className="mt-3 text-5xl font-bold">Elegí tu plan</h1>
-          <p className="mt-4 text-slate-400">Inteligencia comercial para equipos inmobiliarios.</p>
+    <main className="min-h-screen bg-[#efe6d8] px-6 py-8 text-[#292722] md:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="flex items-center justify-between border-b border-[#d5c8b6] pb-5">
+          <Link href="/" className="flex items-baseline gap-2">
+            <span className="font-serif text-2xl tracking-tight">RevScale</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8a714d]">PropertyOS</span>
+          </Link>
+          <Link href="/demo" className="text-sm text-[#625d55] transition hover:text-[#292722]">Ver demo</Link>
         </div>
 
-        <section className="mt-12 grid gap-6 md:grid-cols-3">
+        <div className="mx-auto mt-16 max-w-3xl text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a714d]">Planes</p>
+          <h1 className="mt-4 font-serif text-5xl font-medium tracking-tight text-[#29251f] md:text-6xl">Elegí el nivel de operación que necesita tu equipo.</h1>
+          <p className="mt-5 text-base leading-7 text-[#6d665d]">Una plataforma comercial inmobiliaria, sin ruido visual ni herramientas que el equipo no usa.</p>
+        </div>
+
+        <section className="mt-14 grid gap-5 md:grid-cols-3">
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`rounded-2xl border p-6 ${
+              className={`rounded-2xl border p-6 shadow-[0_18px_50px_rgba(70,58,42,.05)] ${
                 plan.popular
-                  ? "border-blue-500 bg-blue-500/10"
-                  : "border-white/10 bg-white/[0.03]"
+                  ? "border-[#a99270] bg-[#e5d7c3]"
+                  : "border-[#d5c8b6] bg-[#f7f1e8]"
               }`}
             >
-              {plan.popular && (
-                <div className="mb-4 inline-block rounded-full bg-blue-500 px-3 py-1 text-xs font-semibold">
-                  Más elegido
-                </div>
-              )}
-
-              <h2 className="text-2xl font-bold">{plan.title}</h2>
-              <p className="mt-2 text-sm text-slate-400">{plan.description}</p>
-
-              <div className="mt-6">
-                <span className="text-5xl font-bold">${plan.price}</span>
-                <span className="text-slate-400">/mes</span>
+              <div className="flex min-h-7 items-center justify-between gap-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a714d]">{plan.name}</p>
+                {plan.popular && (
+                  <span className="rounded-full border border-[#bda98a] bg-[#f0e6d8] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#705d43]">
+                    Más elegido
+                  </span>
+                )}
               </div>
 
-              <ul className="mt-6 space-y-3 text-sm text-slate-300">
+              <h2 className="mt-5 font-serif text-3xl font-medium text-[#302b25]">{plan.title}</h2>
+              <p className="mt-3 min-h-16 text-sm leading-6 text-[#716a61]">{plan.description}</p>
+
+              <div className="mt-7 border-y border-[#d3c6b4] py-6">
+                <span className="font-serif text-5xl font-medium tracking-tight text-[#2d2923]">${plan.price}</span>
+                <span className="ml-1 text-sm text-[#787168]">/mes</span>
+              </div>
+
+              <ul className="mt-6 space-y-3 text-sm text-[#5f5951]">
                 {plan.features.map((feature) => (
-                  <li key={feature}>✓ {feature}</li>
+                  <li key={feature} className="flex gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#816d4f]" strokeWidth={1.8} />
+                    <span>{feature}</span>
+                  </li>
                 ))}
               </ul>
 
               <Link
                 href={`/request?plan=${plan.name}`}
-                className="mt-8 block rounded-xl bg-green-500 px-5 py-3 text-center font-semibold text-white hover:bg-green-400"
+                className={`mt-8 block rounded-md px-5 py-3 text-center text-sm font-medium transition ${
+                  plan.popular
+                    ? "bg-[#302b25] text-[#f5eee4] hover:bg-[#211e1a]"
+                    : "border border-[#b9aa94] text-[#3c3730] hover:bg-[#e9dece]"
+                }`}
               >
-                🚀 Solicitar {plan.title}
+                Solicitar {plan.title}
               </Link>
             </div>
           ))}
         </section>
 
-        <p className="mx-auto mt-8 max-w-3xl text-center text-xs leading-5 text-slate-500">
-          Las integraciones con WhatsApp Business, Instagram y Facebook se habilitarán progresivamente a medida que cada canal complete su configuración técnica.
+        <p className="mx-auto mt-8 max-w-3xl text-center text-xs leading-5 text-[#8a8379]">
+          Las integraciones con WhatsApp Business, Instagram y Facebook se habilitan de acuerdo con la configuración técnica de cada canal.
         </p>
       </div>
     </main>
-  );
+  )
 }

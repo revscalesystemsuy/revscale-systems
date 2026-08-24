@@ -28,15 +28,13 @@ for (const scanRoot of scanRoots) {
     const content = await readFile(file, "utf8");
     for (const rule of forbidden) {
       rule.pattern.lastIndex = 0;
-      if (rule.pattern.test(content)) {
-        failures.push(`${relative(root, file)}: ${rule.reason}`);
-      }
+      if (rule.pattern.test(content)) failures.push(`${relative(root, file)}: ${rule.reason}`);
     }
   }
 }
 
 const proxySource = await readFile(join(root, "lib/supabase/proxy.ts"), "utf8");
-for (const requiredPublicPrefix of ["/auth", "/demo", "/pricing"]) {
+for (const requiredPublicPrefix of ["/auth", "/demo", "/pricing", "/request"]) {
   if (!proxySource.includes(`\"${requiredPublicPrefix}\"`)) {
     failures.push(`lib/supabase/proxy.ts: missing required public route ${requiredPublicPrefix}`);
   }

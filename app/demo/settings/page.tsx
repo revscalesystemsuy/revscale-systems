@@ -13,7 +13,7 @@ export default function DemoSettingsPage() {
 
         <div className="grid gap-5 md:grid-cols-2">
           <Card title="🏢 Organización">
-            <div className="space-y-2 text-slate-300">
+            <div className="space-y-2 text-[#4f4a42]">
               <p>Nombre: {DEMO_COMPANY.name}</p>
               <p>Mercado: {DEMO_COMPANY.market}</p>
               <p>Plan: PropertyOS Pro</p>
@@ -25,7 +25,7 @@ export default function DemoSettingsPage() {
               {DEMO_COMPANY.zones.map((z) => (
                 <span
                   key={z}
-                  className="rounded-full bg-white/5 px-3 py-1 text-sm text-slate-300"
+                  className="rounded-full bg-white/5 px-3 py-1 text-sm text-[#4f4a42]"
                 >
                   {z}
                 </span>
@@ -45,12 +45,12 @@ export default function DemoSettingsPage() {
                   key={int.name}
                   className="flex items-center justify-between rounded-xl border border-white/10 p-4"
                 >
-                  <span className="text-slate-200">{int.name}</span>
+                  <span className="text-[#37332d]">{int.name}</span>
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-semibold ${
                       int.status === "Pendiente"
-                        ? "bg-slate-500/10 text-slate-400"
-                        : "bg-green-500/10 text-green-400"
+                        ? "bg-slate-500/10 text-[#625d55]"
+                        : "bg-green-500/10 text-[#41634a]"
                     }`}
                   >
                     {int.status}

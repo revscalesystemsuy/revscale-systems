@@ -1,3 +1,4 @@
+import { Award } from "lucide-react"
 import { DEMO_AGENTS, formatUSD } from "@/lib/demo-data"
 import { PageHeader } from "../demo-ui"
 
@@ -23,8 +24,12 @@ export default function DemoAgentsPage() {
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-xl font-bold">
-                    {i === 0 ? "🥇 " : ""}
+                  <h2 className="flex items-center gap-2 text-xl font-bold">
+                    {i === 0 && (
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#d2c5b3] bg-[#eee4d5] text-[#786447]">
+                        <Award size={15} strokeWidth={1.7} />
+                      </span>
+                    )}
                     {agent.name}
                   </h2>
                   <span className="mt-2 inline-block rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-400">

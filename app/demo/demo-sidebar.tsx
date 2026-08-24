@@ -20,7 +20,14 @@ import { DEMO_COMPANY } from "@/lib/demo-data"
 
 type DemoPlan = "starter" | "professional" | "enterprise"
 
-const NAV_ITEMS = [
+type DemoNavItem = {
+  href: string
+  label: string
+  icon: typeof House
+  plans: readonly DemoPlan[]
+}
+
+const NAV_ITEMS: readonly DemoNavItem[] = [
   { href: "/demo", label: "Resumen", icon: House, plans: ["starter", "professional", "enterprise"] },
   { href: "/demo/leads", label: "Leads", icon: Users, plans: ["starter", "professional", "enterprise"] },
   { href: "/demo/pipeline", label: "Pipeline", icon: Workflow, plans: ["starter", "professional", "enterprise"] },
@@ -32,7 +39,7 @@ const NAV_ITEMS = [
   { href: "/demo/reports", label: "Reportes", icon: BarChart3, plans: ["professional", "enterprise"] },
   { href: "/demo/analytics", label: "Analítica", icon: ChartNoAxesCombined, plans: ["professional", "enterprise"] },
   { href: "/demo/settings", label: "Configuración", icon: Settings, plans: ["starter", "professional", "enterprise"] },
-] as const
+]
 
 const PLAN_LABELS: Record<DemoPlan, string> = {
   starter: "Starter",

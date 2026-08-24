@@ -9,20 +9,20 @@ const BUCKETS: {
   accent: string
   icon: typeof Clock3
 }[] = [
-  { key: "Vencido", title: "Vencidos", accent: "text-red-500", icon: AlertCircle },
-  { key: "Hoy", title: "Para hoy", accent: "text-amber-600", icon: Clock3 },
-  { key: "Pendiente", title: "Pendientes", accent: "text-blue-500", icon: CircleDot },
-  { key: "Próximo", title: "Próximos", accent: "text-green-600", icon: CalendarClock },
+  { key: "Vencido", title: "Vencidos", accent: "text-red-600", icon: AlertCircle },
+  { key: "Hoy", title: "Para hoy", accent: "text-amber-700", icon: Clock3 },
+  { key: "Pendiente", title: "Pendientes", accent: "text-[#745f43]", icon: CircleDot },
+  { key: "Próximo", title: "Próximos", accent: "text-green-700", icon: CalendarClock },
 ]
 
 function priorityBadge(priority: DemoFollowup["priority"]) {
   switch (priority) {
     case "Alta":
-      return "bg-red-500/10 text-red-500"
+      return "bg-red-500/10 text-red-600"
     case "Media":
-      return "bg-amber-500/10 text-amber-600"
+      return "bg-amber-500/10 text-amber-700"
     case "Baja":
-      return "bg-slate-500/10 text-slate-500"
+      return "bg-[#e5ddd1] text-[#625b52]"
   }
 }
 
@@ -60,14 +60,14 @@ export default function DemoFollowupsPage() {
             return (
               <div
                 key={bucket.key}
-                className="rounded-2xl border border-white/10 bg-white/[0.03]"
+                className="rounded-2xl border border-[#d6cbbb] bg-[#f7f1e8]"
               >
                 <h2
-                  className={`flex items-center gap-2 border-b border-white/10 p-5 text-lg font-semibold ${bucket.accent}`}
+                  className={`flex items-center gap-2 border-b border-[#ded2c2] p-5 text-lg font-semibold ${bucket.accent}`}
                 >
                   <Icon size={17} strokeWidth={1.7} />
                   {bucket.title}
-                  <span className="ml-1 text-sm text-slate-500">
+                  <span className="ml-1 text-sm text-[#625b52]">
                     ({bucket.items.length})
                   </span>
                 </h2>
@@ -76,10 +76,10 @@ export default function DemoFollowupsPage() {
                     <Link
                       key={f.id}
                       href={`/demo/leads/${f.leadId}`}
-                      className="block rounded-xl border border-white/10 p-4 transition hover:border-blue-500/40"
+                      className="block rounded-xl border border-[#d6cbbb] p-4 transition hover:border-[#b9a88e] hover:bg-[#f0e7da]"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold">{f.leadName}</span>
+                        <span className="font-semibold text-[#37332d]">{f.leadName}</span>
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${priorityBadge(
                             f.priority,
@@ -88,14 +88,14 @@ export default function DemoFollowupsPage() {
                           {f.priority}
                         </span>
                       </div>
-                      <p className="mt-2 text-sm text-slate-300">{f.action}</p>
-                      <p className="mt-2 text-xs text-slate-500">
+                      <p className="mt-2 text-sm text-[#514b43]">{f.action}</p>
+                      <p className="mt-2 text-xs text-[#625b52]">
                         {f.type} · {f.date} · {f.agent}
                       </p>
                     </Link>
                   ))}
                   {!bucket.items.length && (
-                    <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-sm text-slate-600">
+                    <div className="rounded-xl border border-dashed border-[#d6cbbb] p-6 text-center text-sm text-[#6b6359]">
                       Sin follow-ups
                     </div>
                   )}

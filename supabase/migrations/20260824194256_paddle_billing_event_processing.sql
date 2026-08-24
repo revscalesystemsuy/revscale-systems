@@ -66,7 +66,7 @@ begin
   current_rank := case current_plan when 'STARTER' then 1 when 'PRO' then 2 when 'PROFESSIONAL' then 2 when 'ENTERPRISE' then 3 else 0 end;
   if current_rank > requested_rank then raise exception 'La organización ya tiene un plan superior (%). No se realizó ninguna baja.', current_plan; end if;
 
-  limits_agents := case requested_plan when 'STARTER' then 3 when 'PROFESSIONAL' then 15 else 1000000 end;
+  limits_agents := case requested_plan when 'STARTER' then 3 when 'PROFESSIONAL' then 15 else 30 end;
   limits_leads := case requested_plan when 'STARTER' then 500 else 1000000 end;
   limits_properties := case requested_plan when 'STARTER' then 100 else 1000000 end;
 

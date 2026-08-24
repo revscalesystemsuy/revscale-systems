@@ -42,16 +42,16 @@ export function DemoSidebar() {
 
   return (
     <>
-      <div className="fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-[#302d26] bg-[#171612]/95 px-4 py-3 backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-[#d8ccbb] bg-[#f4ecdf]/95 px-4 py-3 backdrop-blur lg:hidden">
         <div>
-          <span className="font-serif text-lg text-[#f5efe4]">RevScale</span>
-          <span className="ml-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#b49a6b]">
+          <span className="font-serif text-lg text-[#2c2923]">RevScale</span>
+          <span className="ml-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a714d]">
             PropertyOS
           </span>
         </div>
         <button
           onClick={() => setOpen((v) => !v)}
-          className="rounded-md border border-[#3a362d] px-3 py-1.5 text-sm text-[#c8c1b4]"
+          className="rounded-md border border-[#cfc1ad] px-3 py-1.5 text-sm text-[#4f4a42]"
           aria-label="Abrir menú"
         >
           Menú
@@ -60,32 +60,32 @@ export function DemoSidebar() {
 
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/65 lg:hidden"
+          className="fixed inset-0 z-40 bg-[#2e2a24]/35 lg:hidden"
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
       )}
 
       <aside
-        className={`fixed z-50 flex h-screen w-72 flex-col border-r border-[#302d26] bg-[#171612] px-5 py-6 transition-transform lg:sticky lg:top-0 lg:translate-x-0 ${
+        className={`fixed z-50 flex h-screen w-72 flex-col border-r border-[#d7cbb9] bg-[#e8dece] px-5 py-6 transition-transform lg:sticky lg:top-0 lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="px-2">
-          <p className="font-serif text-[1.45rem] leading-none tracking-tight text-[#f5efe4]">
+          <p className="font-serif text-[1.45rem] leading-none tracking-tight text-[#2e2a24]">
             RevScale
           </p>
-          <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#b49a6b]">
+          <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#8a714d]">
             PropertyOS
           </p>
         </div>
 
-        <div className="mx-2 mt-7 border-y border-[#302d26] py-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7f7a71]">
+        <div className="mx-2 mt-7 border-y border-[#d1c4b1] py-4">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8f877c]">
             Cartera demostración
           </p>
-          <p className="mt-2 text-sm font-medium text-[#ede6da]">{DEMO_COMPANY.name}</p>
-          <p className="mt-1 text-xs text-[#8f8a80]">{DEMO_COMPANY.market}</p>
+          <p className="mt-2 text-sm font-medium text-[#37332d]">{DEMO_COMPANY.name}</p>
+          <p className="mt-1 text-xs text-[#777066]">{DEMO_COMPANY.market}</p>
         </div>
 
         <nav className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto pr-1">
@@ -99,21 +99,21 @@ export function DemoSidebar() {
                 onClick={() => setOpen(false)}
                 className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
                   active
-                    ? "bg-[#242119] text-[#f5efe4]"
-                    : "text-[#aaa49a] hover:bg-[#1f1d18] hover:text-[#ece5d9]"
+                    ? "bg-[#d9c9b3] text-[#302b24]"
+                    : "text-[#6f685e] hover:bg-[#dfd3c2] hover:text-[#302c26]"
                 }`}
               >
-                <Icon size={16} strokeWidth={1.6} className={active ? "text-[#c7ad7c]" : "text-[#777269]"} />
+                <Icon size={16} strokeWidth={1.6} className={active ? "text-[#7a6344]" : "text-[#8e867b]"} />
                 <span className="flex-1">{item.label}</span>
-                {active && <ChevronRight size={14} className="text-[#6f685b]" />}
+                {active && <ChevronRight size={14} className="text-[#8a7a65]" />}
               </Link>
             )
           })}
         </nav>
 
-        <div className="mx-2 mt-6 border-t border-[#302d26] pt-5">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-[#68635b]">RevScale Systems</p>
-          <p className="mt-1 text-xs text-[#8b867d]">Inteligencia comercial inmobiliaria</p>
+        <div className="mx-2 mt-6 border-t border-[#d1c4b1] pt-5">
+          <p className="text-[10px] uppercase tracking-[0.16em] text-[#8d8579]">RevScale Systems</p>
+          <p className="mt-1 text-xs text-[#6f685e]">Inteligencia comercial inmobiliaria</p>
         </div>
       </aside>
     </>

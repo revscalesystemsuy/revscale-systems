@@ -5,16 +5,17 @@ import { connection } from "next/server";
 import { normalizePlan } from "@/lib/plan-access";
 
 const FEATURES = {
-  TRIAL: ["Dashboard comercial", "Gestión básica de leads"],
-  STARTER: ["Dashboard comercial", "Gestión de leads", "Follow-ups", "Hasta 3 agentes", "Hasta 500 leads", "Hasta 100 propiedades"],
-  PROFESSIONAL: ["Todo Starter", "Hasta 15 agentes", "Leads ilimitados", "Matching IA", "Analytics avanzado", "Reportes comerciales"],
+  TRIAL: ["Dashboard comercial", "Gestion basica de leads"],
+  STARTER: ["Dashboard comercial", "Gestion de leads", "Follow-ups", "Hasta 3 agentes", "Hasta 500 leads", "Hasta 100 propiedades"],
+  PROFESSIONAL: ["Todo Starter", "Hasta 15 agentes", "Leads ilimitados", "Matching IA", "Analytics avanzado", "Reportes comerciales", "WhatsApp IA"],
   ENTERPRISE: [
     "Todo Professional",
     "Agentes ilimitados",
     "Equipos y sucursales",
     "Roles Director, Gerente y Agente",
-    "Asignación automática de leads",
+    "Asignacion automatica de leads",
     "Integraciones avanzadas",
+    "WhatsApp IA con operacion por equipos",
     "Soporte prioritario",
   ],
 };
@@ -54,7 +55,7 @@ export default async function BillingPage() {
     <main className="min-h-screen bg-slate-950 p-8 text-white">
       <div className="mx-auto max-w-5xl">
         <h1 className="text-3xl font-bold">Mi Plan</h1>
-        <p className="mt-2 text-slate-400">Administración de tu suscripción y límites de uso.</p>
+        <p className="mt-2 text-slate-400">Administracion de tu suscripcion y limites de uso.</p>
 
         <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-8">
           <div className="flex items-start justify-between gap-4">
@@ -81,6 +82,12 @@ export default async function BillingPage() {
           </div>
         </section>
 
+        {plan === "STARTER" && (
+          <div className="mt-6 rounded-xl border border-amber-400/20 bg-amber-400/5 p-5 text-sm text-amber-100">
+            WhatsApp IA se habilita desde el plan Professional de USD 249/mes.
+          </div>
+        )}
+
         {plan !== "ENTERPRISE" && (
           <Link href="/pricing" className="mt-8 inline-block rounded-xl bg-blue-500 px-6 py-3 font-semibold hover:bg-blue-400">
             Mejorar plan
@@ -96,7 +103,7 @@ function UsageCard({ title, current, max }: { title: string; current: number; ma
     <div className="rounded-xl border border-white/10 p-5">
       <p className="text-slate-400">{title}</p>
       <p className="mt-3 text-3xl font-bold">{current}</p>
-      <p className="mt-1 text-sm text-slate-500">Límite: {max}</p>
+      <p className="mt-1 text-sm text-slate-500">Limite: {max}</p>
     </div>
   );
 }

@@ -1,13 +1,13 @@
 import Link from "next/link"
-import { Check } from "lucide-react"
+import { Check, LockKeyhole } from "lucide-react"
 
 export default async function PricingPage({ searchParams }: { searchParams: Promise<{ email?: string; new?: string }> }) {
   const params = await searchParams
   const email = String(params.email || "").trim()
   const plans = [
-    { name: "STARTER", title: "Starter", price: "99", description: "Para inmobiliarias pequeñas que quieren ordenar su operación comercial.", features: ["3 agentes", "500 leads", "100 propiedades", "Gestión comercial de leads", "Seguimientos y tareas"] },
-    { name: "PROFESSIONAL", title: "Professional", price: "249", description: "Para equipos que necesitan priorizar oportunidades y crecer con más control.", popular: true, features: ["15 agentes", "Leads ilimitados", "Matching inteligente", "Analítica avanzada", "Reportes comerciales", "WhatsApp IA preparado"] },
-    { name: "ENTERPRISE", title: "Enterprise", price: "499", description: "Para inmobiliarias con equipos grandes, automatizaciones y procesos más complejos.", features: ["Agentes ilimitados", "Multi equipo", "Roles y asignación automática", "Integraciones", "WhatsApp IA preparado", "Soporte prioritario"] },
+    { name: "STARTER", title: "Starter", price: "99", description: "Para inmobiliarias pequeñas que quieren ordenar su operación comercial.", features: ["3 agentes", "500 leads", "100 propiedades", "Gestión comercial de leads", "Seguimientos y tareas"], lockedFeatures: ["WhatsApp IA"] },
+    { name: "PROFESSIONAL", title: "Professional", price: "249", description: "Para equipos que necesitan priorizar oportunidades y crecer con más control.", popular: true, features: ["15 agentes", "Leads ilimitados", "Matching inteligente", "Analítica avanzada", "Reportes comerciales", "WhatsApp IA: respuestas inteligentes, calificación y derivación humana"] },
+    { name: "ENTERPRISE", title: "Enterprise", price: "499", description: "Para inmobiliarias con equipos grandes, automatizaciones y procesos más complejos.", features: ["Agentes ilimitados", "Multi equipo", "Roles y asignación automática", "Integraciones", "WhatsApp IA con mayor escala y operación por equipos", "Soporte prioritario"] },
   ]
 
   return (
@@ -22,6 +22,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a714d]">Planes</p>
           <h1 className="mt-4 font-serif text-5xl font-medium tracking-tight text-[#29251f] md:text-6xl">Elegí el nivel de operación que necesita tu equipo.</h1>
           <p className="mt-5 text-base leading-7 text-[#6d665d]">{params.new === "1" ? "Tu cuenta fue creada. Ahora elegí el plan que querés activar." : "Elegí el plan y completá la solicitud de activación."}</p>
+          <p className="mt-2 text-sm font-medium text-[#7a674d]">WhatsApp IA está disponible desde Professional (USD 249/mes).</p>
         </div>
 
         <section className="mt-14 grid gap-5 md:grid-cols-3">
@@ -37,6 +38,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                 <p className="mt-3 min-h-16 text-sm leading-6 text-[#716a61]">{plan.description}</p>
                 <div className="mt-7 border-y border-[#d3c6b4] py-6"><span className="font-serif text-5xl font-medium tracking-tight text-[#2d2923]">${plan.price}</span><span className="ml-1 text-sm text-[#787168]">/mes</span></div>
                 <ul className="mt-6 space-y-3 text-sm text-[#5f5951]">{plan.features.map((feature) => <li key={feature} className="flex gap-2.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#816d4f]" strokeWidth={1.8} /><span>{feature}</span></li>)}</ul>
+                {plan.lockedFeatures?.map((feature) => <div key={feature} className="mt-3 flex items-center gap-2 rounded-lg border border-[#d3c6b4] bg-[#eee5d7] px-3 py-2 text-xs font-medium text-[#7a7167]"><LockKeyhole size={14} /><span>{feature} — desde Professional</span></div>)}
                 <Link href={requestHref} className={`mt-8 block rounded-md px-5 py-3 text-center text-sm font-medium transition ${plan.popular ? "bg-[#302b25] text-[#f5eee4] hover:bg-[#211e1a]" : "border border-[#b9aa94] text-[#3c3730] hover:bg-[#e9dece]"}`}>Elegir {plan.title}</Link>
               </div>
             )

@@ -81,11 +81,11 @@ export function DemoSidebar() {
         </div>
 
         <div className="mx-2 mt-7 border-y border-[#d1c4b1] py-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8f877c]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#665f56]">
             Cartera demostración
           </p>
           <p className="mt-2 text-sm font-medium text-[#37332d]">{DEMO_COMPANY.name}</p>
-          <p className="mt-1 text-xs text-[#777066]">{DEMO_COMPANY.market}</p>
+          <p className="mt-1 text-xs text-[#6b6359]">{DEMO_COMPANY.market}</p>
         </div>
 
         <nav className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto pr-1">
@@ -100,20 +100,20 @@ export function DemoSidebar() {
                 className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
                   active
                     ? "bg-[#d9c9b3] text-[#302b24]"
-                    : "text-[#6f685e] hover:bg-[#dfd3c2] hover:text-[#302c26]"
+                    : "text-[#665f56] hover:bg-[#dfd3c2] hover:text-[#302c26]"
                 }`}
               >
-                <Icon size={16} strokeWidth={1.6} className={active ? "text-[#7a6344]" : "text-[#8e867b]"} />
+                <Icon size={16} strokeWidth={1.6} className={active ? "text-[#7a6344]" : "text-[#756e64]"} />
                 <span className="flex-1">{item.label}</span>
-                {active && <ChevronRight size={14} className="text-[#8a7a65]" />}
+                {active && <ChevronRight size={14} className="text-[#745f43]" />}
               </Link>
             )
           })}
         </nav>
 
         <div className="mx-2 mt-6 border-t border-[#d1c4b1] pt-5">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-[#8d8579]">RevScale Systems</p>
-          <p className="mt-1 text-xs text-[#6f685e]">Inteligencia comercial inmobiliaria</p>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-[#665f56]">RevScale Systems</p>
+          <p className="mt-1 text-xs text-[#665f56]">Inteligencia comercial inmobiliaria</p>
         </div>
       </aside>
     </>

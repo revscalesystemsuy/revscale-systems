@@ -20,11 +20,11 @@ export default function DemoAgentsPage() {
           {agents.map((agent, i) => (
             <div
               key={agent.id}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
+              className="rounded-2xl border border-[#d6cbbb] bg-[#f7f1e8] p-6"
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="flex items-center gap-2 text-xl font-bold">
+                  <h2 className="flex items-center gap-2 text-xl font-bold text-[#302c25]">
                     {i === 0 && (
                       <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#d2c5b3] bg-[#eee4d5] text-[#786447]">
                         <Award size={15} strokeWidth={1.7} />
@@ -32,13 +32,13 @@ export default function DemoAgentsPage() {
                     )}
                     {agent.name}
                   </h2>
-                  <span className="mt-2 inline-block rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-400">
+                  <span className="mt-2 inline-block rounded-full bg-[#e9dfd0] px-3 py-1 text-xs font-semibold text-[#745f43]">
                     {agent.role}
                   </span>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-slate-500">Ranking</p>
-                  <p className="text-2xl font-bold text-blue-400">#{i + 1}</p>
+                  <p className="text-xs text-[#625b52]">Ranking</p>
+                  <p className="text-2xl font-bold text-[#745f43]">#{i + 1}</p>
                 </div>
               </div>
 
@@ -51,9 +51,9 @@ export default function DemoAgentsPage() {
                 <Stat label="Conversiones" value={agent.conversions} />
               </div>
 
-              <div className="mt-5 border-t border-white/10 pt-4">
-                <p className="text-xs text-slate-500">Valor potencial</p>
-                <p className="text-xl font-bold text-green-400">
+              <div className="mt-5 border-t border-[#ded2c2] pt-4">
+                <p className="text-xs text-[#625b52]">Valor potencial</p>
+                <p className="text-xl font-bold text-[#41634a]">
                   {formatUSD(agent.potentialValueUSD)}
                 </p>
               </div>
@@ -67,9 +67,9 @@ export default function DemoAgentsPage() {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl bg-white/[0.03] p-3 text-center">
-      <p className="text-xs text-slate-400">{label}</p>
-      <p className="mt-1 text-xl font-bold">{value}</p>
+    <div className="rounded-xl bg-[#efe6d9] p-3 text-center">
+      <p className="text-xs text-[#625b52]">{label}</p>
+      <p className="mt-1 text-xl font-bold text-[#302c25]">{value}</p>
     </div>
   )
 }

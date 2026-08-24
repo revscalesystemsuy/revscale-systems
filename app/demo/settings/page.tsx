@@ -1,5 +1,17 @@
+import { Building2, MapPin, PlugZap } from "lucide-react"
 import { DEMO_COMPANY } from "@/lib/demo-data"
 import { PageHeader, Card } from "../demo-ui"
+
+function SectionTitle({ icon: Icon, children }: { icon: typeof Building2; children: string }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#d2c5b3] bg-[#eee4d5] text-[#786447]">
+        <Icon size={15} strokeWidth={1.7} />
+      </span>
+      {children}
+    </span>
+  )
+}
 
 export default function DemoSettingsPage() {
   return (
@@ -12,7 +24,7 @@ export default function DemoSettingsPage() {
         />
 
         <div className="grid gap-5 md:grid-cols-2">
-          <Card title="🏢 Organización">
+          <Card title={<SectionTitle icon={Building2}>Organización</SectionTitle>}>
             <div className="space-y-2 text-[#4f4a42]">
               <p>Nombre: {DEMO_COMPANY.name}</p>
               <p>Mercado: {DEMO_COMPANY.market}</p>
@@ -20,7 +32,7 @@ export default function DemoSettingsPage() {
             </div>
           </Card>
 
-          <Card title="📍 Zonas activas">
+          <Card title={<SectionTitle icon={MapPin}>Zonas activas</SectionTitle>}>
             <div className="flex flex-wrap gap-2">
               {DEMO_COMPANY.zones.map((z) => (
                 <span
@@ -33,12 +45,12 @@ export default function DemoSettingsPage() {
             </div>
           </Card>
 
-          <Card title="🔌 Integraciones" className="md:col-span-2">
+          <Card title={<SectionTitle icon={PlugZap}>Integraciones</SectionTitle>} className="md:col-span-2">
             <div className="space-y-3">
               {[
                 { name: "WhatsApp Business", status: "Conectado" },
                 { name: "Portal inmobiliario", status: "Conectado" },
-                { name: "Matching IA", status: "Activo" },
+                { name: "Matching inteligente", status: "Activo" },
                 { name: "Reportes automáticos", status: "Pendiente" },
               ].map((int) => (
                 <div

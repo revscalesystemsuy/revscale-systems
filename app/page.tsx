@@ -16,10 +16,10 @@ export default function Home() {
               Planes
             </Link>
             <Link
-              href="/demo"
+              href="/demos"
               className="rounded-md border border-[#b9aa94] px-4 py-2 text-sm font-medium text-[#38342d] transition hover:bg-[#e7dbca]"
             >
-              Ver demo
+              Ver demos
             </Link>
             <Link
               href="/auth/login"
@@ -45,10 +45,10 @@ export default function Home() {
 
           <div className="mt-9 flex flex-wrap gap-3">
             <Link
-              href="/demo"
+              href="/demos"
               className="inline-flex items-center gap-2 rounded-md bg-[#2f2b25] px-6 py-3 font-medium text-[#f5eee4] transition hover:bg-[#1f1c18]"
             >
-              Explorar la demo
+              Ver demos
               <ArrowUpRight size={16} />
             </Link>
             <Link

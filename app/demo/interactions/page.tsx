@@ -40,16 +40,16 @@ export default function DemoInteractionsPage() {
           ))}
         </section>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03]">
+        <div className="rounded-2xl border border-[#d6cbbb] bg-[#f7f1e8]">
           {DEMO_INTERACTIONS.map((i, idx) => {
             const Icon = CHANNEL_ICON[i.channel as keyof typeof CHANNEL_ICON] || MessageCircle
             return (
               <Link
                 key={i.id}
                 href={`/demo/leads/${i.leadId}`}
-                className={`flex gap-4 p-5 transition hover:bg-white/[0.03] ${
+                className={`flex gap-4 p-5 transition hover:bg-[#f0e7da] ${
                   idx !== DEMO_INTERACTIONS.length - 1
-                    ? "border-b border-white/5"
+                    ? "border-b border-[#ded2c2]"
                     : ""
                 }`}
               >
@@ -58,16 +58,16 @@ export default function DemoInteractionsPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold">
+                    <span className="font-semibold text-[#37332d]">
                       {i.leadName}
-                      <span className="ml-2 text-xs font-normal text-blue-400">
+                      <span className="ml-2 text-xs font-normal text-[#745f43]">
                         {i.channel} · {i.direction}
                       </span>
                     </span>
-                    <span className="text-xs text-slate-500">{i.date}</span>
+                    <span className="text-xs text-[#625b52]">{i.date}</span>
                   </div>
-                  <p className="mt-1 text-sm text-slate-300">{i.message}</p>
-                  <p className="mt-1 text-xs text-slate-500">Por {i.actor}</p>
+                  <p className="mt-1 text-sm text-[#514b43]">{i.message}</p>
+                  <p className="mt-1 text-xs text-[#625b52]">Por {i.actor}</p>
                 </div>
               </Link>
             )

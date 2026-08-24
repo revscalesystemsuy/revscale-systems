@@ -32,7 +32,7 @@ export function SignUpForm({ initialEmail = "" }: { initialEmail?: string }) {
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${origin}/auth/confirm?next=/auth/login?confirmed=1` },
+        options: { emailRedirectTo: `${origin}/auth/login?confirmed=1` },
       });
 
       if (signUpError) throw signUpError;

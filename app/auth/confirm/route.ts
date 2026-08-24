@@ -2,13 +2,20 @@ import { createClient } from "@/lib/supabase/server";
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
+function safeNext(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/auth/login?confirmed=1";
+  }
+  return value;
+}
+
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const tokenHash = searchParams.get("token_hash");
-  const type = searchParams.get("type") as EmailOtpType | null;
-  const code = searchParams.get("code");
-  const next = searchParams.get("next") || "/protected";
-  const redirectTo = new URL(next, request.url);
+  const url = new URL(request.url);
+  const tokenHash = url.searchParams.get("token_hash");
+  const type = url.searchParams.get("type") as EmailOtpType | null;
+  const code = url.searchParams.get("code");
+  const next = safeNext(url.searchParams.get("next"));
+  const redirectTo = new URL(next, url.origin);
 
   const supabase = await createClient();
 
@@ -17,7 +24,7 @@ export async function GET(request: NextRequest) {
     if (!error) return NextResponse.redirect(redirectTo);
 
     return NextResponse.redirect(
-      new URL(`/auth/error?error=${encodeURIComponent(error.message)}`, request.url),
+      new URL(`/auth/error?error=${encodeURIComponent(error.message)}`, url.origin),
     );
   }
 
@@ -30,11 +37,13 @@ export async function GET(request: NextRequest) {
     if (!error) return NextResponse.redirect(redirectTo);
 
     return NextResponse.redirect(
-      new URL(`/auth/error?error=${encodeURIComponent(error.message)}`, request.url),
+      new URL(`/auth/error?error=${encodeURIComponent(error.message)}`, url.origin),
     );
   }
 
-  return NextResponse.redirect(
-    new URL("/auth/error?error=No%20se%20recibió%20un%20código%20de%20confirmación%20válido", request.url),
-  );
+  // Confirmation links generated with Supabase's default ConfirmationURL are
+  // verified by Supabase before redirecting back to the application. In that
+  // flow there is intentionally no token/code left for this route to exchange.
+  // Sending the user to login avoids showing a false confirmation error.
+  return NextResponse.redirect(new URL("/auth/login?confirmed=1", url.origin));
 }

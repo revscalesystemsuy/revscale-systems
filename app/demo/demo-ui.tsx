@@ -38,15 +38,15 @@ export function MetricCard({
   value,
   hint,
 }: {
-  title: string
+  title: ReactNode
   value: number | string
   hint?: string
 }) {
   return (
     <div className="rounded-xl border border-[#d6cbbb] bg-[#f7f1e8] p-5 shadow-[0_12px_35px_rgba(74,63,48,0.05)]">
-      <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[#8a8378]">
+      <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-[#8a8378]">
         {title}
-      </p>
+      </div>
       <p className="mt-3 font-serif text-[2rem] font-medium leading-none tracking-tight text-[#2f2b24] tabular-nums">
         {value}
       </p>
@@ -60,7 +60,7 @@ export function Card({
   children,
   className = "",
 }: {
-  title?: string
+  title?: ReactNode
   children: ReactNode
   className?: string
 }) {

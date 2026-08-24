@@ -169,4 +169,36 @@
   .revscale-real-app .bg-blue-500\/10 {
     background-color: #e9dfd0 !important;
   }
+
+  /* Dark controls must keep light labels/icons even though the cream theme
+     remaps generic white text to a dark foreground elsewhere. */
+  .revscale-real-app button[class~="bg-blue-500"],
+  .revscale-real-app a[class~="bg-blue-500"],
+  .revscale-real-app button[class~="bg-black"],
+  .revscale-real-app a[class~="bg-black"],
+  .revscale-real-app button[class~="bg-neutral-900"],
+  .revscale-real-app a[class~="bg-neutral-900"],
+  .revscale-real-app button[class~="bg-neutral-950"],
+  .revscale-real-app a[class~="bg-neutral-950"],
+  .revscale-real-app button[class~="bg-zinc-900"],
+  .revscale-real-app a[class~="bg-zinc-900"],
+  .revscale-real-app button[class~="bg-zinc-950"],
+  .revscale-real-app a[class~="bg-zinc-950"] {
+    color: #fffaf2 !important;
+  }
+
+  .revscale-real-app button[class~="bg-blue-500"] *,
+  .revscale-real-app a[class~="bg-blue-500"] *,
+  .revscale-real-app button[class~="bg-black"] *,
+  .revscale-real-app a[class~="bg-black"] *,
+  .revscale-real-app button[class~="bg-neutral-900"] *,
+  .revscale-real-app a[class~="bg-neutral-900"] *,
+  .revscale-real-app button[class~="bg-neutral-950"] *,
+  .revscale-real-app a[class~="bg-neutral-950"] *,
+  .revscale-real-app button[class~="bg-zinc-900"] *,
+  .revscale-real-app a[class~="bg-zinc-900"] *,
+  .revscale-real-app button[class~="bg-zinc-950"] *,
+  .revscale-real-app a[class~="bg-zinc-950"] * {
+    color: inherit !important;
+  }
 }

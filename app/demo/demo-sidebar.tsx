@@ -18,21 +18,23 @@ import {
 } from "lucide-react"
 import { DEMO_COMPANY } from "@/lib/demo-data"
 
-const NAV_ITEMS = [
-  { href: "/demo", label: "Resumen", icon: House },
-  { href: "/demo/leads", label: "Leads", icon: Users },
-  { href: "/demo/pipeline", label: "Pipeline", icon: Workflow },
-  { href: "/demo/properties", label: "Propiedades", icon: Building2 },
-  { href: "/demo/interactions", label: "Interacciones", icon: MessageSquareText },
-  { href: "/demo/followups", label: "Seguimientos", icon: ClipboardList },
-  { href: "/demo/whatsapp", label: "WhatsApp IA", icon: MessageCircle },
-  { href: "/demo/agents", label: "Equipo", icon: Users },
-  { href: "/demo/reports", label: "Reportes", icon: BarChart3 },
-  { href: "/demo/analytics", label: "Analítica", icon: ChartNoAxesCombined },
-  { href: "/demo/settings", label: "Configuración", icon: Settings },
-]
+type DemoPlan = "starter" | "professional" | "enterprise"
 
-const PLAN_LABELS: Record<string, string> = {
+const NAV_ITEMS = [
+  { href: "/demo", label: "Resumen", icon: House, plans: ["starter", "professional", "enterprise"] },
+  { href: "/demo/leads", label: "Leads", icon: Users, plans: ["starter", "professional", "enterprise"] },
+  { href: "/demo/pipeline", label: "Pipeline", icon: Workflow, plans: ["starter", "professional", "enterprise"] },
+  { href: "/demo/properties", label: "Propiedades", icon: Building2, plans: ["starter", "professional", "enterprise"] },
+  { href: "/demo/interactions", label: "Interacciones", icon: MessageSquareText, plans: ["starter", "professional", "enterprise"] },
+  { href: "/demo/followups", label: "Seguimientos", icon: ClipboardList, plans: ["starter", "professional", "enterprise"] },
+  { href: "/demo/whatsapp", label: "WhatsApp IA", icon: MessageCircle, plans: ["professional", "enterprise"] },
+  { href: "/demo/agents", label: "Equipo", icon: Users, plans: ["starter", "professional", "enterprise"] },
+  { href: "/demo/reports", label: "Reportes", icon: BarChart3, plans: ["professional", "enterprise"] },
+  { href: "/demo/analytics", label: "Analítica", icon: ChartNoAxesCombined, plans: ["professional", "enterprise"] },
+  { href: "/demo/settings", label: "Configuración", icon: Settings, plans: ["starter", "professional", "enterprise"] },
+] as const
+
+const PLAN_LABELS: Record<DemoPlan, string> = {
   starter: "Starter",
   professional: "Professional",
   enterprise: "Enterprise",
@@ -47,10 +49,11 @@ export function DemoSidebar() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [open, setOpen] = useState(false)
-  const rawPlan = searchParams.get("plan") || "professional"
-  const planKey = PLAN_LABELS[rawPlan] ? rawPlan : "professional"
+  const rawPlan = searchParams.get("plan") as DemoPlan | null
+  const planKey: DemoPlan = rawPlan && rawPlan in PLAN_LABELS ? rawPlan : "professional"
   const planLabel = PLAN_LABELS[planKey]
   const withPlan = (href: string) => `${href}?plan=${planKey}`
+  const visibleItems = NAV_ITEMS.filter((item) => item.plans.includes(planKey))
 
   return (
     <>
@@ -81,7 +84,7 @@ export function DemoSidebar() {
         </div>
 
         <nav className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto pr-1">
-          {NAV_ITEMS.map((item) => {
+          {visibleItems.map((item) => {
             const active = isActive(pathname, item.href)
             const Icon = item.icon
             return (

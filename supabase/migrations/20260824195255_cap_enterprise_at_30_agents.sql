@@ -1,0 +1,3 @@
+-- This production migration replaced private.activate_plan_request_core so Enterprise
+-- activations use a 30-agent cap. The same final definition is folded into
+-- 20260824194256_paddle_billing_event_processing.sql for clean database rebuilds.

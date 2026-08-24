@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { CheckCircle2, Edit3, Pause, Phone, Play, UserPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentOrganizationContext, ROLE_LABELS } from "@/lib/organization-role";
 import { toggleAgentStatus } from "./actions";
@@ -38,10 +39,7 @@ async function AgentsContent() {
     userIds.length
       ? supabase.from("followups").select("assigned_to,status").in("assigned_to", userIds)
       : Promise.resolve({ data: [] }),
-    supabase
-      .from("teams")
-      .select("id,name")
-      .eq("organization_id", context.organizationId),
+    supabase.from("teams").select("id,name").eq("organization_id", context.organizationId),
   ]);
 
   const agents = (members || []).map((member) => {
@@ -74,8 +72,9 @@ async function AgentsContent() {
                 : "Administración del equipo comercial de la organización."}
             </p>
           </div>
-          <Link href="/protected/agents/invite" className="rounded-xl bg-blue-500 px-5 py-3 font-semibold">
-            + Invitar agente
+          <Link href="/protected/agents/invite" className="inline-flex items-center gap-2 rounded-xl bg-blue-500 px-5 py-3 font-semibold">
+            <UserPlus size={17} strokeWidth={1.7} />
+            Invitar agente
           </Link>
         </div>
 
@@ -83,12 +82,16 @@ async function AgentsContent() {
           {agents.map((agent) => (
             <div key={agent.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
               <h2 className="text-xl font-bold">{agent.profile?.full_name || "Sin nombre"}</h2>
-              <p className="mt-1 text-slate-400">📞 {agent.profile?.phone || "Sin teléfono"}</p>
+              <p className="mt-1 flex items-center gap-2 text-slate-400">
+                <Phone size={14} strokeWidth={1.7} />
+                {agent.profile?.phone || "Sin teléfono"}
+              </p>
               <p className="mt-1 text-xs text-slate-500">{agent.teamName}</p>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <span className={`rounded-full px-3 py-1 text-sm ${agent.status === "ACTIVE" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
-                  {agent.status === "ACTIVE" ? "🟢 Activo" : "🔴 Suspendido"}
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm ${agent.status === "ACTIVE" ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  {agent.status === "ACTIVE" ? "Activo" : "Suspendido"}
                 </span>
                 <span className="rounded-full bg-blue-500/10 px-3 py-1 text-sm text-blue-400">
                   {ROLE_LABELS[agent.role as keyof typeof ROLE_LABELS] || agent.role}
@@ -102,8 +105,9 @@ async function AgentsContent() {
               </div>
 
               {(isOwner || agent.role === "AGENT") && (
-                <Link href={`/protected/agents/${agent.id}/edit`} className="mt-5 block rounded-xl border border-white/10 px-4 py-2 text-center text-sm hover:bg-white/5">
-                  ✏️ Editar
+                <Link href={`/protected/agents/${agent.id}/edit`} className="mt-5 flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-center text-sm hover:bg-white/5">
+                  <Edit3 size={14} strokeWidth={1.7} />
+                  Editar
                 </Link>
               )}
 
@@ -111,8 +115,9 @@ async function AgentsContent() {
                 <form action={toggleAgentStatus} className="mt-3">
                   <input type="hidden" name="id" value={agent.id} />
                   <input type="hidden" name="status" value={agent.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE"} />
-                  <button className="w-full rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/5">
-                    {agent.status === "ACTIVE" ? "⏸ Suspender" : "▶ Activar"}
+                  <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/5">
+                    {agent.status === "ACTIVE" ? <Pause size={14} strokeWidth={1.7} /> : <Play size={14} strokeWidth={1.7} />}
+                    {agent.status === "ACTIVE" ? "Suspender" : "Activar"}
                   </button>
                 </form>
               )}

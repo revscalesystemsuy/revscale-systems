@@ -10,6 +10,7 @@ import {
   CreditCard,
   Database,
   House,
+  MessageCircle,
   MessagesSquare,
   Settings,
   SlidersHorizontal,
@@ -133,6 +134,15 @@ export default async function ProtectedLayout({
             </NavItem>
           )}
 
+          {canSeeCompanyAdmin && (
+            <NavItem
+              href="/protected/settings/whatsapp"
+              icon={<MessageCircle size={16} strokeWidth={1.6} />}
+              locked={!planHasFeature(plan, "whatsapp_ai")}
+            >
+              WhatsApp IA
+            </NavItem>
+          )}
           {canSeeCompanyAdmin && (
             <NavItem
               href="/protected/settings/integrations"

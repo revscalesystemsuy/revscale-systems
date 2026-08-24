@@ -3,7 +3,7 @@
 import Script from "next/script";
 import { useState } from "react";
 
-type PaddleCheckout = {
+type PaddlePaymentLinkApi = {
   Environment?: { set: (environment: "sandbox") => void };
   Initialize: (options: {
     token: string;
@@ -11,12 +11,10 @@ type PaddleCheckout = {
   }) => void;
 };
 
-declare global {
-  interface Window {
-    Paddle?: PaddleCheckout;
-    __revscalePaymentLinkPaddleInitialized?: boolean;
-  }
-}
+type PaddlePaymentLinkWindow = Window & {
+  Paddle?: PaddlePaymentLinkApi;
+  __revscalePaymentLinkPaddleInitialized?: boolean;
+};
 
 export function PaddlePaymentLinkLoader({
   clientToken,
@@ -28,14 +26,16 @@ export function PaddlePaymentLinkLoader({
   const [error, setError] = useState("");
 
   function initialize() {
-    if (!window.Paddle || !clientToken || window.__revscalePaymentLinkPaddleInitialized) return;
+    const paddleWindow = window as PaddlePaymentLinkWindow;
+    const paddle = paddleWindow.Paddle;
+    if (!paddle || !clientToken || paddleWindow.__revscalePaymentLinkPaddleInitialized) return;
     try {
-      if (environment === "sandbox") window.Paddle.Environment?.set("sandbox");
-      window.Paddle.Initialize({
+      if (environment === "sandbox") paddle.Environment?.set("sandbox");
+      paddle.Initialize({
         token: clientToken,
         checkout: { settings: { theme: "light", displayMode: "overlay" } },
       });
-      window.__revscalePaymentLinkPaddleInitialized = true;
+      paddleWindow.__revscalePaymentLinkPaddleInitialized = true;
     } catch {
       setError("No se pudo inicializar el checkout. Volvé a intentar desde RevScale.");
     }

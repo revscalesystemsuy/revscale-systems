@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 export type PlanName = "TRIAL" | "STARTER" | "PROFESSIONAL" | "ENTERPRISE";
 export type PlanFeature =
   | "ai_assistant"
+  | "whatsapp_ai"
   | "matching"
   | "analytics"
   | "reports"
@@ -30,6 +31,7 @@ export function planHasFeature(
 
   if (
     feature === "ai_assistant" ||
+    feature === "whatsapp_ai" ||
     feature === "matching" ||
     feature === "analytics" ||
     feature === "reports"

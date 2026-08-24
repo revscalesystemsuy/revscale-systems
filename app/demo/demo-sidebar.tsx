@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { useState } from "react"
 import {
   BarChart3,
@@ -32,6 +32,12 @@ const NAV_ITEMS = [
   { href: "/demo/settings", label: "Configuración", icon: Settings },
 ]
 
+const PLAN_LABELS: Record<string, string> = {
+  starter: "Starter",
+  professional: "Professional",
+  enterprise: "Enterprise",
+}
+
 function isActive(pathname: string, href: string) {
   if (href === "/demo") return pathname === "/demo"
   return pathname === href || pathname.startsWith(`${href}/`)
@@ -39,7 +45,12 @@ function isActive(pathname: string, href: string) {
 
 export function DemoSidebar() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [open, setOpen] = useState(false)
+  const rawPlan = searchParams.get("plan") || "professional"
+  const planKey = PLAN_LABELS[rawPlan] ? rawPlan : "professional"
+  const planLabel = PLAN_LABELS[planKey]
+  const withPlan = (href: string) => `${href}?plan=${planKey}`
 
   return (
     <>
@@ -60,8 +71,12 @@ export function DemoSidebar() {
         </div>
 
         <div className="mx-2 mt-7 border-y border-[#d1c4b1] py-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#665f56]">Cartera demostración</p>
-          <p className="mt-2 text-sm font-medium text-[#37332d]">{DEMO_COMPANY.name}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#665f56]">Demo seleccionada</p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-[#37332d]">{planLabel}</p>
+            <Link href="/demos" className="text-[11px] font-semibold text-[#7a6344] underline-offset-4 hover:underline">Cambiar</Link>
+          </div>
+          <p className="mt-3 text-xs font-medium text-[#4b453d]">{DEMO_COMPANY.name}</p>
           <p className="mt-1 text-xs text-[#6b6359]">{DEMO_COMPANY.market}</p>
         </div>
 
@@ -70,7 +85,7 @@ export function DemoSidebar() {
             const active = isActive(pathname, item.href)
             const Icon = item.icon
             return (
-              <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${active ? "bg-[#d9c9b3] text-[#302b24]" : "text-[#665f56] hover:bg-[#dfd3c2] hover:text-[#302c26]"}`}>
+              <Link key={item.href} href={withPlan(item.href)} onClick={() => setOpen(false)} className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${active ? "bg-[#d9c9b3] text-[#302b24]" : "text-[#665f56] hover:bg-[#dfd3c2] hover:text-[#302c26]"}`}>
                 <Icon size={16} strokeWidth={1.6} className={active ? "text-[#7a6344]" : "text-[#756e64]"} />
                 <span className="flex-1">{item.label}</span>
                 {active && <ChevronRight size={14} className="text-[#745f43]" />}
@@ -80,7 +95,8 @@ export function DemoSidebar() {
         </nav>
 
         <div className="mx-2 mt-6 border-t border-[#d1c4b1] pt-5">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-[#665f56]">RevScale Systems</p>
+          <Link href="/pricing" className="text-xs font-semibold text-[#5c5141] transition hover:text-[#2f2b25]">Contratar este plan</Link>
+          <p className="mt-4 text-[10px] uppercase tracking-[0.16em] text-[#665f56]">RevScale Systems</p>
           <p className="mt-1 text-xs text-[#665f56]">Inteligencia comercial inmobiliaria</p>
         </div>
       </aside>

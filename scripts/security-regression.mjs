@@ -35,6 +35,13 @@ for (const scanRoot of scanRoots) {
   }
 }
 
+const proxySource = await readFile(join(root, "lib/supabase/proxy.ts"), "utf8");
+for (const requiredPublicPrefix of ["/auth", "/demo", "/pricing"]) {
+  if (!proxySource.includes(`\"${requiredPublicPrefix}\"`)) {
+    failures.push(`lib/supabase/proxy.ts: missing required public route ${requiredPublicPrefix}`);
+  }
+}
+
 if (failures.length) {
   console.error("Security regression checks failed:\n" + failures.map((item) => `- ${item}`).join("\n"));
   process.exit(1);

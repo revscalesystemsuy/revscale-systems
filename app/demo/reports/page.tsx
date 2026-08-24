@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { ArrowUpRight, Award, Building2, ClipboardList } from "lucide-react"
 import {
   DEMO_METRICS,
   DEMO_AGENTS,
@@ -8,6 +9,17 @@ import {
   formatUSD,
 } from "@/lib/demo-data"
 import { PageHeader, MetricCard, Card } from "../demo-ui"
+
+function TitleWithIcon({ icon: Icon, children }: { icon: typeof Award; children: string }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#d2c5b3] bg-[#eee4d5] text-[#786447]">
+        <Icon size={15} strokeWidth={1.7} />
+      </span>
+      {children}
+    </span>
+  )
+}
 
 export default function DemoReportsPage() {
   const topAgent = [...DEMO_AGENTS].sort(
@@ -26,9 +38,11 @@ export default function DemoReportsPage() {
           subtitle={`Informe comercial de ${DEMO_COMPANY.name} · Últimos ${DEMO_COMPANY.months} meses`}
         />
 
-        {/* Resumen comercial */}
         <section className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-6">
-          <h2 className="text-xl font-bold">📋 Resumen comercial</h2>
+          <h2 className="flex items-center gap-2 text-xl font-bold">
+            <ClipboardList size={18} strokeWidth={1.7} />
+            Resumen comercial
+          </h2>
           <p className="mt-3 text-slate-300">
             {DEMO_COMPANY.name} gestionó <b>{DEMO_METRICS.totalLeads}</b> leads
             este período, con <b>{DEMO_METRICS.hotLeads}</b> oportunidades
@@ -40,26 +54,14 @@ export default function DemoReportsPage() {
         </section>
 
         <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            title="Leads generados"
-            value={DEMO_METRICS.totalLeads}
-          />
-          <MetricCard
-            title="Oportunidades"
-            value={DEMO_METRICS.activeOpportunities}
-          />
-          <MetricCard
-            title="Conversión"
-            value={`${DEMO_METRICS.conversionRate}%`}
-          />
-          <MetricCard
-            title="Valor del pipeline"
-            value={formatUSD(DEMO_METRICS.pipelineValueUSD)}
-          />
+          <MetricCard title="Leads generados" value={DEMO_METRICS.totalLeads} />
+          <MetricCard title="Oportunidades" value={DEMO_METRICS.activeOpportunities} />
+          <MetricCard title="Conversión" value={`${DEMO_METRICS.conversionRate}%`} />
+          <MetricCard title="Valor del pipeline" value={formatUSD(DEMO_METRICS.pipelineValueUSD)} />
         </section>
 
         <section className="mt-6 grid gap-5 lg:grid-cols-2">
-          <Card title="🥇 Agente destacado">
+          <Card title={<TitleWithIcon icon={Award}>Agente destacado</TitleWithIcon>}>
             <p className="text-2xl font-bold">{topAgent.name}</p>
             <p className="mt-1 text-slate-400">{topAgent.role}</p>
             <div className="mt-4 grid grid-cols-3 gap-3 text-center">
@@ -84,7 +86,7 @@ export default function DemoReportsPage() {
             </p>
           </Card>
 
-          <Card title="🏠 Propiedad más demandada">
+          <Card title={<TitleWithIcon icon={Building2}>Propiedad más demandada</TitleWithIcon>}>
             <p className="text-2xl font-bold">{topProperty.title}</p>
             <p className="mt-1 text-slate-400">
               {topProperty.zone} · {formatUSD(topProperty.priceUSD)}
@@ -100,20 +102,20 @@ export default function DemoReportsPage() {
               </div>
               <div className="rounded-xl bg-white/[0.03] p-3">
                 <p className="text-xs text-slate-400">Demanda</p>
-                <p className="text-xl font-bold text-blue-400">
-                  {topProperty.demand}
-                </p>
+                <p className="text-xl font-bold text-blue-400">{topProperty.demand}</p>
               </div>
             </div>
           </Card>
         </section>
 
-        <Card title="🤖 Recomendaciones IA" className="mt-6">
+        <Card title={<TitleWithIcon icon={ArrowUpRight}>Siguientes acciones</TitleWithIcon>} className="mt-6">
           <div className="space-y-3">
             {DEMO_AI_RECOMMENDATIONS.map((rec) => {
               const inner = (
                 <div className="flex gap-3 rounded-xl border border-white/10 p-4 transition hover:border-blue-500/40">
-                  <span aria-hidden="true">{rec.icon}</span>
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#d2c5b3] bg-[#eee4d5] text-[#786447]">
+                    <ArrowUpRight size={14} strokeWidth={1.7} />
+                  </span>
                   <p className="text-sm text-slate-300">{rec.text}</p>
                 </div>
               )

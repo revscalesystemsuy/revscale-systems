@@ -1,7 +1,19 @@
 import Link from "next/link"
 import { ArrowUpRight, Building2, CheckCircle2, Layers3, Sparkles, UsersRound } from "lucide-react"
 
-const DEMOS = [
+type DemoCard = {
+  key: "starter" | "professional" | "enterprise"
+  name: string
+  eyebrow: string
+  title: string
+  description: string
+  icon: typeof Building2
+  experiences: string[]
+  footer: string
+  popular: boolean
+}
+
+const DEMOS: DemoCard[] = [
   {
     key: "starter",
     name: "Starter",
@@ -16,6 +28,7 @@ const DEMOS = [
       "Detectar qué seguimiento toca hacer hoy.",
     ],
     footer: "Ideal para entender la base del sistema.",
+    popular: false,
   },
   {
     key: "professional",
@@ -47,8 +60,9 @@ const DEMOS = [
       "Explorar la capa de configuración y control del sistema.",
     ],
     footer: "Las conexiones externas reales permanecen desactivadas dentro de la demo.",
+    popular: false,
   },
-] as const
+]
 
 export default function DemosPage() {
   return (

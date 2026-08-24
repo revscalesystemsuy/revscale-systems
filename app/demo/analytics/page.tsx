@@ -1,3 +1,4 @@
+import { Award } from "lucide-react"
 import {
   DEMO_METRICS,
   DEMO_LEADS_BY_MONTH,
@@ -40,7 +41,7 @@ export default function DemoAnalyticsPage() {
       <div className="mx-auto max-w-7xl">
         <PageHeader
           eyebrow="Inteligencia comercial"
-          title="📈 Analytics"
+          title="Analítica"
           subtitle="Métricas del proceso comercial de Inmobiliaria Horizonte."
         />
 
@@ -61,7 +62,6 @@ export default function DemoAnalyticsPage() {
         </section>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          {/* Leads por mes */}
           <Card title="Leads por mes">
             <div className="flex h-52 items-end justify-between gap-2">
               {DEMO_LEADS_BY_MONTH.map((m) => (
@@ -69,20 +69,19 @@ export default function DemoAnalyticsPage() {
                   key={m.month}
                   className="flex h-full flex-1 flex-col items-center justify-end gap-2"
                 >
-                  <span className="text-xs font-semibold text-slate-300">
+                  <span className="text-xs font-semibold text-[#514b43]">
                     {m.leads}
                   </span>
                   <div
-                    className="w-full min-h-1 rounded-t-lg bg-blue-500"
+                    className="min-h-1 w-full rounded-t-lg bg-[#8d7654]"
                     style={{ height: `${(m.leads / maxMonth) * 85}%` }}
                   />
-                  <span className="text-xs text-slate-500">{m.month}</span>
+                  <span className="text-xs text-[#625b52]">{m.month}</span>
                 </div>
               ))}
             </div>
           </Card>
 
-          {/* Leads por fuente */}
           <Card title="Leads por fuente">
             <div className="space-y-4">
               {DEMO_LEADS_BY_SOURCE.map((s) => (
@@ -98,11 +97,10 @@ export default function DemoAnalyticsPage() {
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
-          {/* Distribución de temperatura */}
           <Card title="Distribución HOT / WARM / COLD">
-            <div className="flex h-4 w-full overflow-hidden rounded-full bg-white/5">
+            <div className="flex h-4 w-full overflow-hidden rounded-full bg-[#e4d9ca]">
               <div
-                className="bg-blue-500"
+                className="bg-[#8d7654]"
                 style={{
                   width: `${(DEMO_TEMPERATURE_DISTRIBUTION[0].value / totalTemp) * 100}%`,
                 }}
@@ -127,7 +125,7 @@ export default function DemoAnalyticsPage() {
                   className="flex items-center justify-between text-sm"
                 >
                   <span className={`font-semibold ${t.color}`}>{t.label}</span>
-                  <span className="text-slate-400">
+                  <span className="text-[#625b52]">
                     {t.value} ({Math.round((t.value / totalTemp) * 100)}%)
                   </span>
                 </div>
@@ -135,7 +133,6 @@ export default function DemoAnalyticsPage() {
             </div>
           </Card>
 
-          {/* Embudo / pipeline */}
           <Card title="Pipeline por etapa">
             <div className="space-y-4">
               {stageCounts.map((s) => (
@@ -149,7 +146,6 @@ export default function DemoAnalyticsPage() {
             </div>
           </Card>
 
-          {/* Rendimiento por agente */}
           <Card title="Rendimiento por agente">
             <div className="space-y-4">
               {agents.map((a) => (
@@ -165,7 +161,17 @@ export default function DemoAnalyticsPage() {
           </Card>
         </div>
 
-        <Card title="🏆 Propiedades más demandadas" className="mt-6">
+        <Card
+          title={
+            <span className="inline-flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#d2c5b3] bg-[#eee4d5] text-[#786447]">
+                <Award size={15} strokeWidth={1.7} />
+              </span>
+              Propiedades más demandadas
+            </span>
+          }
+          className="mt-6"
+        >
           <div className="space-y-4">
             {topProperties.map((p) => (
               <BarRow

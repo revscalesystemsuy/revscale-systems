@@ -151,9 +151,12 @@
     color: #745f43 !important;
   }
 
-  .revscale-real-app .bg-blue-500:not(.revscale-semantic),
-  .revscale-real-app .hover\:bg-blue-400:hover {
+  .revscale-real-app [class~="bg-blue-500"] {
     background-color: #302d28 !important;
+  }
+
+  .revscale-real-app [class~="hover:bg-blue-400"]:hover {
+    background-color: #3a3630 !important;
   }
 
   .revscale-real-app .border-blue-500\/20,

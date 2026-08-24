@@ -1,32 +1,13 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
-type SignUpFormProps = React.ComponentPropsWithoutRef<"div"> & {
-  initialEmail?: string;
-};
+import { createClient } from "@/lib/supabase/client";
 
 const PRODUCTION_ORIGIN = "https://revscale-systems-eta.vercel.app";
 
-export function SignUpForm({
-  className,
-  initialEmail = "",
-  ...props
-}: SignUpFormProps) {
+export function SignUpForm({ initialEmail = "" }: { initialEmail?: string }) {
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
@@ -34,11 +15,10 @@ export function SignUpForm({
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
-    const supabase = createClient();
-    setIsLoading(true);
     setError(null);
+    setIsLoading(true);
 
     if (password !== repeatPassword) {
       setError("Las contraseñas no coinciden");
@@ -47,86 +27,63 @@ export function SignUpForm({
     }
 
     try {
+      const supabase = createClient();
       const origin = window.location.hostname === "localhost" ? window.location.origin : PRODUCTION_ORIGIN;
-      const { error } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: `${origin}/auth/confirm?next=/protected`,
-        },
+        options: { emailRedirectTo: `${origin}/auth/confirm?next=/auth/login?confirmed=1` },
       });
 
-      if (error) throw error;
-      router.push("/auth/sign-up-success");
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Ocurrió un error");
+      if (signUpError) throw signUpError;
+      router.push(`/pricing?new=1&email=${encodeURIComponent(email)}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ocurrió un error");
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Crear cuenta</CardTitle>
-          <CardDescription>
-            Usá el mismo email con el que solicitaste tu plan de RevScale.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSignUp}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="tu@email.com"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
+    <div className="w-full rounded-2xl border border-[#d5c8b6] bg-[#f7f1e8] p-7 shadow-[0_24px_70px_rgba(70,58,42,.08)]">
+      <div className="text-center">
+        <Link href="/" className="inline-flex items-baseline gap-2">
+          <span className="font-serif text-2xl tracking-tight text-[#292722]">RevScale</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8a714d]">PropertyOS</span>
+        </Link>
+        <h1 className="mt-6 font-serif text-3xl font-medium text-[#29251f]">Registrarse</h1>
+        <p className="mt-2 text-sm text-[#716a61]">Creá tu cuenta y en el siguiente paso elegí el plan para tu inmobiliaria.</p>
+      </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
+      <form onSubmit={handleSignUp} className="mt-7 space-y-4">
+        {[
+          ["email", "Correo electrónico", "email", email, setEmail],
+          ["password", "Contraseña", "password", password, setPassword],
+          ["repeat-password", "Repetir contraseña", "password", repeatPassword, setRepeatPassword],
+        ].map(([id, label, type, value, setter]) => (
+          <div key={String(id)}>
+            <label htmlFor={String(id)} className="text-sm font-medium text-[#4b453d]">{String(label)}</label>
+            <input
+              id={String(id)}
+              type={String(type)}
+              required
+              value={String(value)}
+              onChange={(e) => (setter as (value: string) => void)(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-[#cdbfaa] bg-[#fffaf2] px-4 py-3 text-[#292722] outline-none transition focus:border-[#8a714d]"
+            />
+          </div>
+        ))}
 
-              <div className="grid gap-2">
-                <Label htmlFor="repeat-password">Repetir contraseña</Label>
-                <Input
-                  id="repeat-password"
-                  type="password"
-                  required
-                  value={repeatPassword}
-                  onChange={(e) => setRepeatPassword(e.target.value)}
-                />
-              </div>
+        {error && <div className="rounded-xl border border-[#d7b7aa] bg-[#f7e8df] p-3 text-sm text-[#7a3f32]">{error}</div>}
 
-              {error && <p className="text-sm text-red-500">{error}</p>}
+        <button type="submit" disabled={isLoading} className="w-full rounded-xl bg-[#2f2b25] px-5 py-3 font-semibold text-[#fffaf2] transition hover:bg-[#1f1c18] disabled:opacity-60">
+          {isLoading ? "Creando cuenta..." : "Registrarme y elegir plan"}
+        </button>
+      </form>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Creando cuenta..." : "Crear cuenta"}
-              </Button>
-            </div>
-
-            <div className="mt-4 text-center text-sm">
-              ¿Ya tenés una cuenta?{" "}
-              <Link href="/auth/login" className="underline underline-offset-4">
-                Iniciar sesión
-              </Link>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      <div className="mt-6 border-t border-[#ddd1c1] pt-5 text-center text-sm text-[#716a61]">
+        ¿Ya tenés cuenta? <Link href="/auth/login" className="font-semibold text-[#6f5c40]">Iniciar sesión</Link>
+      </div>
     </div>
   );
 }

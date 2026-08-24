@@ -19,10 +19,7 @@ export function LoginForm() {
 
     try {
       const supabase = createClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
       if (signInError) {
         const message = signInError.message.toLowerCase();
@@ -47,18 +44,19 @@ export function LoginForm() {
   }
 
   return (
-    <div className="w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="w-full rounded-2xl border border-[#d5c8b6] bg-[#f7f1e8] p-7 shadow-[0_24px_70px_rgba(70,58,42,.08)]">
       <div className="text-center">
-        <p className="text-sm font-semibold text-blue-600">RevScale Systems</p>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900">Iniciar sesión</h1>
-        <p className="mt-2 text-sm text-slate-500">Ingresá a RevScale PropertyOS.</p>
+        <Link href="/" className="inline-flex items-baseline gap-2">
+          <span className="font-serif text-2xl tracking-tight text-[#292722]">RevScale</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8a714d]">PropertyOS</span>
+        </Link>
+        <h1 className="mt-6 font-serif text-3xl font-medium tracking-tight text-[#29251f]">Iniciar sesión</h1>
+        <p className="mt-2 text-sm text-[#716a61]">Ingresá a tu operación comercial inmobiliaria.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+      <form onSubmit={handleSubmit} className="mt-7 space-y-4">
         <div>
-          <label htmlFor="email" className="text-sm font-medium text-slate-700">
-            Correo electrónico
-          </label>
+          <label htmlFor="email" className="text-sm font-medium text-[#4b453d]">Correo electrónico</label>
           <input
             id="email"
             type="email"
@@ -66,19 +64,15 @@ export function LoginForm() {
             autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
+            className="mt-2 w-full rounded-xl border border-[#cdbfaa] bg-[#fffaf2] px-4 py-3 text-[#292722] outline-none transition placeholder:text-[#8a8379] focus:border-[#8a714d]"
             placeholder="tu@email.com"
           />
         </div>
 
         <div>
-          <div className="flex items-center justify-between">
-            <label htmlFor="password" className="text-sm font-medium text-slate-700">
-              Contraseña
-            </label>
-            <Link href="/auth/forgot-password" className="text-xs font-medium text-blue-600 hover:text-blue-500">
-              Recuperar contraseña
-            </Link>
+          <div className="flex items-center justify-between gap-4">
+            <label htmlFor="password" className="text-sm font-medium text-[#4b453d]">Contraseña</label>
+            <Link href="/auth/forgot-password" className="text-xs font-medium text-[#7a6547] hover:text-[#4e4130]">Recuperar contraseña</Link>
           </div>
           <input
             id="password"
@@ -87,31 +81,25 @@ export function LoginForm() {
             autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-blue-500"
+            className="mt-2 w-full rounded-xl border border-[#cdbfaa] bg-[#fffaf2] px-4 py-3 text-[#292722] outline-none transition placeholder:text-[#8a8379] focus:border-[#8a714d]"
             placeholder="••••••••"
           />
         </div>
 
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error && <div className="rounded-xl border border-[#d7b7aa] bg-[#f7e8df] p-3 text-sm text-[#7a3f32]">{error}</div>}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-xl bg-[#2f2b25] px-5 py-3 font-semibold text-[#fffaf2] transition hover:bg-[#1f1c18] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? "Ingresando..." : "Iniciar sesión"}
         </button>
       </form>
 
-      <div className="mt-5 border-t border-slate-100 pt-4 text-center text-sm text-slate-500">
+      <div className="mt-6 border-t border-[#ddd1c1] pt-5 text-center text-sm text-[#716a61]">
         ¿Sos un cliente nuevo?{" "}
-        <Link href="/auth/sign-up" className="font-medium text-blue-600 hover:text-blue-500">
-          Crear cuenta
-        </Link>
+        <Link href="/auth/sign-up" className="font-semibold text-[#6f5c40] hover:text-[#493d2d]">Registrarse</Link>
       </div>
     </div>
   );

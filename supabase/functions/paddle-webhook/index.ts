@@ -84,13 +84,35 @@ Deno.serve(async (req: Request) => {
   const data = event.data || {};
   const subscriptionId = eventType.startsWith("subscription.") ? data.id : data.subscription_id;
   const transactionId = eventType.startsWith("transaction.") ? data.id : null;
-  const priceId = data.items?.[0]?.price?.id || null;
   const periodEnd = data.current_billing_period?.ends_at || null;
   const cancelAtPeriodEnd = data.scheduled_change?.action === "cancel";
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+  const itemPriceIds = Array.from(new Set((data.items || []).map((item) => item.price?.id).filter((value): value is string => Boolean(value))));
+  let priceId: string | null = itemPriceIds[0] || null;
+
+  if (itemPriceIds.length) {
+    const { data: knownPrices, error: priceError } = await admin
+      .from("billing_price_catalog")
+      .select("paddle_price_id")
+      .eq("active", true)
+      .in("paddle_price_id", itemPriceIds);
+
+    if (priceError) {
+      console.error("PADDLE PRICE RESOLUTION ERROR", priceError.message);
+      return Response.json({ error: "Billing price resolution failed" }, { status: 500 });
+    }
+
+    const knownPriceIds = (knownPrices || []).map((row) => row.paddle_price_id).filter(Boolean);
+    if (knownPriceIds.length > 1) {
+      console.error("PADDLE BILLING EVENT HAS MULTIPLE REVSCALE BASE PRICES", knownPriceIds);
+      return Response.json({ error: "Ambiguous billing price" }, { status: 409 });
+    }
+    if (knownPriceIds.length === 1) priceId = knownPriceIds[0];
+  }
 
   const { data: result, error } = await admin.rpc("process_paddle_billing_event", {
     p_event_id: eventId,

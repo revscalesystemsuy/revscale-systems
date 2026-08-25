@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { OPEN_PIPELINE_STAGE_SET, PIPELINE_STAGE_LABELS, calculateOpportunityRisk, getBusinessDateKey, type OpportunityRisk } from "@/lib/commercial-ops";
+import {
+  OPEN_PIPELINE_STAGES,
+  PIPELINE_STAGE_LABELS,
+  calculateOpportunityRisk,
+  getBusinessDateKey,
+  type OpportunityRisk,
+} from "@/lib/commercial-ops";
 import { formatCommercialAmount } from "@/lib/pipeline-metrics";
 
 type CalendarItem = {
@@ -21,10 +27,22 @@ type CalendarItem = {
 
 type SearchParams = Promise<{ month?: string }>;
 
+const CALENDAR_SELECT = "id,full_name,pipeline_stage,stage_entered_at,expected_close_date,lead_temperature,requires_human,next_action,created_at,budget_max,currency";
+const OPEN_STAGES = [...OPEN_PIPELINE_STAGES];
+
 export default async function CommercialCalendarPage({ searchParams }: { searchParams: SearchParams }) {
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
-  if (!claimsData?.claims?.sub) redirect("/auth/login");
+  const userId = claimsData?.claims?.sub;
+  if (!userId) redirect("/auth/login");
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", userId)
+    .eq("status", "ACTIVE")
+    .single();
+  if (!membership) redirect("/protected");
 
   const { month: requestedMonth } = await searchParams;
   const today = getBusinessDateKey(new Date());
@@ -35,24 +53,49 @@ export default async function CommercialCalendarPage({ searchParams }: { searchP
   const monthEndExclusive = nextMonthDate.toISOString().slice(0, 10);
   const previousMonth = monthKeyFromDate(new Date(Date.UTC(year, month - 2, 1)));
   const nextMonth = monthKeyFromDate(new Date(Date.UTC(year, month, 1)));
+  const orgId = membership.organization_id;
 
-  const { data: leadsData } = await supabase
-    .from("leads")
-    .select("id,full_name,pipeline_stage,stage_entered_at,expected_close_date,lead_temperature,requires_human,next_action,created_at,budget_max,currency")
-    .not("expected_close_date", "is", null)
-    .order("expected_close_date", { ascending: true });
+  const [
+    { data: monthLeadsData },
+    { data: overdueLeadsData },
+    { count: overdueCount },
+  ] = await Promise.all([
+    supabase
+      .from("leads")
+      .select(CALENDAR_SELECT)
+      .eq("organization_id", orgId)
+      .in("pipeline_stage", OPEN_STAGES)
+      .gte("expected_close_date", monthStart)
+      .lt("expected_close_date", monthEndExclusive)
+      .order("expected_close_date", { ascending: true }),
+    supabase
+      .from("leads")
+      .select(CALENDAR_SELECT)
+      .eq("organization_id", orgId)
+      .in("pipeline_stage", OPEN_STAGES)
+      .lt("expected_close_date", today)
+      .order("expected_close_date", { ascending: true })
+      .limit(8),
+    supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId)
+      .in("pipeline_stage", OPEN_STAGES)
+      .lt("expected_close_date", today),
+  ]);
 
   const now = new Date();
-  const items: CalendarItem[] = (leadsData || [])
-    .filter((lead) => Boolean(lead.expected_close_date) && OPEN_PIPELINE_STAGE_SET.has(lead.pipeline_stage || "NEW"))
-    .map((lead) => ({
-      ...lead,
-      expected_close_date: lead.expected_close_date as string,
-      risk: calculateOpportunityRisk(lead, { now }),
-    }));
+  const monthItems: CalendarItem[] = (monthLeadsData || []).map((lead) => ({
+    ...lead,
+    expected_close_date: lead.expected_close_date as string,
+    risk: calculateOpportunityRisk(lead, { now }),
+  }));
+  const overdue: CalendarItem[] = (overdueLeadsData || []).map((lead) => ({
+    ...lead,
+    expected_close_date: lead.expected_close_date as string,
+    risk: calculateOpportunityRisk(lead, { now }),
+  }));
 
-  const overdue = items.filter((lead) => lead.expected_close_date < today);
-  const monthItems = items.filter((lead) => lead.expected_close_date >= monthStart && lead.expected_close_date < monthEndExclusive);
   const monthTotals = monthItems.reduce<Record<string, number>>((acc, lead) => {
     const value = Number(lead.budget_max || 0);
     if (!Number.isFinite(value) || value <= 0 || !lead.currency) return acc;
@@ -60,6 +103,13 @@ export default async function CommercialCalendarPage({ searchParams }: { searchP
     acc[currency] = (acc[currency] || 0) + value;
     return acc;
   }, {});
+
+  const itemsByDate = new Map<string, CalendarItem[]>();
+  for (const item of monthItems) {
+    const existing = itemsByDate.get(item.expected_close_date) || [];
+    existing.push(item);
+    itemsByDate.set(item.expected_close_date, existing);
+  }
 
   const days = buildCalendarDays(year, month);
   const monthLabel = new Intl.DateTimeFormat("es-UY", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(year, month - 1, 1)));
@@ -81,7 +131,7 @@ export default async function CommercialCalendarPage({ searchParams }: { searchP
         </div>
 
         <section className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Summary title="Vencidos" value={overdue.length} />
+          <Summary title="Vencidos" value={overdueCount || 0} />
           <Summary title="En este mes" value={monthItems.length} />
           <Summary title="Riesgo alto" value={monthItems.filter((item) => item.risk.level === "HIGH").length} />
           <div className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] p-5">
@@ -99,7 +149,7 @@ export default async function CommercialCalendarPage({ searchParams }: { searchP
               <Link href="/protected/today" className="text-sm font-semibold text-[#6d4c3e]">Resolver en Qué hacer hoy</Link>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {overdue.slice(0, 8).map((item) => <CloseCard key={item.id} item={item} compact />)}
+              {overdue.map((item) => <CloseCard key={item.id} item={item} compact />)}
             </div>
           </section>
         )}
@@ -113,7 +163,7 @@ export default async function CommercialCalendarPage({ searchParams }: { searchP
           <div className="mt-5 grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-[#d8ccbc] bg-[#d8ccbc]">
             {['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map((day) => <div key={day} className="bg-[#eee4d5] px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-[#776f64]">{day}</div>)}
             {days.map((day) => {
-              const dayItems = day.date ? monthItems.filter((item) => item.expected_close_date === day.date) : [];
+              const dayItems = day.date ? itemsByDate.get(day.date) || [] : [];
               const isToday = day.date === today;
               return (
                 <div key={day.key} className={`min-h-[165px] bg-[#fffaf2] p-3 ${isToday ? "ring-2 ring-inset ring-[#9f8b6e]" : ""}`}>

@@ -87,7 +87,8 @@ export default async function BillingPage({ searchParams }: PageProps) {
     });
 
     if (invokeError) {
-      redirect(`/protected/billing?error=${encodeURIComponent("No se pudo iniciar el cambio en Paddle. Revisá la configuración de billing.")}`);
+      await serverSupabase.rpc("cancel_pending_subscription_change", { p_request_id: requestId });
+      redirect(`/protected/billing?error=${encodeURIComponent("No se pudo iniciar el cambio en Paddle. Podés volver a intentarlo.")}`);
     }
 
     redirect("/protected/billing?change=processing");

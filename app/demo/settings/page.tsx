@@ -1,5 +1,6 @@
-import { Building2, MapPin, PlugZap } from "lucide-react"
+import { Building2, MapPin, PlugZap, ShieldCheck } from "lucide-react"
 import { DEMO_COMPANY } from "@/lib/demo-data"
+import { DEMO_PLAN_CONFIG, normalizeDemoPlan } from "@/lib/demo-plan"
 import { PageHeader, Card } from "../demo-ui"
 
 function SectionTitle({ icon: Icon, children }: { icon: typeof Building2; children: string }) {
@@ -13,14 +14,25 @@ function SectionTitle({ icon: Icon, children }: { icon: typeof Building2; childr
   )
 }
 
-export default function DemoSettingsPage() {
+export default async function DemoSettingsPage({ searchParams }: { searchParams: Promise<{ plan?: string }> }) {
+  const params = await searchParams
+  const plan = normalizeDemoPlan(params.plan)
+  const config = DEMO_PLAN_CONFIG[plan]
+
+  const integrations = [
+    { name: "WhatsApp Business", enabled: config.modules.whatsapp, status: config.modules.whatsapp ? "Disponible" : "No incluido" },
+    { name: "Matching inteligente", enabled: config.modules.matching, status: config.modules.matching ? "Activo" : "No incluido" },
+    { name: "Reportes y analítica", enabled: config.modules.analytics, status: config.modules.analytics ? "Activo" : "No incluido" },
+    { name: "Integraciones avanzadas", enabled: config.modules.integrations, status: config.modules.integrations ? "Disponible" : "Enterprise" },
+  ]
+
   return (
     <div className="p-6 md:p-8">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-5xl">
         <PageHeader
-          eyebrow="Configuración"
+          eyebrow={`${config.label} · Configuración`}
           title="Configuración"
-          subtitle="Vista de demostración. Los ajustes no se guardan en modo demo."
+          subtitle="Vista de demostración. Los ajustes no se guardan, pero las capacidades visibles corresponden al plan seleccionado."
         />
 
         <div className="grid gap-5 md:grid-cols-2">
@@ -28,45 +40,35 @@ export default function DemoSettingsPage() {
             <div className="space-y-2 text-[#4f4a42]">
               <p>Nombre: {DEMO_COMPANY.name}</p>
               <p>Mercado: {DEMO_COMPANY.market}</p>
-              <p>Plan: PropertyOS Pro</p>
+              <p>Plan: {config.label}</p>
+              <p>Agentes incluidos: hasta {config.maxAgents}</p>
+              <p>{config.leadLimit}</p>
+              <p>{config.propertyLimit}</p>
             </div>
           </Card>
 
           <Card title={<SectionTitle icon={MapPin}>Zonas activas</SectionTitle>}>
             <div className="flex flex-wrap gap-2">
               {DEMO_COMPANY.zones.map((z) => (
-                <span
-                  key={z}
-                  className="rounded-full bg-white/5 px-3 py-1 text-sm text-[#4f4a42]"
-                >
-                  {z}
-                </span>
+                <span key={z} className="rounded-full border border-[#d4c7b6] bg-[#efe6d9] px-3 py-1 text-sm text-[#4f4a42]">{z}</span>
               ))}
             </div>
           </Card>
 
-          <Card title={<SectionTitle icon={PlugZap}>Integraciones</SectionTitle>} className="md:col-span-2">
+          <Card title={<SectionTitle icon={ShieldCheck}>Capacidades del plan</SectionTitle>} className="md:col-span-2">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {config.capabilities.map((capability) => (
+                <div key={capability} className="rounded-xl border border-[#d6cbbb] bg-[#efe6d9] p-4 text-sm text-[#514b43]">{capability}</div>
+              ))}
+            </div>
+          </Card>
+
+          <Card title={<SectionTitle icon={PlugZap}>Módulos e integraciones</SectionTitle>} className="md:col-span-2">
             <div className="space-y-3">
-              {[
-                { name: "WhatsApp Business", status: "Conectado" },
-                { name: "Portal inmobiliario", status: "Conectado" },
-                { name: "Matching inteligente", status: "Activo" },
-                { name: "Reportes automáticos", status: "Pendiente" },
-              ].map((int) => (
-                <div
-                  key={int.name}
-                  className="flex items-center justify-between rounded-xl border border-white/10 p-4"
-                >
-                  <span className="text-[#37332d]">{int.name}</span>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      int.status === "Pendiente"
-                        ? "bg-slate-500/10 text-[#625d55]"
-                        : "bg-green-500/10 text-[#41634a]"
-                    }`}
-                  >
-                    {int.status}
-                  </span>
+              {integrations.map((integration) => (
+                <div key={integration.name} className="flex items-center justify-between rounded-xl border border-[#d6cbbb] p-4">
+                  <span className="text-[#37332d]">{integration.name}</span>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${integration.enabled ? "bg-[#dfe8da] text-[#41634a]" : "bg-[#eee5d7] text-[#7a7167]"}`}>{integration.status}</span>
                 </div>
               ))}
             </div>

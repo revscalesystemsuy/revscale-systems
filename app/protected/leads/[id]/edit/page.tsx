@@ -2,17 +2,10 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { LOSS_REASON_LABELS, PIPELINE_STAGES } from "@/lib/pipeline-metrics";
 import { Save } from "lucide-react";
 
-const STAGES = [
-  ["NEW", "Nuevo lead"],
-  ["CONTACTED", "Contactado"],
-  ["QUALIFIED", "Calificado"],
-  ["VISIT", "Visita"],
-  ["NEGOTIATION", "Negociación"],
-  ["WON", "Cierre"],
-  ["LOST", "Perdido"],
-] as const;
+const LOSS_REASONS = new Set(Object.keys(LOSS_REASON_LABELS));
 
 export default async function EditLeadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,7 +24,7 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
 
   const { data: lead } = await supabase
     .from("leads")
-    .select("id,full_name,phone,email,operation,property_type,primary_zone,budget_max,currency,bedrooms_min,lead_score,lead_temperature,next_action,requires_human,pipeline_stage")
+    .select("id,full_name,phone,email,operation,property_type,primary_zone,budget_max,currency,bedrooms_min,lead_score,lead_temperature,next_action,requires_human,pipeline_stage,lost_reason")
     .eq("id", id)
     .eq("organization_id", membership.organization_id)
     .maybeSingle();
@@ -62,6 +55,15 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
     if (budget !== null && (!Number.isFinite(budget) || budget < 0)) throw new Error("Presupuesto inválido.");
     if (bedrooms !== null && (!Number.isInteger(bedrooms) || bedrooms < 0)) throw new Error("Dormitorios inválidos.");
 
+    const pipelineStage = String(formData.get("pipeline_stage") || "NEW").trim().toUpperCase();
+    const validStages = new Set(PIPELINE_STAGES.map(([value]) => value));
+    if (!validStages.has(pipelineStage as (typeof PIPELINE_STAGES)[number][0])) throw new Error("Etapa comercial inválida.");
+
+    const lostReason = String(formData.get("lost_reason") || "").trim().toUpperCase();
+    if (pipelineStage === "LOST" && !LOSS_REASONS.has(lostReason)) {
+      throw new Error("Seleccioná un motivo de pérdida.");
+    }
+
     const zone = String(formData.get("primary_zone") || "").trim();
     let score = 30;
     if (zone) score += 20;
@@ -84,7 +86,8 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
         lead_score: score,
         lead_temperature: temperature,
         next_action: String(formData.get("next_action") || "").trim() || null,
-        pipeline_stage: String(formData.get("pipeline_stage") || "NEW").trim().toUpperCase(),
+        pipeline_stage: pipelineStage,
+        lost_reason: pipelineStage === "LOST" ? lostReason : null,
         requires_human: formData.get("requires_human") === "on",
         updated_at: new Date().toISOString(),
       })
@@ -98,6 +101,8 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
 
     revalidatePath("/protected/leads");
     revalidatePath("/protected/pipeline");
+    revalidatePath("/protected/analytics");
+    revalidatePath("/protected/reports");
     revalidatePath(`/protected/leads/${id}`);
     redirect(`/protected/leads/${id}`);
   }
@@ -126,7 +131,8 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
             <label className={label}>Dormitorios mínimos<input name="bedrooms_min" type="number" min="0" defaultValue={lead.bedrooms_min ?? ""} className={input} /></label>
             <label className={label}>Presupuesto máximo<input name="budget_max" type="number" min="0" step="any" defaultValue={lead.budget_max ?? ""} className={input} /></label>
             <label className={label}>Moneda<select name="currency" defaultValue={lead.currency || "USD"} className={input}><option value="USD">USD</option><option value="UYU">UYU</option></select></label>
-            <label className={label}>Etapa comercial<select name="pipeline_stage" defaultValue={lead.pipeline_stage || "NEW"} className={input}>{STAGES.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
+            <label className={label}>Etapa comercial<select name="pipeline_stage" defaultValue={lead.pipeline_stage || "NEW"} className={input}>{PIPELINE_STAGES.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
+            <label className={label}>Motivo si se marca perdido<select name="lost_reason" defaultValue={lead.lost_reason || ""} className={input}><option value="">Seleccionar motivo</option>{Object.entries(LOSS_REASON_LABELS).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
             <label className={label}>Próxima acción<input name="next_action" defaultValue={lead.next_action || ""} className={input} placeholder="Llamar, enviar opciones, coordinar visita..." /></label>
           </div>
 

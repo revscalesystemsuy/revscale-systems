@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -33,8 +34,12 @@ async function readCsvFile(formData: FormData) {
   return parsed;
 }
 
-function fail(message: string): never {
-  redirect(`/protected/imports?error=${encodeURIComponent(message)}`);
+function onboardingSuffix(formData: FormData) {
+  return String(formData.get("return_to") || "") === "onboarding" ? "&return_to=onboarding" : "";
+}
+
+function fail(message: string, formData: FormData): never {
+  redirect(`/protected/imports?error=${encodeURIComponent(message)}${onboardingSuffix(formData)}`);
 }
 
 export async function importLeads(formData: FormData) {
@@ -102,10 +107,11 @@ export async function importLeads(formData: FormData) {
     if (error) throw new Error(error.message);
 
     const result = (data || {}) as { imported?: number; duplicates?: number };
-    redirect(`/protected/imports?type=leads&imported=${result.imported || 0}&duplicates=${(result.duplicates || 0) + fileDuplicates}`);
+    revalidatePath("/protected/onboarding");
+    redirect(`/protected/imports?type=leads&imported=${result.imported || 0}&duplicates=${(result.duplicates || 0) + fileDuplicates}${onboardingSuffix(formData)}`);
   } catch (error) {
     if (error instanceof Error && error.message === "NEXT_REDIRECT") throw error;
-    fail(error instanceof Error ? error.message : "No se pudo importar el archivo de leads.");
+    fail(error instanceof Error ? error.message : "No se pudo importar el archivo de leads.", formData);
   }
 }
 
@@ -171,9 +177,10 @@ export async function importProperties(formData: FormData) {
     if (error) throw new Error(error.message);
 
     const result = (data || {}) as { imported?: number; duplicates?: number };
-    redirect(`/protected/imports?type=properties&imported=${result.imported || 0}&duplicates=${(result.duplicates || 0) + fileDuplicates}`);
+    revalidatePath("/protected/onboarding");
+    redirect(`/protected/imports?type=properties&imported=${result.imported || 0}&duplicates=${(result.duplicates || 0) + fileDuplicates}${onboardingSuffix(formData)}`);
   } catch (error) {
     if (error instanceof Error && error.message === "NEXT_REDIRECT") throw error;
-    fail(error instanceof Error ? error.message : "No se pudo importar el archivo de propiedades.");
+    fail(error instanceof Error ? error.message : "No se pudo importar el archivo de propiedades.", formData);
   }
 }

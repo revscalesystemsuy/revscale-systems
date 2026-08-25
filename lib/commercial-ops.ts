@@ -1,5 +1,6 @@
 import { PIPELINE_STAGES } from "@/lib/pipeline-metrics";
 
+export const BUSINESS_TIME_ZONE = "America/Montevideo";
 export const OPEN_PIPELINE_STAGES = ["NEW", "CONTACTED", "QUALIFIED", "VISIT", "NEGOTIATION"] as const;
 export const OPEN_PIPELINE_STAGE_SET = new Set<string>(OPEN_PIPELINE_STAGES);
 
@@ -52,8 +53,69 @@ function dateKeyInTimezone(value: Date, timeZone: string) {
   return `${year}-${month}-${day}`;
 }
 
+function localMidnightToUtcIso(dateKey: string, timeZone: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+  if (!match) throw new Error(`Invalid date key: ${dateKey}`);
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const desiredWallClock = Date.UTC(year, month - 1, day, 0, 0, 0);
+  let guess = desiredWallClock;
+
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const parts = formatter.formatToParts(new Date(guess));
+    const part = (type: Intl.DateTimeFormatPartTypes) =>
+      Number(parts.find((item) => item.type === type)?.value || 0);
+    const representedWallClock = Date.UTC(
+      part("year"),
+      part("month") - 1,
+      part("day"),
+      part("hour"),
+      part("minute"),
+      part("second"),
+    );
+    const correction = desiredWallClock - representedWallClock;
+    if (correction === 0) break;
+    guess += correction;
+  }
+
+  return new Date(guess).toISOString();
+}
+
 export function getBusinessDateKey(now = new Date()) {
-  return dateKeyInTimezone(now, "America/Montevideo");
+  return dateKeyInTimezone(now, BUSINESS_TIME_ZONE);
+}
+
+export function getBusinessMonthWindow(now = new Date(), offset = 0) {
+  const [businessYear, businessMonth] = getBusinessDateKey(now).split("-").map(Number);
+  const startDate = new Date(Date.UTC(businessYear, businessMonth - 1 + offset, 1, 12));
+  const nextDate = new Date(Date.UTC(businessYear, businessMonth + offset, 1, 12));
+  const periodMonth = `${startDate.getUTCFullYear()}-${String(startDate.getUTCMonth() + 1).padStart(2, "0")}-01`;
+  const nextPeriodMonth = `${nextDate.getUTCFullYear()}-${String(nextDate.getUTCMonth() + 1).padStart(2, "0")}-01`;
+
+  return {
+    periodMonth,
+    nextPeriodMonth,
+    startIso: localMidnightToUtcIso(periodMonth, BUSINESS_TIME_ZONE),
+    endIso: localMidnightToUtcIso(nextPeriodMonth, BUSINESS_TIME_ZONE),
+    label: new Intl.DateTimeFormat("es-UY", {
+      month: "long",
+      year: "numeric",
+      timeZone: BUSINESS_TIME_ZONE,
+    }).format(startDate),
+  };
 }
 
 export function daysSince(value: string | null | undefined, now = new Date()) {

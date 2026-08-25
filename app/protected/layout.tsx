@@ -89,6 +89,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
           {canManagePeople && <NavItem href="/protected/agents" icon={<Users size={16} strokeWidth={1.6} />}>Equipo</NavItem>}
           {enterprise && canManagePeople && <NavItem href="/protected/teams" icon={<SlidersHorizontal size={16} strokeWidth={1.6} />}>Equipos y permisos</NavItem>}
           {isDirector && <NavItem href="/protected/executive" icon={<Target size={16} strokeWidth={1.6} />}>Dirección</NavItem>}
+          {isDirector && <NavItem href="/protected/executive/performance" icon={<Users size={16} strokeWidth={1.6} />}>Rendimiento del equipo</NavItem>}
           {isDirector && <NavItem href="/protected/executive/monthly" icon={<BarChart3 size={16} strokeWidth={1.6} />}>Evolución mensual</NavItem>}
           {canSeeManagement && <NavItem href="/protected/reports" icon={<BarChart3 size={16} strokeWidth={1.6} />} locked={!planHasFeature(plan, "reports")}>Reportes</NavItem>}
           {canSeeManagement && <NavItem href="/protected/analytics" icon={<ChartNoAxesCombined size={16} strokeWidth={1.6} />} locked={!planHasFeature(plan, "analytics")}>Analítica</NavItem>}

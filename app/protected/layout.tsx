@@ -18,11 +18,33 @@ import {
   SlidersHorizontal,
   Target,
   Users,
+  UsersRound,
   Workflow,
 } from "lucide-react";
 import { planHasFeature } from "@/lib/plan-access";
 import { getCurrentOrganizationContext, ROLE_LABELS } from "@/lib/organization-role";
+import { canAccessRealSurface, PRODUCT_SURFACES, type ProductSurfaceIcon } from "@/lib/product-surfaces";
 import { createClient } from "@/lib/supabase/server";
+
+const ICONS = {
+  House,
+  ListChecks,
+  Target,
+  ClipboardList,
+  Bell,
+  Users,
+  Workflow,
+  Building2,
+  MessagesSquare,
+  Database,
+  UsersRound,
+  BarChart3,
+  ChartNoAxesCombined,
+  MessageCircle,
+  SlidersHorizontal,
+  CreditCard,
+  Settings,
+} satisfies Record<ProductSurfaceIcon, typeof House>;
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   const context = await getCurrentOrganizationContext();
@@ -53,10 +75,6 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
   const isDirector = role === "OWNER";
   const isManager = role === "MANAGER";
   const isAgent = role === "AGENT";
-  const canManagePeople = isDirector || (enterprise && isManager);
-  const canImport = isDirector || (enterprise && isManager);
-  const canSeeManagement = isDirector || (enterprise && isManager);
-  const canSeeCompanyAdmin = isDirector;
 
   const [{ count: unreadNotifications }, onboardingResult] = await Promise.all([
     supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", userId).is("read_at", null),
@@ -65,6 +83,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
       : Promise.resolve({ data: null }),
   ]);
   const showOnboarding = isDirector && onboardingResult.data?.completed !== true;
+  const visibleSurfaces = PRODUCT_SURFACES.filter((surface) => canAccessRealSurface(surface, { plan, role, onboardingIncomplete: showOnboarding }));
 
   async function signOut() {
     "use server";
@@ -83,28 +102,12 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
         </div>
 
         <nav className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto pr-1">
-          <NavItem href="/protected" icon={<House size={16} strokeWidth={1.6} />}>Resumen</NavItem>
-          {showOnboarding && <NavItem href="/protected/onboarding" icon={<ListChecks size={16} strokeWidth={1.6} />}>Puesta en marcha</NavItem>}
-          <NavItem href="/protected/today" icon={<Target size={16} strokeWidth={1.6} />}>Qué hacer hoy</NavItem>
-          <NavItem href="/protected/calendar" icon={<ClipboardList size={16} strokeWidth={1.6} />}>Calendario de cierres</NavItem>
-          <NavItem href="/protected/notifications" icon={<Bell size={16} strokeWidth={1.6} />} badge={unreadNotifications || 0}>Notificaciones</NavItem>
-          <NavItem href="/protected/leads" icon={<Users size={16} strokeWidth={1.6} />}>Leads</NavItem>
-          <NavItem href="/protected/pipeline" icon={<Workflow size={16} strokeWidth={1.6} />}>Pipeline</NavItem>
-          <NavItem href="/protected/properties" icon={<Building2 size={16} strokeWidth={1.6} />}>Propiedades</NavItem>
-          <NavItem href="/protected/interactions" icon={<MessagesSquare size={16} strokeWidth={1.6} />}>Interacciones</NavItem>
-          <NavItem href="/protected/followups" icon={<ClipboardList size={16} strokeWidth={1.6} />}>Seguimientos</NavItem>
-          {canImport && <NavItem href="/protected/imports" icon={<Database size={16} strokeWidth={1.6} />}>Importar datos</NavItem>}
-          {canManagePeople && <NavItem href="/protected/agents" icon={<Users size={16} strokeWidth={1.6} />}>Equipo</NavItem>}
-          {enterprise && canManagePeople && <NavItem href="/protected/teams" icon={<SlidersHorizontal size={16} strokeWidth={1.6} />}>Equipos y permisos</NavItem>}
-          {isDirector && <NavItem href="/protected/executive" icon={<Target size={16} strokeWidth={1.6} />}>Dirección</NavItem>}
-          {isDirector && <NavItem href="/protected/executive/performance" icon={<Users size={16} strokeWidth={1.6} />}>Rendimiento del equipo</NavItem>}
-          {isDirector && <NavItem href="/protected/executive/monthly" icon={<BarChart3 size={16} strokeWidth={1.6} />}>Evolución mensual</NavItem>}
-          {canSeeManagement && <NavItem href="/protected/reports" icon={<BarChart3 size={16} strokeWidth={1.6} />} locked={!planHasFeature(plan, "reports")}>Reportes</NavItem>}
-          {canSeeManagement && <NavItem href="/protected/analytics" icon={<ChartNoAxesCombined size={16} strokeWidth={1.6} />} locked={!planHasFeature(plan, "analytics")}>Analítica</NavItem>}
-          {canSeeCompanyAdmin && <NavItem href="/protected/settings/whatsapp" icon={<MessageCircle size={16} strokeWidth={1.6} />} locked={!planHasFeature(plan, "whatsapp_ai")}>WhatsApp IA</NavItem>}
-          {canSeeCompanyAdmin && <NavItem href="/protected/settings/integrations" icon={<SlidersHorizontal size={16} strokeWidth={1.6} />} locked={!planHasFeature(plan, "integrations")}>Integraciones</NavItem>}
-          {canSeeCompanyAdmin && <NavItem href="/protected/billing" icon={<CreditCard size={16} strokeWidth={1.6} />}>Mi Plan</NavItem>}
-          {canSeeCompanyAdmin && <NavItem href="/protected/settings" icon={<Settings size={16} strokeWidth={1.6} />}>Configuración</NavItem>}
+          {visibleSurfaces.map((surface) => {
+            const Icon = ICONS[surface.icon];
+            const locked = Boolean(surface.feature && !planHasFeature(plan, surface.feature));
+            const badge = surface.badge === "notifications" ? unreadNotifications || 0 : 0;
+            return <NavItem key={surface.id} href={surface.realHref} icon={<Icon size={16} strokeWidth={1.6} />} locked={locked} badge={badge}>{surface.label}</NavItem>;
+          })}
         </nav>
 
         <div className="mx-2 mt-4 border-t border-[#d1c4b1] pt-4"><form action={signOut}><button type="submit" className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-[#675e53] transition hover:bg-[#f0e8dc] hover:text-[#292722]"><LogOut size={16} strokeWidth={1.6} className="text-[#8b7d69] group-hover:text-[#6d5b43]" />Cerrar sesión</button></form><div className="mt-4 border-t border-[#d1c4b1] pt-4"><p className="text-[10px] uppercase tracking-[0.16em] text-[#8c8377]">RevScale Systems</p><p className="mt-1 text-xs text-[#716a61]">Inteligencia comercial inmobiliaria</p></div></div>

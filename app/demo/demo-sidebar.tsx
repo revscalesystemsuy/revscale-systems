@@ -15,7 +15,7 @@ import {
   House,
   ListChecks,
   MessageCircle,
-  MessageSquareText,
+  MessagesSquare,
   Settings,
   SlidersHorizontal,
   Target,
@@ -24,41 +24,28 @@ import {
   Workflow,
 } from "lucide-react"
 import { DEMO_COMPANY } from "@/lib/demo-data"
-import { DEMO_PLAN_CONFIG, demoHref, normalizeDemoPlan, type DemoPlan } from "@/lib/demo-plan"
+import { DEMO_PLAN_CONFIG, demoHref, normalizeDemoPlan } from "@/lib/demo-plan"
+import { demoSurfacesForPlan, type ProductSurfaceIcon } from "@/lib/product-surfaces"
 
-type DemoNavItem = {
-  href: string
-  label: string
-  icon: typeof House
-  plans: readonly DemoPlan[]
-}
-
-const ALL_PLANS: readonly DemoPlan[] = ["starter", "professional", "enterprise"]
-
-const NAV_ITEMS: readonly DemoNavItem[] = [
-  { href: "/demo", label: "Resumen", icon: House, plans: ALL_PLANS },
-  { href: "/demo/onboarding", label: "Puesta en marcha", icon: ListChecks, plans: ALL_PLANS },
-  { href: "/demo/today", label: "Qué hacer hoy", icon: Target, plans: ALL_PLANS },
-  { href: "/demo/calendar", label: "Calendario de cierres", icon: ClipboardList, plans: ALL_PLANS },
-  { href: "/demo/notifications", label: "Notificaciones", icon: Bell, plans: ALL_PLANS },
-  { href: "/demo/leads", label: "Leads", icon: Users, plans: ALL_PLANS },
-  { href: "/demo/pipeline", label: "Pipeline", icon: Workflow, plans: ALL_PLANS },
-  { href: "/demo/properties", label: "Propiedades", icon: Building2, plans: ALL_PLANS },
-  { href: "/demo/interactions", label: "Interacciones", icon: MessageSquareText, plans: ALL_PLANS },
-  { href: "/demo/followups", label: "Seguimientos", icon: ClipboardList, plans: ALL_PLANS },
-  { href: "/demo/imports", label: "Importar datos", icon: Database, plans: ALL_PLANS },
-  { href: "/demo/agents", label: "Equipo", icon: Users, plans: ALL_PLANS },
-  { href: "/demo/teams", label: "Equipos y permisos", icon: UsersRound, plans: ["enterprise"] },
-  { href: "/demo/executive", label: "Dirección", icon: Target, plans: ALL_PLANS },
-  { href: "/demo/performance", label: "Rendimiento del equipo", icon: Users, plans: ALL_PLANS },
-  { href: "/demo/monthly", label: "Evolución mensual", icon: BarChart3, plans: ALL_PLANS },
-  { href: "/demo/reports", label: "Reportes", icon: BarChart3, plans: ["professional", "enterprise"] },
-  { href: "/demo/analytics", label: "Analítica", icon: ChartNoAxesCombined, plans: ["professional", "enterprise"] },
-  { href: "/demo/whatsapp", label: "WhatsApp IA", icon: MessageCircle, plans: ["professional", "enterprise"] },
-  { href: "/demo/integrations", label: "Integraciones", icon: SlidersHorizontal, plans: ["enterprise"] },
-  { href: "/demo/billing", label: "Mi Plan", icon: CreditCard, plans: ALL_PLANS },
-  { href: "/demo/settings", label: "Configuración", icon: Settings, plans: ALL_PLANS },
-]
+const ICONS = {
+  House,
+  ListChecks,
+  Target,
+  ClipboardList,
+  Bell,
+  Users,
+  Workflow,
+  Building2,
+  MessagesSquare,
+  Database,
+  UsersRound,
+  BarChart3,
+  ChartNoAxesCombined,
+  MessageCircle,
+  SlidersHorizontal,
+  CreditCard,
+  Settings,
+} satisfies Record<ProductSurfaceIcon, typeof House>
 
 function isActive(pathname: string, href: string) {
   if (href === "/demo") return pathname === "/demo"
@@ -71,7 +58,7 @@ export function DemoSidebar() {
   const [open, setOpen] = useState(false)
   const planKey = normalizeDemoPlan(searchParams.get("plan"))
   const config = DEMO_PLAN_CONFIG[planKey]
-  const visibleItems = NAV_ITEMS.filter((item) => item.plans.includes(planKey))
+  const visibleItems = demoSurfacesForPlan(planKey)
 
   return (
     <>
@@ -104,10 +91,10 @@ export function DemoSidebar() {
 
         <nav className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto pr-1">
           {visibleItems.map((item) => {
-            const active = isActive(pathname, item.href)
-            const Icon = item.icon
+            const active = isActive(pathname, item.demoHref)
+            const Icon = ICONS[item.icon]
             return (
-              <Link key={item.href} href={demoHref(item.href, planKey)} onClick={() => setOpen(false)} className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${active ? "bg-[#d9c9b3] text-[#302b24]" : "text-[#665f56] hover:bg-[#dfd3c2] hover:text-[#302c26]"}`}>
+              <Link key={item.id} href={demoHref(item.demoHref, planKey)} onClick={() => setOpen(false)} className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${active ? "bg-[#d9c9b3] text-[#302b24]" : "text-[#665f56] hover:bg-[#dfd3c2] hover:text-[#302c26]"}`}>
                 <Icon size={16} strokeWidth={1.6} className={active ? "text-[#7a6344]" : "text-[#756e64]"} />
                 <span className="flex-1">{item.label}</span>
                 {active && <ChevronRight size={14} className="text-[#745f43]" />}

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { STAGE_PROBABILITY, buildForecastByCurrency, formatCommercialAmount } from "@/lib/pipeline-metrics";
+import { buildForecastByCurrency, formatCommercialAmount } from "@/lib/pipeline-metrics";
 
 const OPEN_STAGES = new Set(["NEW", "CONTACTED", "QUALIFIED", "VISIT", "NEGOTIATION"]);
 const STALE_DAYS: Record<string, number> = { NEW: 3, CONTACTED: 3, QUALIFIED: 7, VISIT: 7, NEGOTIATION: 10 };
@@ -52,23 +52,23 @@ export default async function ExecutivePage() {
     const currency = targetValue === null ? null : String(formData.get("currency") || "USD").toUpperCase();
     const period = String(formData.get("period_month") || "").trim();
 
-    if (!['ORGANIZATION','TEAM','AGENT'].includes(scopeType)) throw new Error("Alcance inválido.");
+    if (!["ORGANIZATION", "TEAM", "AGENT"].includes(scopeType)) throw new Error("Alcance inválido.");
     if (!/^\d{4}-\d{2}-01$/.test(period)) throw new Error("Mes inválido.");
     if (!Number.isInteger(targetCount) || targetCount < 0) throw new Error("Meta de cierres inválida.");
     if (targetValue !== null && (!Number.isFinite(targetValue) || targetValue < 0)) throw new Error("Meta de valor inválida.");
-    if (targetValue !== null && !['USD','UYU'].includes(currency || '')) throw new Error("Moneda inválida.");
-    if (scopeType !== 'ORGANIZATION' && !scopeId) throw new Error("Seleccioná equipo o agente.");
+    if (targetValue !== null && !["USD", "UYU"].includes(currency || "")) throw new Error("Moneda inválida.");
+    if (scopeType !== "ORGANIZATION" && !scopeId) throw new Error("Seleccioná equipo o agente.");
 
     let query = supabase.from("sales_goals").select("id").eq("organization_id", owner.organization_id).eq("scope_type", scopeType).eq("period_month", period);
-    if (scopeType === 'TEAM') query = query.eq("team_id", scopeId);
-    if (scopeType === 'AGENT') query = query.eq("agent_id", scopeId);
+    if (scopeType === "TEAM") query = query.eq("team_id", scopeId);
+    if (scopeType === "AGENT") query = query.eq("agent_id", scopeId);
     const { data: existing } = await query.maybeSingle();
 
     const payload = {
       organization_id: owner.organization_id,
       scope_type: scopeType,
-      team_id: scopeType === 'TEAM' ? scopeId : null,
-      agent_id: scopeType === 'AGENT' ? scopeId : null,
+      team_id: scopeType === "TEAM" ? scopeId : null,
+      agent_id: scopeType === "AGENT" ? scopeId : null,
       period_month: period,
       target_won_count: targetCount,
       target_value: targetValue,
@@ -149,7 +149,7 @@ export default async function ExecutivePage() {
     const goal = goals.find((g) => g.scope_type === "AGENT" && g.agent_id === member.user_id);
     const won = wonEvents.filter((event) => event.assigned_to === member.user_id).length;
     const target = Number(goal?.target_won_count || 0);
-    return { id: member.user_id, teamId: member.team_id, name: profileName(member.user_id), won, target, pct: target ? Math.round((won / target) * 100) : 0 };
+    return { id: member.user_id, name: profileName(member.user_id), won, target, pct: target ? Math.round((won / target) * 100) : 0 };
   }).sort((a, b) => b.won - a.won || b.pct - a.pct);
 
   const input = "w-full rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2 text-sm text-[#37332d] outline-none focus:border-[#8d7553]";

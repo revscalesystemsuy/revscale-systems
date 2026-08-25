@@ -24,11 +24,13 @@ export async function updatePipelineStage(formData: FormData) {
     throw new Error("Seleccioná un motivo de pérdida.");
   }
 
+  const isClosed = stage === "WON" || stage === "LOST";
   const { data, error } = await context.supabase
     .from("leads")
     .update({
       pipeline_stage: stage,
       lost_reason: stage === "LOST" ? lostReason : null,
+      expected_close_date: isClosed ? null : undefined,
       updated_at: new Date().toISOString(),
     })
     .eq("id", leadId)
@@ -43,5 +45,8 @@ export async function updatePipelineStage(formData: FormData) {
   revalidatePath("/protected/leads");
   revalidatePath("/protected/analytics");
   revalidatePath("/protected/reports");
+  revalidatePath("/protected/today");
+  revalidatePath("/protected/calendar");
+  revalidatePath("/protected/executive");
   revalidatePath(`/protected/leads/${leadId}`);
 }

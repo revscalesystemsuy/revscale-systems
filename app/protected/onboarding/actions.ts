@@ -26,13 +26,19 @@ export async function assignInitialLeads(formData: FormData) {
 
   if (!member) throw new Error("El responsable no pertenece a la organización.");
 
+  const assignment: {
+    assigned_to: string;
+    assigned_at: string;
+    team_id?: string;
+  } = {
+    assigned_to: member.user_id,
+    assigned_at: new Date().toISOString(),
+  };
+  if (member.team_id) assignment.team_id = member.team_id;
+
   const { error } = await supabase
     .from("leads")
-    .update({
-      assigned_to: member.user_id,
-      assigned_at: new Date().toISOString(),
-      team_id: member.team_id || null,
-    })
+    .update(assignment)
     .eq("organization_id", organizationId)
     .is("assigned_to", null);
 

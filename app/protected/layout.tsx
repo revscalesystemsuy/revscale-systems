@@ -10,6 +10,7 @@ import {
   CreditCard,
   Database,
   House,
+  ListChecks,
   LogOut,
   MessageCircle,
   MessagesSquare,
@@ -47,7 +48,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
     );
   }
 
-  const { plan, role, supabase, userId } = context;
+  const { plan, role, supabase, userId, organizationId } = context;
   const enterprise = plan === "ENTERPRISE";
   const isDirector = role === "OWNER";
   const isManager = role === "MANAGER";
@@ -57,7 +58,13 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
   const canSeeManagement = isDirector || (enterprise && isManager);
   const canSeeCompanyAdmin = isDirector;
 
-  const { count: unreadNotifications } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", userId).is("read_at", null);
+  const [{ count: unreadNotifications }, onboardingResult] = await Promise.all([
+    supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", userId).is("read_at", null),
+    isDirector
+      ? supabase.from("organization_onboarding").select("completed").eq("organization_id", organizationId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const showOnboarding = isDirector && onboardingResult.data?.completed !== true;
 
   async function signOut() {
     "use server";
@@ -77,6 +84,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
 
         <nav className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto pr-1">
           <NavItem href="/protected" icon={<House size={16} strokeWidth={1.6} />}>Resumen</NavItem>
+          {showOnboarding && <NavItem href="/protected/onboarding" icon={<ListChecks size={16} strokeWidth={1.6} />}>Puesta en marcha</NavItem>}
           <NavItem href="/protected/today" icon={<Target size={16} strokeWidth={1.6} />}>Qué hacer hoy</NavItem>
           <NavItem href="/protected/calendar" icon={<ClipboardList size={16} strokeWidth={1.6} />}>Calendario de cierres</NavItem>
           <NavItem href="/protected/notifications" icon={<Bell size={16} strokeWidth={1.6} />} badge={unreadNotifications || 0}>Notificaciones</NavItem>

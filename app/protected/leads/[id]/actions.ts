@@ -78,7 +78,12 @@ export async function createQuickFollowup(formData: FormData) {
   if (!leadId) throw new Error("Lead inválido");
 
   const { supabase, userId, organizationId, lead } = await getLeadContext(leadId);
-  const dueAt = dueAtRaw ? new Date(dueAtRaw) : new Date(Date.now() + 86_400_000);
+  if (dueAtRaw && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dueAtRaw)) {
+    throw new Error("Fecha de seguimiento inválida");
+  }
+
+  // datetime-local has no timezone. RevScale business time is America/Montevideo (UTC-03:00 year-round).
+  const dueAt = dueAtRaw ? new Date(`${dueAtRaw}:00-03:00`) : new Date(Date.now() + 86_400_000);
   if (Number.isNaN(dueAt.getTime())) throw new Error("Fecha de seguimiento inválida");
 
   const { data: existingFollowup } = await supabase

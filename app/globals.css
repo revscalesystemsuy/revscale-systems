@@ -201,4 +201,71 @@
   .revscale-real-app a[class~="bg-zinc-950"] * {
     color: inherit !important;
   }
+
+  /* Accessible cream-theme contrast floor for secondary copy. */
+  .revscale-real-app [class~="text-[#92897d]"],
+  .revscale-real-app [class~="text-[#8b8378]"],
+  .revscale-real-app [class~="text-[#8a8176]"],
+  .revscale-demo-app [class~="text-[#92897d]"],
+  .revscale-demo-app [class~="text-[#8b8378]"],
+  .revscale-demo-app [class~="text-[#8a8176]"] {
+    color: #6c655c !important;
+  }
+
+  /* Legacy demo pages still using the old dark utility palette are normalized
+     to the same cream system as the real app. Photo overlays are unaffected. */
+  .revscale-demo-app main.bg-slate-950,
+  .revscale-demo-app .bg-slate-950,
+  .revscale-demo-app .bg-slate-950\/40,
+  .revscale-demo-app .bg-slate-900,
+  .revscale-demo-app .bg-slate-800 {
+    background-color: #f7f0e6 !important;
+  }
+
+  .revscale-demo-app .text-slate-200 {
+    color: #3c3832 !important;
+  }
+
+  .revscale-demo-app .text-slate-300 {
+    color: #514b43 !important;
+  }
+
+  .revscale-demo-app .text-slate-400 {
+    color: #625d55 !important;
+  }
+
+  .revscale-demo-app .text-slate-500,
+  .revscale-demo-app .text-slate-600 {
+    color: #6c655c !important;
+  }
+
+  .revscale-demo-app .text-blue-400,
+  .revscale-demo-app .text-blue-300 {
+    color: #725d40 !important;
+  }
+
+  .revscale-demo-app .text-green-400,
+  .revscale-demo-app .text-green-300 {
+    color: #506047 !important;
+  }
+
+  .revscale-demo-app .border-white\/10,
+  .revscale-demo-app .border-white\/5 {
+    border-color: #d5c8b7 !important;
+  }
+
+  .revscale-demo-app .bg-white\/\[0\.03\],
+  .revscale-demo-app .bg-white\/\[0\.02\],
+  .revscale-demo-app .bg-white\/5,
+  .revscale-demo-app .bg-white\/10,
+  .revscale-demo-app .bg-blue-500\/5,
+  .revscale-demo-app .bg-blue-500\/10 {
+    background-color: #eee4d5 !important;
+  }
+
+  .revscale-demo-app .border-blue-500\/20,
+  .revscale-demo-app .border-blue-500\/30,
+  .revscale-demo-app .border-blue-500\/40 {
+    border-color: #b9a88e !important;
+  }
 }

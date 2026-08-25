@@ -9,7 +9,7 @@ function DemoSidebarFallback() {
 
 export default function DemoLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#eee5d7] text-[#292722] lg:flex">
+    <div className="revscale-demo-app min-h-screen bg-[#eee5d7] text-[#292722] lg:flex">
       <Suspense fallback={<DemoSidebarFallback />}>
         <DemoSidebar />
         <DemoPlanGuard />

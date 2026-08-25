@@ -111,7 +111,7 @@ export default async function ExecutivePage() {
     supabase.from("teams").select("id,name").eq("organization_id", orgId).eq("is_active", true),
     supabase.from("organization_members").select("user_id,team_id,role").eq("organization_id", orgId).eq("status", "ACTIVE"),
     supabase.from("profiles").select("id,full_name"),
-    supabase.from("interactions").select("lead_id,created_at").eq("organization_id", orgId).order("created_at", { ascending: false }),
+    supabase.from("latest_interaction_by_lead").select("lead_id,last_interaction_at").eq("organization_id", orgId),
     supabase.from("followups").select("id,lead_id,due_at,status").eq("organization_id", orgId).eq("status", "PENDING"),
   ]);
 
@@ -121,10 +121,18 @@ export default async function ExecutivePage() {
   const teams = teamsData || [];
   const members = membersData || [];
   const profiles = profilesData || [];
-  const interactions = interactionsData || [];
   const followups = followupsData || [];
-  const profileName = (id: string | null) => profiles.find((p) => p.id === id)?.full_name || "Sin nombre";
-  const teamName = (id: string | null) => teams.find((team) => team.id === id)?.name || "Sin equipo";
+  const profileNameById = new Map(profiles.map((profile) => [profile.id, profile.full_name]));
+  const teamNameById = new Map(teams.map((team) => [team.id, team.name]));
+  const lastInteractionByLead = new Map((interactionsData || []).map((item) => [item.lead_id, item.last_interaction_at]));
+  const followupsByLead = new Map<string, typeof followups>();
+  for (const followup of followups) {
+    const existing = followupsByLead.get(followup.lead_id) || [];
+    existing.push(followup);
+    followupsByLead.set(followup.lead_id, existing);
+  }
+  const profileName = (id: string | null) => (id ? profileNameById.get(id) : null) || "Sin nombre";
+  const teamName = (id: string | null) => (id ? teamNameById.get(id) : null) || "Sin equipo";
 
   const wonLeadIds = new Set(wonEvents.map((event) => event.lead_id));
   const wonLeads = leads.filter((lead) => wonLeadIds.has(lead.id));
@@ -146,9 +154,9 @@ export default async function ExecutivePage() {
   }
 
   const riskLeads = openLeads.map((lead) => {
-    const lastInteractionAt = interactions.find((item) => item.lead_id === lead.id)?.created_at || null;
-    const leadFollowups = followups.filter((item) => item.lead_id === lead.id);
-    const overdueFollowup = leadFollowups.some((item) => new Date(item.due_at).getTime() < now.getTime());
+    const lastInteractionAt = lastInteractionByLead.get(lead.id) || null;
+    const leadFollowups = followupsByLead.get(lead.id) || [];
+    const overdueFollowup = leadFollowups.some((item) => item.due_at && new Date(item.due_at).getTime() < now.getTime());
     const risk = calculateOpportunityRisk(lead, {
       now,
       lastInteractionAt,
@@ -157,6 +165,7 @@ export default async function ExecutivePage() {
     });
     return { ...lead, risk, overdueFollowup };
   });
+  const riskByLeadId = new Map(riskLeads.map((lead) => [lead.id, lead.risk]));
 
   const highRiskLeads = riskLeads.filter((lead) => lead.risk.level === "HIGH").sort((a, b) => b.risk.score - a.risk.score);
   const atRiskValueByCurrency = new Map<string, { value: number; opportunities: number }>();
@@ -178,7 +187,7 @@ export default async function ExecutivePage() {
     if (!lead.expected_close_date) missing.push("fecha de cierre");
     if (!lead.next_action) missing.push("próxima acción");
     if (!lead.assigned_to) missing.push("responsable");
-    const risk = riskLeads.find((item) => item.id === lead.id)?.risk;
+    const risk = riskByLeadId.get(lead.id);
     return { ...lead, missing, risk };
   }).filter((lead) => lead.missing.length > 0)
     .sort((a, b) => b.missing.length - a.missing.length || (b.risk?.score || 0) - (a.risk?.score || 0));
@@ -266,17 +275,17 @@ export default async function ExecutivePage() {
         </section>
 
         <section className="mt-8 rounded-2xl border border-[#d3c6b3] bg-[#f7f0e6] p-6">
-          <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="font-serif text-2xl">Oportunidades en riesgo alto</h2><p className="mt-1 text-sm text-[#81796e]">Las más urgentes primero, con responsable, etapa y señal principal de riesgo.</p></div><Link href="/protected/pipeline?view=risk" className="text-sm font-medium text-[#756246]">Abrir pipeline en riesgo</Link></div>
+          <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="font-serif text-2xl">Oportunidades en riesgo alto</h2><p className="mt-1 text-sm text-[#81796e]">Las más urgentes primero, con responsable, etapa y señal principal de riesgo.</p></div><Link href="/protected/pipeline?filter=risk" className="text-sm font-medium text-[#756246]">Abrir pipeline en riesgo</Link></div>
           <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[860px] text-left text-sm"><thead className="border-b border-[#d8ccbb] text-xs uppercase tracking-[0.12em] text-[#81796e]"><tr><th className="py-3">Lead</th><th>Etapa</th><th>Riesgo</th><th>Valor</th><th>Responsable</th><th>Señal principal</th><th></th></tr></thead><tbody>{highRiskLeads.length ? highRiskLeads.slice(0, 10).map((lead) => <tr key={lead.id} className="border-b border-[#e3d8c8]"><td className="py-4 font-medium">{lead.full_name || "Sin nombre"}</td><td>{PIPELINE_STAGE_LABELS[lead.pipeline_stage || "NEW"] || lead.pipeline_stage}</td><td><span className="rounded-full border border-[#b58d73] bg-[#ead8cb] px-2.5 py-1 text-xs font-semibold text-[#6b4433]">{lead.risk.score}/100</span></td><td>{lead.budget_max && lead.currency ? formatCommercialAmount(lead.currency, Number(lead.budget_max)) : "Sin valor"}</td><td>{profileName(lead.assigned_to)}</td><td className="max-w-[260px] text-[#6f685f]">{lead.risk.reasons[0] || "Riesgo acumulado"}</td><td className="text-right"><Link href={`/protected/leads/${lead.id}`} className="font-medium text-[#756246]">Intervenir</Link></td></tr>) : <tr><td colSpan={7} className="py-5 text-[#81796e]">No hay oportunidades con riesgo alto en este momento.</td></tr>}</tbody></table></div>
         </section>
 
         <section id="forecast-incompleto" className="mt-8 rounded-2xl border border-[#d3c6b3] bg-[#f7f0e6] p-6 scroll-mt-6">
-          <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="font-serif text-2xl">Forecast incompleto</h2><p className="mt-1 text-sm text-[#81796e]">{forecastQueue.length} oportunidades necesitan completar datos antes de confiar plenamente en el forecast.</p></div><Link href="/protected/pipeline?view=missing-close" className="text-sm font-medium text-[#756246]">Ver pipeline</Link></div>
+          <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="font-serif text-2xl">Forecast incompleto</h2><p className="mt-1 text-sm text-[#81796e]">{forecastQueue.length} oportunidades necesitan completar datos antes de confiar plenamente en el forecast.</p></div><Link href="/protected/pipeline?filter=missing-close" className="text-sm font-medium text-[#756246]">Ver pipeline</Link></div>
           <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="border-b border-[#d8ccbb] text-xs uppercase tracking-[0.12em] text-[#81796e]"><tr><th className="py-3">Lead</th><th>Etapa</th><th>Equipo</th><th>Responsable</th><th>Falta completar</th><th>Riesgo</th><th></th></tr></thead><tbody>{forecastQueue.length ? forecastQueue.slice(0, 15).map((lead) => <tr key={lead.id} className="border-b border-[#e3d8c8]"><td className="py-4 font-medium">{lead.full_name || "Sin nombre"}</td><td>{PIPELINE_STAGE_LABELS[lead.pipeline_stage || "NEW"] || lead.pipeline_stage}</td><td>{teamName(lead.team_id)}</td><td>{profileName(lead.assigned_to)}</td><td><div className="flex max-w-[320px] flex-wrap gap-1.5">{lead.missing.map((item) => <span key={item} className="rounded-full border border-[#d1bfa6] bg-[#efe4d4] px-2 py-1 text-[11px] text-[#6f5c40]">{item}</span>)}</div></td><td>{lead.risk ? `${lead.risk.score}/100` : "—"}</td><td className="text-right"><Link href={`/protected/leads/${lead.id}/edit`} className="font-medium text-[#756246]">Completar</Link></td></tr>) : <tr><td colSpan={7} className="py-5 text-[#81796e]">Todas las oportunidades abiertas tienen los datos mínimos para forecast.</td></tr>}</tbody></table></div>
         </section>
 
         <section className="mt-8 rounded-2xl border border-[#d3c6b3] bg-[#f7f0e6] p-6">
-          <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="font-serif text-2xl">Oportunidades estancadas</h2><p className="mt-1 text-sm text-[#81796e]">{overdueExpected} oportunidades además tienen fecha estimada vencida.</p></div><Link href="/protected/pipeline?view=stalled" className="text-sm font-medium text-[#756246]">Abrir estancadas</Link></div>
+          <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="font-serif text-2xl">Oportunidades estancadas</h2><p className="mt-1 text-sm text-[#81796e]">{overdueExpected} oportunidades además tienen fecha estimada vencida.</p></div><Link href="/protected/pipeline?filter=stalled" className="text-sm font-medium text-[#756246]">Abrir estancadas</Link></div>
           <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="border-b border-[#d8ccbb] text-xs uppercase tracking-[0.12em] text-[#81796e]"><tr><th className="py-3">Lead</th><th>Etapa</th><th>Días</th><th>Cierre estimado</th><th></th></tr></thead><tbody>{stalled.length ? stalled.map((lead) => <tr key={lead.id} className="border-b border-[#e3d8c8]"><td className="py-4 font-medium">{lead.full_name || "Sin nombre"}</td><td>{PIPELINE_STAGE_LABELS[lead.pipeline_stage || "NEW"] || lead.pipeline_stage}</td><td>{lead.risk.stageAgeDays} d</td><td>{lead.expected_close_date || "Sin fecha"}</td><td className="text-right"><Link href={`/protected/leads/${lead.id}`} className="font-medium text-[#756246]">Ver</Link></td></tr>) : <tr><td colSpan={5} className="py-5 text-[#81796e]">No hay oportunidades estancadas según los umbrales actuales.</td></tr>}</tbody></table></div>
         </section>
 

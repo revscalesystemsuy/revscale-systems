@@ -17,47 +17,50 @@ const DEMOS: DemoCard[] = [
   {
     key: "starter",
     name: "Starter",
-    eyebrow: "Recorrido operativo",
-    title: "Vea cómo se ordena un día comercial.",
+    eyebrow: "Hasta 3 agentes",
+    title: "Ordená la operación comercial esencial.",
     description:
-      "Entrá a una cartera chica, revisá leads, mové oportunidades, consultá propiedades y seguimientos. Esta demo muestra cómo RevScale reemplaza el caos operativo por una rutina clara.",
+      "Recorré una inmobiliaria chica con gestión de leads, pipeline, propiedades, interacciones y seguimientos. La demo respeta el alcance real del plan y no muestra módulos avanzados que no están incluidos.",
     icon: Building2,
     experiences: [
-      "Empezar por un lead nuevo y llevarlo al pipeline.",
-      "Revisar propiedades sin salir de la operación comercial.",
-      "Detectar qué seguimiento toca hacer hoy.",
+      "Gestionar leads y mover oportunidades por el pipeline.",
+      "Trabajar con hasta 3 agentes, 500 leads y 100 propiedades.",
+      "Organizar seguimientos, tareas e interacciones comerciales.",
+      "Ver que WhatsApp IA, Matching, Reportes y Analítica no forman parte de Starter.",
     ],
-    footer: "Ideal para entender la base del sistema.",
+    footer: "Ideal para equipos chicos que necesitan orden comercial sin complejidad extra.",
     popular: false,
   },
   {
     key: "professional",
     name: "Professional",
-    eyebrow: "Recorrido de priorización",
-    title: "Vea cómo RevScale decide qué merece atención.",
+    eyebrow: "Hasta 15 agentes",
+    title: "Priorizá oportunidades y automatizá el trabajo diario.",
     description:
-      "Explorá una operación con más volumen, señales de intención, WhatsApp IA, reportes y analítica. La experiencia está pensada para mostrar cómo pasar de administrar datos a decidir mejor.",
+      "La demo Professional suma a la operación base las capas que ayudan a vender con más criterio: Matching inteligente, WhatsApp IA, reportes y analítica avanzada.",
     icon: Sparkles,
     experiences: [
-      "Detectar oportunidades calientes antes de que se enfríen.",
-      "Ver una conversación calificada y derivada por WhatsApp IA.",
-      "Leer reportes y analítica antes de repartir trabajo.",
+      "Trabajar con hasta 15 agentes y leads ilimitados.",
+      "Usar Matching inteligente para detectar propiedades compatibles.",
+      "Ver WhatsApp IA calificando, respondiendo y derivando a una persona.",
+      "Revisar Reportes y Analítica para decidir qué mover primero.",
     ],
-    footer: "La demo más completa para entender el valor diario de RevScale.",
+    footer: "La demo recomendada para equipos que ya tienen volumen y necesitan priorización.",
     popular: true,
   },
   {
     key: "enterprise",
     name: "Enterprise",
-    eyebrow: "Recorrido de control",
-    title: "Vea cómo se supervisa una operación más grande.",
+    eyebrow: "Hasta 30 agentes",
+    title: "Coordiná equipos, roles y automatizaciones a escala.",
     description:
-      "Recorré una vista pensada para coordinación, equipos y una operación con más complejidad. Esta demo pone el foco en control, visibilidad y consistencia comercial a escala.",
+      "Enterprise incluye todo lo de Professional y agrega la capa de gestión organizacional: multi-equipo, roles, asignación automática e integraciones avanzadas.",
     icon: UsersRound,
     experiences: [
-      "Revisar actividad del equipo desde una visión de gestión.",
-      "Entender cómo escala el seguimiento cuando crece la operación.",
-      "Explorar la capa de configuración y control del sistema.",
+      "Trabajar con hasta 30 agentes y varios equipos comerciales.",
+      "Ver equipos separados por zona, managers y carga de trabajo.",
+      "Explorar roles, asignación automática e integraciones avanzadas.",
+      "Usar WhatsApp IA, Matching, Reportes y Analítica a escala de organización.",
     ],
     footer: "Las conexiones externas reales permanecen desactivadas dentro de la demo.",
     popular: false,
@@ -83,12 +86,12 @@ export default function DemosPage() {
           <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-[#d2c4b0] bg-[#f7f1e8] text-[#806b4d]">
             <Layers3 size={19} strokeWidth={1.6} />
           </div>
-          <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a714d]">Demos por tipo de operación</p>
+          <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a714d]">Demos por plan</p>
           <h1 className="mt-4 font-serif text-5xl font-medium tracking-tight text-[#29251f] md:text-6xl">
-            Elegí qué versión de RevScale querés recorrer.
+            Cada demo muestra exactamente el nivel que estás evaluando.
           </h1>
           <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-[#6d665d]">
-            Acá no repetimos precios ni listas de funcionalidades. Cada recorrido muestra una forma distinta de trabajar con RevScale, desde ordenar el día a día hasta supervisar una operación más grande.
+            Starter, Professional y Enterprise ya no son recorridos genéricos: cada uno muestra sus propios límites, módulos y forma de trabajo.
           </p>
         </div>
 
@@ -115,7 +118,7 @@ export default function DemosPage() {
                 <p className="mt-4 text-sm leading-6 text-[#716a61]">{demo.description}</p>
 
                 <div className="mt-6 border-t border-[#d3c6b4] pt-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8c7a61]">Durante el recorrido</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8c7a61]">Qué vas a ver</p>
                   <ul className="mt-4 space-y-3 text-sm leading-6 text-[#5f5951]">
                     {demo.experiences.map((experience) => (
                       <li key={experience} className="flex gap-2.5">

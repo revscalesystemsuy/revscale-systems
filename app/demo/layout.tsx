@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { Suspense } from "react"
+import { DemoPlanGuard } from "./demo-plan-guard"
 import { DemoSidebar } from "./demo-sidebar"
 
 function DemoSidebarFallback() {
@@ -11,6 +12,7 @@ export default function DemoLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-[#eee5d7] text-[#292722] lg:flex">
       <Suspense fallback={<DemoSidebarFallback />}>
         <DemoSidebar />
+        <DemoPlanGuard />
       </Suspense>
       <main className="min-w-0 flex-1 pt-14 lg:pt-0">{children}</main>
     </div>

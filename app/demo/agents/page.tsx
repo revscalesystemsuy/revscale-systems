@@ -1,27 +1,32 @@
 import { Award } from "lucide-react"
 import { DEMO_AGENTS, formatUSD } from "@/lib/demo-data"
+import { DEMO_PLAN_CONFIG, normalizeDemoPlan } from "@/lib/demo-plan"
 import { PageHeader } from "../demo-ui"
 
-export default function DemoAgentsPage() {
-  const agents = [...DEMO_AGENTS].sort(
-    (a, b) => b.conversions - a.conversions,
-  )
+export default async function DemoAgentsPage({ searchParams }: { searchParams: Promise<{ plan?: string }> }) {
+  const params = await searchParams
+  const plan = normalizeDemoPlan(params.plan)
+  const config = DEMO_PLAN_CONFIG[plan]
+  const agents = [...DEMO_AGENTS]
+    .sort((a, b) => b.conversions - a.conversions)
+    .slice(0, Math.min(config.maxAgents, DEMO_AGENTS.length))
 
   return (
     <div className="p-6 md:p-8">
       <div className="mx-auto max-w-7xl">
         <PageHeader
-          eyebrow="Equipo comercial"
+          eyebrow={`${config.label} · Equipo comercial`}
           title="Agentes"
-          subtitle="Rendimiento del equipo comercial de Inmobiliaria Horizonte."
+          subtitle={`Rendimiento del equipo comercial. Este plan admite hasta ${config.maxAgents} agentes.`}
         />
+
+        <div className="mb-6 rounded-xl border border-[#d6cbbb] bg-[#efe6d9] px-5 py-4 text-sm text-[#625d55]">
+          Demo {config.label}: {agents.length} agentes de ejemplo · límite comercial del plan: {config.maxAgents}.
+        </div>
 
         <section className="grid gap-5 md:grid-cols-2">
           {agents.map((agent, i) => (
-            <div
-              key={agent.id}
-              className="rounded-2xl border border-[#d6cbbb] bg-[#f7f1e8] p-6"
-            >
+            <div key={agent.id} className="rounded-2xl border border-[#d6cbbb] bg-[#f7f1e8] p-6">
               <div className="flex items-start justify-between">
                 <div>
                   <h2 className="flex items-center gap-2 text-xl font-bold text-[#302c25]">
@@ -32,9 +37,7 @@ export default function DemoAgentsPage() {
                     )}
                     {agent.name}
                   </h2>
-                  <span className="mt-2 inline-block rounded-full bg-[#e9dfd0] px-3 py-1 text-xs font-semibold text-[#745f43]">
-                    {agent.role}
-                  </span>
+                  <span className="mt-2 inline-block rounded-full bg-[#e9dfd0] px-3 py-1 text-xs font-semibold text-[#745f43]">{agent.role}</span>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-[#625b52]">Ranking</p>
@@ -53,9 +56,7 @@ export default function DemoAgentsPage() {
 
               <div className="mt-5 border-t border-[#ded2c2] pt-4">
                 <p className="text-xs text-[#625b52]">Valor potencial</p>
-                <p className="text-xl font-bold text-[#41634a]">
-                  {formatUSD(agent.potentialValueUSD)}
-                </p>
+                <p className="text-xl font-bold text-[#41634a]">{formatUSD(agent.potentialValueUSD)}</p>
               </div>
             </div>
           ))}

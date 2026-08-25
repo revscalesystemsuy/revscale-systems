@@ -57,10 +57,10 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
   const isDirector = role === "OWNER";
   const isManager = role === "MANAGER";
   const isAgent = role === "AGENT";
-  const canManagePeople = !enterprise || isDirector || isManager;
-  const canImport = !enterprise || isDirector || isManager;
-  const canSeeManagement = !enterprise || isDirector || isManager;
-  const canSeeCompanyAdmin = !enterprise || isDirector;
+  const canManagePeople = isDirector || (enterprise && isManager);
+  const canImport = isDirector || (enterprise && isManager);
+  const canSeeManagement = isDirector || (enterprise && isManager);
+  const canSeeCompanyAdmin = isDirector;
 
   const { count: unreadNotifications } = await supabase
     .from("notifications")

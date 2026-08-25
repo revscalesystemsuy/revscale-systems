@@ -38,33 +38,37 @@ Deno.serve(async (req: Request) => {
   const { data: actor } = await admin.from("organization_members")
     .select("id,organization_id,role,status,team_id")
     .eq("user_id", actorId).eq("status", "ACTIVE").maybeSingle();
-  if (!actor || !["OWNER", "MANAGER"].includes(actor.role)) {
-    return Response.json({ error: "Acceso no autorizado" }, { status: 403 });
-  }
+  if (!actor) return Response.json({ error: "Acceso no autorizado" }, { status: 403 });
 
   const { data: subscription } = await admin.from("subscriptions")
     .select("plan,status,max_agents")
     .eq("organization_id", actor.organization_id).maybeSingle();
-  if (!subscription || String(subscription.status).toUpperCase() !== "ACTIVE" || String(subscription.plan).toUpperCase() !== "ENTERPRISE") {
-    return Response.json({ error: "La gestión de equipos requiere Enterprise activo" }, { status: 403 });
+  if (!subscription || String(subscription.status).toUpperCase() !== "ACTIVE") {
+    return Response.json({ error: "La organización no tiene una suscripción activa" }, { status: 403 });
   }
 
-  let role = requestedRole;
-  let teamId = requestedTeamId;
-  if (actor.role === "MANAGER") {
+  const plan = String(subscription.plan || "").toUpperCase() === "PRO" ? "PROFESSIONAL" : String(subscription.plan || "").toUpperCase();
+  const enterprise = plan === "ENTERPRISE";
+  const canManage = actor.role === "OWNER" || (enterprise && actor.role === "MANAGER");
+  if (!canManage) return Response.json({ error: "Acceso no autorizado" }, { status: 403 });
+
+  let role = enterprise ? requestedRole : "AGENT";
+  let teamId = enterprise ? requestedTeamId : null;
+
+  if (enterprise && actor.role === "MANAGER") {
     role = "AGENT";
     teamId = actor.team_id;
     if (!teamId) return Response.json({ error: "El Gerente debe tener un equipo asignado" }, { status: 400 });
-  } else if (!["OWNER", "MANAGER", "AGENT"].includes(role)) {
+  } else if (enterprise && !["OWNER", "MANAGER", "AGENT"].includes(role)) {
     return Response.json({ error: "Rol inválido" }, { status: 400 });
   }
 
-  if ((role === "MANAGER" || role === "AGENT") && teamId) {
+  if (enterprise && (role === "MANAGER" || role === "AGENT") && teamId) {
     const { data: team } = await admin.from("teams").select("id")
       .eq("id", teamId).eq("organization_id", actor.organization_id).maybeSingle();
     if (!team) return Response.json({ error: "Equipo inválido" }, { status: 400 });
   }
-  if (role === "MANAGER" && !teamId) {
+  if (enterprise && role === "MANAGER" && !teamId) {
     return Response.json({ error: "Un Gerente debe tener un equipo asignado" }, { status: 400 });
   }
 

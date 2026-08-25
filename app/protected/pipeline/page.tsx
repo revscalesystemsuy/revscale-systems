@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { buildForecastByCurrency, formatCommercialAmount, LOSS_REASON_LABELS } from "@/lib/pipeline-metrics";
+import { calculateOpportunityRisk, getBusinessDateKey } from "@/lib/commercial-ops";
 import { updatePipelineStage } from "./actions";
 
 const STAGES = [
@@ -15,32 +16,56 @@ const STAGES = [
   { key: "LOST", label: "Perdido", hint: "Oportunidad cerrada" },
 ] as const;
 
-export default function PipelinePage() {
+export default function PipelinePage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
   return (
     <Suspense fallback={<PipelineSkeleton />}>
-      <PipelineContent />
+      <PipelineContent searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function PipelineContent() {
+async function PipelineContent({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
   const supabase = await createClient();
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
-
   if (claimsError || !claimsData?.claims?.sub) redirect("/auth/login");
 
   const userId = String(claimsData.claims.sub);
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("status", "ACTIVE")
-    .single();
+  const { filter = "all" } = await searchParams;
 
-  const { data: leads, error } = await supabase
-    .from("leads")
-    .select("id,full_name,phone,primary_zone,operation,budget_max,currency,lead_temperature,lead_score,next_action,pipeline_stage,lost_reason")
-    .order("updated_at", { ascending: false });
+  const [{ data: membership }, { data: leadsData, error }, { data: interactionsData }, { data: followupsData }] = await Promise.all([
+    supabase.from("organization_members").select("role").eq("user_id", userId).eq("status", "ACTIVE").single(),
+    supabase.from("leads").select("id,full_name,phone,primary_zone,operation,budget_max,currency,lead_temperature,lead_score,next_action,pipeline_stage,lost_reason,stage_entered_at,expected_close_date,requires_human,created_at").order("updated_at", { ascending: false }),
+    supabase.from("interactions").select("lead_id,created_at").order("created_at", { ascending: false }),
+    supabase.from("followups").select("lead_id,due_at,status").eq("status", "PENDING").order("due_at", { ascending: true }),
+  ]);
+
+  const leads = leadsData || [];
+  const interactions = interactionsData || [];
+  const followups = followupsData || [];
+  const now = new Date();
+  const today = getBusinessDateKey(now);
+
+  const enrichedLeads = leads.map((lead) => {
+    const lastInteraction = interactions.find((item) => item.lead_id === lead.id)?.created_at || null;
+    const leadFollowups = followups.filter((item) => item.lead_id === lead.id);
+    const overdueFollowup = leadFollowups.some((item) => item.due_at && new Date(item.due_at).getTime() < now.getTime());
+    const risk = calculateOpportunityRisk(lead, {
+      now,
+      lastInteractionAt: lastInteraction,
+      hasPendingFollowup: leadFollowups.length > 0,
+      hasOverdueFollowup: overdueFollowup,
+    });
+    return { ...lead, risk, hasPendingFollowup: leadFollowups.length > 0, hasOverdueFollowup: overdueFollowup };
+  });
+
+  const filteredLeads = enrichedLeads.filter((lead) => {
+    if (filter === "risk") return lead.risk.level === "HIGH";
+    if (filter === "stalled") return lead.risk.isStalled;
+    if (filter === "overdue-close") return lead.risk.isExpectedCloseOverdue;
+    if (filter === "missing-close") return !lead.expected_close_date && !["WON", "LOST"].includes(lead.pipeline_stage || "NEW");
+    if (filter === "hot") return (lead.lead_temperature || "").toUpperCase() === "HOT";
+    return true;
+  });
 
   const scopeText = membership?.role === "AGENT"
     ? "Avance comercial de tus leads asignados."
@@ -48,7 +73,20 @@ async function PipelineContent() {
       ? "Avance comercial de tu equipo."
       : "Avance comercial de toda la organización.";
 
-  const forecast = buildForecastByCurrency(leads || []);
+  const forecast = buildForecastByCurrency(leads);
+  const highRiskCount = enrichedLeads.filter((lead) => lead.risk.level === "HIGH").length;
+  const stalledCount = enrichedLeads.filter((lead) => lead.risk.isStalled).length;
+  const overdueCloseCount = enrichedLeads.filter((lead) => lead.risk.isExpectedCloseOverdue).length;
+  const missingCloseCount = enrichedLeads.filter((lead) => !lead.expected_close_date && !["WON", "LOST"].includes(lead.pipeline_stage || "NEW")).length;
+
+  const filters = [
+    ["all", "Todos", enrichedLeads.length],
+    ["risk", "En riesgo", highRiskCount],
+    ["stalled", "Estancados", stalledCount],
+    ["overdue-close", "Cierre vencido", overdueCloseCount],
+    ["missing-close", "Sin fecha", missingCloseCount],
+    ["hot", "HOT", enrichedLeads.filter((lead) => (lead.lead_temperature || "").toUpperCase() === "HOT").length],
+  ] as const;
 
   return (
     <main className="min-h-screen p-6 md:p-8 lg:p-10">
@@ -72,14 +110,24 @@ async function PipelineContent() {
           </div>
         </div>
 
-        {error && (
-          <div className="mt-6 rounded-xl border border-[#cfa9a0] bg-[#f5e6e1] p-4 text-sm text-[#7d4d44]">No se pudo cargar el pipeline.</div>
-        )}
+        <section className="mt-7 flex flex-wrap gap-2">
+          {filters.map(([value, label, count]) => (
+            <Link
+              key={value}
+              href={value === "all" ? "/protected/pipeline" : `/protected/pipeline?filter=${value}`}
+              className={`rounded-full border px-3.5 py-2 text-xs font-semibold ${filter === value ? "border-[#6d5b43] bg-[#302d28] !text-[#fffaf2]" : "border-[#d2c5b3] bg-[#f7f0e6] text-[#625d55] hover:border-[#9f8b6e]"}`}
+            >
+              {label} · {count}
+            </Link>
+          ))}
+        </section>
 
-        <section className="mt-8 overflow-x-auto pb-3">
+        {error && <div className="mt-6 rounded-xl border border-[#cfa9a0] bg-[#f5e6e1] p-4 text-sm text-[#7d4d44]">No se pudo cargar el pipeline.</div>}
+
+        <section className="mt-6 overflow-x-auto pb-3">
           <div className="grid min-w-[1680px] grid-cols-7 gap-4">
             {STAGES.map((stage) => {
-              const stageLeads = (leads || []).filter((lead) => (lead.pipeline_stage || "NEW") === stage.key);
+              const stageLeads = filteredLeads.filter((lead) => (lead.pipeline_stage || "NEW") === stage.key);
               const stageValues = stageLeads.reduce<Record<string, number>>((acc, lead) => {
                 const value = Number(lead.budget_max || 0);
                 if (!Number.isFinite(value) || value <= 0) return acc;
@@ -107,33 +155,36 @@ async function PipelineContent() {
 
                   <div className="space-y-3 p-3">
                     {stageLeads.map((lead) => (
-                      <article key={lead.id} className="rounded-lg border border-[#d8ccbc] bg-[#fffaf2] p-4">
+                      <article key={lead.id} className={`rounded-lg border bg-[#fffaf2] p-4 ${lead.risk.level === "HIGH" ? "border-[#b58d73]" : lead.risk.isStalled ? "border-[#c7a76b]" : "border-[#d8ccbc]"}`}>
                         <Link href={`/protected/leads/${lead.id}`} className="block">
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="text-sm font-semibold text-[#37332d]">{lead.full_name || "Sin nombre"}</p>
                               <p className="mt-1 text-[11px] text-[#81796e]">{lead.primary_zone || "Zona sin definir"}</p>
                             </div>
-                            <div className="text-right">
-                              <p className="text-[9px] uppercase tracking-[0.12em] text-[#8b8378]">Score</p>
-                              <p className="font-serif text-lg text-[#6f5c40]">{lead.lead_score ?? "—"}</p>
-                            </div>
+                            <RiskPill score={lead.risk.score} level={lead.risk.level} />
                           </div>
+
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {lead.risk.isStalled && <StatusPill label={`${lead.risk.stageAgeDays} d en etapa`} tone="warning" />}
+                            {lead.risk.isExpectedCloseOverdue && <StatusPill label="Cierre vencido" tone="danger" />}
+                            {!lead.expected_close_date && !["WON", "LOST"].includes(lead.pipeline_stage || "NEW") && <StatusPill label="Sin fecha de cierre" tone="neutral" />}
+                            {lead.hasOverdueFollowup && <StatusPill label="Seguimiento vencido" tone="danger" />}
+                          </div>
+
                           <div className="mt-3 border-t border-[#e0d6c8] pt-3 text-xs leading-5 text-[#6d665d]">
                             <p>{lead.operation || "Operación sin definir"} · {lead.lead_temperature || "Sin prioridad"}</p>
                             <p>{lead.budget_max ? `${lead.currency || "Sin moneda"} ${Number(lead.budget_max).toLocaleString("es-UY")}` : "Presupuesto sin definir"}</p>
+                            <p>Fecha de cierre: {lead.expected_close_date || "Sin definir"}</p>
                             <p className="mt-1 text-[#554f47]">{lead.next_action || "Sin acción definida"}</p>
+                            {lead.risk.reasons.length > 0 && <p className="mt-2 text-[#7b5d48]">{lead.risk.reasons.slice(0, 2).join(" · ")}</p>}
                             {lead.pipeline_stage === "LOST" && lead.lost_reason && <p className="mt-2 text-[#7d4d44]">Motivo: {LOSS_REASON_LABELS[lead.lost_reason] || lead.lost_reason}</p>}
                           </div>
                         </Link>
 
                         <form action={updatePipelineStage} className="mt-3 space-y-2">
                           <input type="hidden" name="lead_id" value={lead.id} />
-                          <select
-                            name="pipeline_stage"
-                            defaultValue={lead.pipeline_stage || "NEW"}
-                            className="w-full rounded-md border border-[#cdbfa9] bg-[#f7f0e6] px-2.5 py-2 text-xs text-[#4f4941]"
-                          >
+                          <select name="pipeline_stage" defaultValue={lead.pipeline_stage || "NEW"} className="w-full rounded-md border border-[#cdbfa9] bg-[#f7f0e6] px-2.5 py-2 text-xs text-[#4f4941]">
                             {STAGES.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
                           </select>
                           <select name="lost_reason" defaultValue={lead.lost_reason || ""} className="w-full rounded-md border border-[#cdbfa9] bg-[#fffaf2] px-2.5 py-2 text-xs text-[#4f4941]">
@@ -145,19 +196,28 @@ async function PipelineContent() {
                       </article>
                     ))}
 
-                    {!stageLeads.length && (
-                      <div className="rounded-lg border border-dashed border-[#d2c5b3] px-4 py-8 text-center text-xs text-[#92897d]">Sin oportunidades</div>
-                    )}
+                    {!stageLeads.length && <div className="rounded-lg border border-dashed border-[#d2c5b3] px-4 py-8 text-center text-xs text-[#92897d]">Sin oportunidades</div>}
                   </div>
                 </div>
               );
             })}
           </div>
         </section>
-        <p className="mt-3 text-xs text-[#81796e]">El forecast pondera el presupuesto máximo según la etapa comercial. No representa comisión ni facturación de RevScale.</p>
+        <p className="mt-3 text-xs text-[#81796e]">El riesgo comercial combina antigüedad de etapa, actividad, seguimientos y fecha estimada de cierre. El forecast pondera presupuesto por etapa y nunca mezcla monedas.</p>
       </div>
     </main>
   );
+}
+
+function RiskPill({ score, level }: { score: number; level: "LOW" | "MEDIUM" | "HIGH" }) {
+  const label = level === "HIGH" ? "Alto" : level === "MEDIUM" ? "Medio" : "Bajo";
+  const className = level === "HIGH" ? "border-[#b58d73] bg-[#ead8cb] text-[#6b4433]" : level === "MEDIUM" ? "border-[#c4a86e] bg-[#eee2c8] text-[#6f5a2e]" : "border-[#a9b39b] bg-[#e1e5d9] text-[#4f5d43]";
+  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold ${className}`}>Riesgo {score} · {label}</span>;
+}
+
+function StatusPill({ label, tone }: { label: string; tone: "danger" | "warning" | "neutral" }) {
+  const className = tone === "danger" ? "border-[#c9a69a] bg-[#f1dfd8] text-[#744d40]" : tone === "warning" ? "border-[#c9b17d] bg-[#efe3c9] text-[#6f5a32]" : "border-[#c9c0b4] bg-[#eee8de] text-[#655e54]";
+  return <span className={`rounded-full border px-2 py-1 text-[9px] font-semibold ${className}`}>{label}</span>;
 }
 
 function PipelineSkeleton() {

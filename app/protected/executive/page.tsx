@@ -3,9 +3,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { buildForecastByCurrency, formatCommercialAmount } from "@/lib/pipeline-metrics";
-
-const OPEN_STAGES = new Set(["NEW", "CONTACTED", "QUALIFIED", "VISIT", "NEGOTIATION"]);
-const STALE_DAYS: Record<string, number> = { NEW: 3, CONTACTED: 3, QUALIFIED: 7, VISIT: 7, NEGOTIATION: 10 };
+import {
+  OPEN_PIPELINE_STAGE_SET,
+  PIPELINE_STAGE_LABELS,
+  calculateOpportunityRisk,
+  getBusinessDateKey,
+} from "@/lib/commercial-ops";
 
 export default async function ExecutivePage() {
   const supabase = await createClient();
@@ -23,10 +26,13 @@ export default async function ExecutivePage() {
   if (membership.role !== "OWNER") redirect("/protected");
 
   const now = new Date();
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  const periodMonth = monthStart.toISOString().slice(0, 10);
-  const monthEndExclusive = nextMonth.toISOString().slice(0, 10);
+  const today = getBusinessDateKey(now);
+  const [year, month] = today.split("-").map(Number);
+  const periodMonth = `${year}-${String(month).padStart(2, "0")}-01`;
+  const nextMonthDate = new Date(Date.UTC(year, month, 1));
+  const monthEndExclusive = nextMonthDate.toISOString().slice(0, 10);
+  const monthStartIso = `${periodMonth}T00:00:00.000Z`;
+  const nextMonthIso = `${monthEndExclusive}T00:00:00.000Z`;
   const monthLabel = new Intl.DateTimeFormat("es-UY", { month: "long", year: "numeric", timeZone: "America/Montevideo" }).format(now);
 
   async function saveGoal(formData: FormData) {
@@ -89,13 +95,24 @@ export default async function ExecutivePage() {
   }
 
   const orgId = membership.organization_id;
-  const [{ data: leadsData }, { data: wonEventsData }, { data: goalsData }, { data: teamsData }, { data: membersData }, { data: profilesData }] = await Promise.all([
-    supabase.from("leads").select("id,full_name,pipeline_stage,budget_max,currency,stage_entered_at,expected_close_date,assigned_to,team_id").eq("organization_id", orgId),
-    supabase.from("lead_stage_events").select("lead_id,team_id,assigned_to,changed_at").eq("organization_id", orgId).eq("to_stage", "WON").gte("changed_at", monthStart.toISOString()).lt("changed_at", nextMonth.toISOString()),
+  const [
+    { data: leadsData },
+    { data: wonEventsData },
+    { data: goalsData },
+    { data: teamsData },
+    { data: membersData },
+    { data: profilesData },
+    { data: interactionsData },
+    { data: followupsData },
+  ] = await Promise.all([
+    supabase.from("leads").select("id,full_name,pipeline_stage,budget_max,currency,stage_entered_at,expected_close_date,assigned_to,team_id,requires_human,next_action,lead_temperature,created_at").eq("organization_id", orgId),
+    supabase.from("lead_stage_events").select("lead_id,team_id,assigned_to,changed_at").eq("organization_id", orgId).eq("to_stage", "WON").gte("changed_at", monthStartIso).lt("changed_at", nextMonthIso),
     supabase.from("sales_goals").select("id,scope_type,team_id,agent_id,target_won_count,target_value,currency,period_month").eq("organization_id", orgId).eq("period_month", periodMonth),
     supabase.from("teams").select("id,name").eq("organization_id", orgId).eq("is_active", true),
     supabase.from("organization_members").select("user_id,team_id,role").eq("organization_id", orgId).eq("status", "ACTIVE"),
     supabase.from("profiles").select("id,full_name"),
+    supabase.from("interactions").select("lead_id,created_at").eq("organization_id", orgId).order("created_at", { ascending: false }),
+    supabase.from("followups").select("id,lead_id,due_at,status").eq("organization_id", orgId).eq("status", "PENDING"),
   ]);
 
   const leads = leadsData || [];
@@ -104,7 +121,10 @@ export default async function ExecutivePage() {
   const teams = teamsData || [];
   const members = membersData || [];
   const profiles = profilesData || [];
+  const interactions = interactionsData || [];
+  const followups = followupsData || [];
   const profileName = (id: string | null) => profiles.find((p) => p.id === id)?.full_name || "Sin nombre";
+  const teamName = (id: string | null) => teams.find((team) => team.id === id)?.name || "Sin equipo";
 
   const wonLeadIds = new Set(wonEvents.map((event) => event.lead_id));
   const wonLeads = leads.filter((lead) => wonLeadIds.has(lead.id));
@@ -113,7 +133,8 @@ export default async function ExecutivePage() {
   const actualWins = wonLeadIds.size;
   const goalProgress = orgTarget ? Math.min(100, Math.round((actualWins / orgTarget) * 100)) : 0;
 
-  const monthForecastLeads = leads.filter((lead) => OPEN_STAGES.has(lead.pipeline_stage || "NEW") && lead.expected_close_date && lead.expected_close_date >= periodMonth && lead.expected_close_date < monthEndExclusive);
+  const openLeads = leads.filter((lead) => OPEN_PIPELINE_STAGE_SET.has(lead.pipeline_stage || "NEW"));
+  const monthForecastLeads = openLeads.filter((lead) => lead.expected_close_date && lead.expected_close_date >= periodMonth && lead.expected_close_date < monthEndExclusive);
   const forecast = buildForecastByCurrency(monthForecastLeads);
 
   const actualValueByCurrency = new Map<string, number>();
@@ -124,19 +145,51 @@ export default async function ExecutivePage() {
     actualValueByCurrency.set(currency, (actualValueByCurrency.get(currency) || 0) + value);
   }
 
-  const stalled = leads
-    .filter((lead) => OPEN_STAGES.has(lead.pipeline_stage || "NEW"))
-    .map((lead) => {
-      const entered = new Date(lead.stage_entered_at || now.toISOString());
-      const days = Math.max(0, Math.floor((now.getTime() - entered.getTime()) / 86400000));
-      return { ...lead, days, threshold: STALE_DAYS[lead.pipeline_stage || "NEW"] || 7 };
-    })
-    .filter((lead) => lead.days >= lead.threshold)
-    .sort((a, b) => b.days - a.days)
-    .slice(0, 8);
+  const riskLeads = openLeads.map((lead) => {
+    const lastInteractionAt = interactions.find((item) => item.lead_id === lead.id)?.created_at || null;
+    const leadFollowups = followups.filter((item) => item.lead_id === lead.id);
+    const overdueFollowup = leadFollowups.some((item) => new Date(item.due_at).getTime() < now.getTime());
+    const risk = calculateOpportunityRisk(lead, {
+      now,
+      lastInteractionAt,
+      hasPendingFollowup: leadFollowups.length > 0,
+      hasOverdueFollowup: overdueFollowup,
+    });
+    return { ...lead, risk, overdueFollowup };
+  });
 
-  const missingExpectedDate = leads.filter((lead) => OPEN_STAGES.has(lead.pipeline_stage || "NEW") && !lead.expected_close_date).length;
-  const overdueExpected = leads.filter((lead) => OPEN_STAGES.has(lead.pipeline_stage || "NEW") && lead.expected_close_date && lead.expected_close_date < now.toISOString().slice(0, 10)).length;
+  const highRiskLeads = riskLeads.filter((lead) => lead.risk.level === "HIGH").sort((a, b) => b.risk.score - a.risk.score);
+  const atRiskValueByCurrency = new Map<string, { value: number; opportunities: number }>();
+  for (const lead of highRiskLeads) {
+    const value = Number(lead.budget_max || 0);
+    if (!Number.isFinite(value) || value <= 0 || !lead.currency) continue;
+    const currency = lead.currency.toUpperCase();
+    const current = atRiskValueByCurrency.get(currency) || { value: 0, opportunities: 0 };
+    current.value += value;
+    current.opportunities += 1;
+    atRiskValueByCurrency.set(currency, current);
+  }
+
+  const forecastQueue = openLeads.map((lead) => {
+    const missing: string[] = [];
+    const budget = Number(lead.budget_max || 0);
+    if (!Number.isFinite(budget) || budget <= 0) missing.push("presupuesto");
+    if (!lead.currency) missing.push("moneda");
+    if (!lead.expected_close_date) missing.push("fecha de cierre");
+    if (!lead.next_action) missing.push("próxima acción");
+    if (!lead.assigned_to) missing.push("responsable");
+    const risk = riskLeads.find((item) => item.id === lead.id)?.risk;
+    return { ...lead, missing, risk };
+  }).filter((lead) => lead.missing.length > 0)
+    .sort((a, b) => b.missing.length - a.missing.length || (b.risk?.score || 0) - (a.risk?.score || 0));
+
+  const forecastComplete = openLeads.length - forecastQueue.length;
+  const forecastQuality = openLeads.length ? Math.round((forecastComplete / openLeads.length) * 100) : 100;
+  const missingExpectedDate = forecastQueue.filter((lead) => lead.missing.includes("fecha de cierre")).length;
+  const missingBudget = forecastQueue.filter((lead) => lead.missing.includes("presupuesto")).length;
+  const missingCurrency = forecastQueue.filter((lead) => lead.missing.includes("moneda")).length;
+  const overdueExpected = riskLeads.filter((lead) => lead.risk.isExpectedCloseOverdue).length;
+  const stalled = riskLeads.filter((lead) => lead.risk.isStalled).sort((a, b) => b.risk.stageAgeDays - a.risk.stageAgeDays).slice(0, 8);
 
   const teamPerformance = teams.map((team) => {
     const goal = goals.find((g) => g.scope_type === "TEAM" && g.team_id === team.id);
@@ -160,14 +213,37 @@ export default async function ExecutivePage() {
         <Link href="/protected" className="text-sm font-medium text-[#756246]">Volver al dashboard</Link>
         <p className="mt-7 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#927a58]">Dirección comercial</p>
         <h1 className="mt-3 font-serif text-4xl font-medium md:text-5xl">Dashboard ejecutivo</h1>
-        <p className="mt-2 text-[#6f685f]">Metas, forecast del mes, cierres y oportunidades estancadas · {monthLabel}</p>
+        <p className="mt-2 text-[#6f685f]">Metas, forecast, riesgo y calidad del pipeline · {monthLabel}</p>
 
-        <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <Metric title="Meta de cierres" value={orgTarget || "—"} />
           <Metric title="Cierres del mes" value={actualWins} />
           <Metric title="Cumplimiento" value={orgTarget ? `${goalProgress}%` : "Sin meta"} />
-          <Metric title="Estancadas" value={stalled.length} />
-          <Metric title="Sin fecha de cierre" value={missingExpectedDate} />
+          <Metric title="Riesgo alto" value={highRiskLeads.length} />
+          <Metric title="Calidad forecast" value={`${forecastQuality}%`} />
+          <Metric title="Datos incompletos" value={forecastQueue.length} />
+        </section>
+
+        <section className="mt-8 grid gap-6 lg:grid-cols-2">
+          <Panel title="Dinero en riesgo">
+            <p className="mb-4 text-sm leading-6 text-[#81796e]">Suma únicamente oportunidades abiertas con riesgo alto y valor monetario válido. Las monedas se muestran por separado.</p>
+            {atRiskValueByCurrency.size ? [...atRiskValueByCurrency.entries()].map(([currency, item]) => (
+              <div key={currency} className="mb-4 rounded-xl border border-[#cfae99] bg-[#f4e4d9] p-4 last:mb-0">
+                <div className="flex items-center justify-between gap-4"><span className="font-medium text-[#684839]">{currency}</span><span className="text-sm text-[#806052]">{item.opportunities} oportunidades</span></div>
+                <p className="mt-2 font-serif text-3xl text-[#5f4033]">{formatCommercialAmount(currency, item.value)}</p>
+              </div>
+            )) : <p className="text-sm text-[#81796e]">No hay valor monetario registrado en oportunidades de riesgo alto.</p>}
+          </Panel>
+
+          <Panel title="Calidad del forecast">
+            <div className="flex items-end justify-between gap-4"><div><p className="font-serif text-4xl">{forecastQuality}%</p><p className="mt-1 text-sm text-[#81796e]">{forecastComplete} de {openLeads.length} oportunidades tienen datos comerciales completos.</p></div><Link href="#forecast-incompleto" className="text-sm font-medium text-[#756246]">Corregir datos</Link></div>
+            <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#e4d8c6]"><div className="h-full rounded-full bg-[#8e7654]" style={{ width: `${forecastQuality}%` }} /></div>
+            <div className="mt-5 grid grid-cols-3 gap-3 text-center text-sm">
+              <div className="rounded-xl border border-[#d8ccbb] bg-[#fffaf2] p-3"><p className="font-serif text-xl">{missingExpectedDate}</p><p className="mt-1 text-xs text-[#81796e]">sin fecha</p></div>
+              <div className="rounded-xl border border-[#d8ccbb] bg-[#fffaf2] p-3"><p className="font-serif text-xl">{missingBudget}</p><p className="mt-1 text-xs text-[#81796e]">sin presupuesto</p></div>
+              <div className="rounded-xl border border-[#d8ccbb] bg-[#fffaf2] p-3"><p className="font-serif text-xl">{missingCurrency}</p><p className="mt-1 text-xs text-[#81796e]">sin moneda</p></div>
+            </div>
+          </Panel>
         </section>
 
         <section className="mt-8 grid gap-6 lg:grid-cols-2">
@@ -190,8 +266,18 @@ export default async function ExecutivePage() {
         </section>
 
         <section className="mt-8 rounded-2xl border border-[#d3c6b3] bg-[#f7f0e6] p-6">
-          <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="font-serif text-2xl">Oportunidades estancadas</h2><p className="mt-1 text-sm text-[#81796e]">{overdueExpected} oportunidades además tienen fecha estimada vencida.</p></div><Link href="/protected/pipeline" className="text-sm font-medium text-[#756246]">Abrir pipeline</Link></div>
-          <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="border-b border-[#d8ccbb] text-xs uppercase tracking-[0.12em] text-[#81796e]"><tr><th className="py-3">Lead</th><th>Etapa</th><th>Días</th><th>Cierre estimado</th><th></th></tr></thead><tbody>{stalled.length ? stalled.map((lead) => <tr key={lead.id} className="border-b border-[#e3d8c8]"><td className="py-4 font-medium">{lead.full_name || "Sin nombre"}</td><td>{lead.pipeline_stage}</td><td>{lead.days} d</td><td>{lead.expected_close_date || "Sin fecha"}</td><td className="text-right"><Link href={`/protected/leads/${lead.id}`} className="font-medium text-[#756246]">Ver</Link></td></tr>) : <tr><td colSpan={5} className="py-5 text-[#81796e]">No hay oportunidades estancadas según los umbrales actuales.</td></tr>}</tbody></table></div>
+          <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="font-serif text-2xl">Oportunidades en riesgo alto</h2><p className="mt-1 text-sm text-[#81796e]">Las más urgentes primero, con responsable, etapa y señal principal de riesgo.</p></div><Link href="/protected/pipeline?view=risk" className="text-sm font-medium text-[#756246]">Abrir pipeline en riesgo</Link></div>
+          <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[860px] text-left text-sm"><thead className="border-b border-[#d8ccbb] text-xs uppercase tracking-[0.12em] text-[#81796e]"><tr><th className="py-3">Lead</th><th>Etapa</th><th>Riesgo</th><th>Valor</th><th>Responsable</th><th>Señal principal</th><th></th></tr></thead><tbody>{highRiskLeads.length ? highRiskLeads.slice(0, 10).map((lead) => <tr key={lead.id} className="border-b border-[#e3d8c8]"><td className="py-4 font-medium">{lead.full_name || "Sin nombre"}</td><td>{PIPELINE_STAGE_LABELS[lead.pipeline_stage || "NEW"] || lead.pipeline_stage}</td><td><span className="rounded-full border border-[#b58d73] bg-[#ead8cb] px-2.5 py-1 text-xs font-semibold text-[#6b4433]">{lead.risk.score}/100</span></td><td>{lead.budget_max && lead.currency ? formatCommercialAmount(lead.currency, Number(lead.budget_max)) : "Sin valor"}</td><td>{profileName(lead.assigned_to)}</td><td className="max-w-[260px] text-[#6f685f]">{lead.risk.reasons[0] || "Riesgo acumulado"}</td><td className="text-right"><Link href={`/protected/leads/${lead.id}`} className="font-medium text-[#756246]">Intervenir</Link></td></tr>) : <tr><td colSpan={7} className="py-5 text-[#81796e]">No hay oportunidades con riesgo alto en este momento.</td></tr>}</tbody></table></div>
+        </section>
+
+        <section id="forecast-incompleto" className="mt-8 rounded-2xl border border-[#d3c6b3] bg-[#f7f0e6] p-6 scroll-mt-6">
+          <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="font-serif text-2xl">Forecast incompleto</h2><p className="mt-1 text-sm text-[#81796e]">{forecastQueue.length} oportunidades necesitan completar datos antes de confiar plenamente en el forecast.</p></div><Link href="/protected/pipeline?view=missing-close" className="text-sm font-medium text-[#756246]">Ver pipeline</Link></div>
+          <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="border-b border-[#d8ccbb] text-xs uppercase tracking-[0.12em] text-[#81796e]"><tr><th className="py-3">Lead</th><th>Etapa</th><th>Equipo</th><th>Responsable</th><th>Falta completar</th><th>Riesgo</th><th></th></tr></thead><tbody>{forecastQueue.length ? forecastQueue.slice(0, 15).map((lead) => <tr key={lead.id} className="border-b border-[#e3d8c8]"><td className="py-4 font-medium">{lead.full_name || "Sin nombre"}</td><td>{PIPELINE_STAGE_LABELS[lead.pipeline_stage || "NEW"] || lead.pipeline_stage}</td><td>{teamName(lead.team_id)}</td><td>{profileName(lead.assigned_to)}</td><td><div className="flex max-w-[320px] flex-wrap gap-1.5">{lead.missing.map((item) => <span key={item} className="rounded-full border border-[#d1bfa6] bg-[#efe4d4] px-2 py-1 text-[11px] text-[#6f5c40]">{item}</span>)}</div></td><td>{lead.risk ? `${lead.risk.score}/100` : "—"}</td><td className="text-right"><Link href={`/protected/leads/${lead.id}/edit`} className="font-medium text-[#756246]">Completar</Link></td></tr>) : <tr><td colSpan={7} className="py-5 text-[#81796e]">Todas las oportunidades abiertas tienen los datos mínimos para forecast.</td></tr>}</tbody></table></div>
+        </section>
+
+        <section className="mt-8 rounded-2xl border border-[#d3c6b3] bg-[#f7f0e6] p-6">
+          <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="font-serif text-2xl">Oportunidades estancadas</h2><p className="mt-1 text-sm text-[#81796e]">{overdueExpected} oportunidades además tienen fecha estimada vencida.</p></div><Link href="/protected/pipeline?view=stalled" className="text-sm font-medium text-[#756246]">Abrir estancadas</Link></div>
+          <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="border-b border-[#d8ccbb] text-xs uppercase tracking-[0.12em] text-[#81796e]"><tr><th className="py-3">Lead</th><th>Etapa</th><th>Días</th><th>Cierre estimado</th><th></th></tr></thead><tbody>{stalled.length ? stalled.map((lead) => <tr key={lead.id} className="border-b border-[#e3d8c8]"><td className="py-4 font-medium">{lead.full_name || "Sin nombre"}</td><td>{PIPELINE_STAGE_LABELS[lead.pipeline_stage || "NEW"] || lead.pipeline_stage}</td><td>{lead.risk.stageAgeDays} d</td><td>{lead.expected_close_date || "Sin fecha"}</td><td className="text-right"><Link href={`/protected/leads/${lead.id}`} className="font-medium text-[#756246]">Ver</Link></td></tr>) : <tr><td colSpan={5} className="py-5 text-[#81796e]">No hay oportunidades estancadas según los umbrales actuales.</td></tr>}</tbody></table></div>
         </section>
 
         <section className="mt-8 grid gap-6 lg:grid-cols-2">

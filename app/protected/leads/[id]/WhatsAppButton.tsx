@@ -1,16 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, Clipboard, ExternalLink, MessageCircle } from "lucide-react";
 import { confirmWhatsAppSent, generateWhatsAppMessage } from "./actions";
 
 export default function WhatsAppButton({
   leadId,
   phone,
+  compact = false,
 }: {
   leadId: string;
   phone?: string | null;
+  compact?: boolean;
 }) {
+  const router = useRouter();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -70,6 +74,7 @@ export default function WhatsAppButton({
       formData.append("message", message);
       await confirmWhatsAppSent(formData);
       setRecorded(true);
+      router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo registrar el envío.");
     } finally {
@@ -77,28 +82,35 @@ export default function WhatsAppButton({
     }
   }
 
+  const wrapperClass = compact ? "" : "mt-5 border-t border-[#ddd1c0] pt-5";
+  const generateClass = compact
+    ? "inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#cdbfa9] bg-[#f7f0e6] px-3 py-2.5 text-xs font-semibold text-[#554f47] transition hover:bg-[#efe4d5] disabled:cursor-not-allowed disabled:opacity-60"
+    : "mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#bfae96] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#554f47] transition hover:bg-[#f4eadc] disabled:cursor-not-allowed disabled:opacity-60";
+
   return (
-    <div className="mt-5 border-t border-[#ddd1c0] pt-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#81796e]">WhatsApp</p>
-          <p className="mt-1 text-xs leading-5 text-[#8b8378]">Generar un mensaje no cuenta como contacto. RevScale solo lo registra cuando confirmás que fue enviado.</p>
+    <div className={wrapperClass}>
+      {!compact && (
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#81796e]">WhatsApp</p>
+            <p className="mt-1 text-xs leading-5 text-[#8b8378]">Generar un mensaje no cuenta como contacto. RevScale solo lo registra cuando confirmás que fue enviado.</p>
+          </div>
+          <MessageCircle size={18} className="text-[#756246]" />
         </div>
-        <MessageCircle size={18} className="text-[#756246]" />
-      </div>
+      )}
 
       <button
         type="button"
         onClick={handleGenerate}
         disabled={loading}
-        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#bfae96] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#554f47] transition hover:bg-[#f4eadc] disabled:cursor-not-allowed disabled:opacity-60"
+        className={generateClass}
       >
         <MessageCircle size={15} />
-        {loading ? "Generando..." : message ? "Regenerar mensaje" : "Generar mensaje"}
+        {loading ? "Generando..." : message ? "Regenerar WhatsApp" : compact ? "WhatsApp" : "Generar mensaje"}
       </button>
 
       {message && (
-        <div className="mt-4 rounded-xl border border-[#d7caba] bg-[#fffaf2] p-4">
+        <div className={`${compact ? "mt-3" : "mt-4"} rounded-xl border border-[#d7caba] bg-[#fffaf2] p-4`}>
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#81796e]">Mensaje sugerido</p>
           <p className="mt-3 whitespace-pre-line text-sm leading-6 text-[#5f594f]">{message}</p>
 

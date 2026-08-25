@@ -1,7 +1,18 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { updatePipelineStage } from "./actions";
+
+const STAGES = [
+  { key: "NEW", label: "Nuevo lead", hint: "Pendiente de contacto" },
+  { key: "CONTACTED", label: "Contactado", hint: "Conversación iniciada" },
+  { key: "QUALIFIED", label: "Calificado", hint: "Necesidad validada" },
+  { key: "VISIT", label: "Visita", hint: "Propiedad visitada" },
+  { key: "NEGOTIATION", label: "Negociación", hint: "Condiciones en curso" },
+  { key: "WON", label: "Cierre", hint: "Operación concretada" },
+  { key: "LOST", label: "Perdido", hint: "Oportunidad cerrada" },
+] as const;
 
 export default function PipelinePage() {
   return (
@@ -15,11 +26,9 @@ async function PipelineContent() {
   const supabase = await createClient();
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
 
-  if (claimsError || !claimsData?.claims?.sub) {
-    redirect("/auth/login");
-  }
+  if (claimsError || !claimsData?.claims?.sub) redirect("/auth/login");
 
-  const userId = claimsData.claims.sub;
+  const userId = String(claimsData.claims.sub);
   const { data: membership } = await supabase
     .from("organization_members")
     .select("role")
@@ -29,101 +38,111 @@ async function PipelineContent() {
 
   const { data: leads, error } = await supabase
     .from("leads")
-    .select("id, full_name, phone, primary_zone, operation, budget_max, currency, lead_temperature, lead_score, next_action")
-    .order("lead_score", { ascending: false });
-
-  const hot = leads?.filter((lead) => lead.lead_temperature === "HOT") ?? [];
-  const warm = leads?.filter((lead) => lead.lead_temperature === "WARM") ?? [];
-  const cold = leads?.filter((lead) => lead.lead_temperature === "COLD") ?? [];
-  const unclassified = leads?.filter((lead) => !lead.lead_temperature || !["HOT", "WARM", "COLD"].includes(lead.lead_temperature)) ?? [];
+    .select("id,full_name,phone,primary_zone,operation,budget_max,currency,lead_temperature,lead_score,next_action,pipeline_stage")
+    .order("updated_at", { ascending: false });
 
   const scopeText = membership?.role === "AGENT"
-    ? "Prioridades de tus leads asignados."
+    ? "Avance comercial de tus leads asignados."
     : membership?.role === "MANAGER"
-      ? "Prioridades comerciales de tu equipo."
-      : "Prioridades comerciales de toda la organización.";
+      ? "Avance comercial de tu equipo."
+      : "Avance comercial de toda la organización.";
+
+  const totalValue = (leads || []).reduce((sum, lead) => sum + Number(lead.budget_max || 0), 0);
+  const decisionValue = (leads || [])
+    .filter((lead) => ["VISIT", "NEGOTIATION"].includes(lead.pipeline_stage || "NEW"))
+    .reduce((sum, lead) => sum + Number(lead.budget_max || 0), 0);
 
   return (
-    <main className="min-h-screen p-8">
-      <div className="mx-auto max-w-[1600px]">
-        <div className="mb-8">
-          <p className="text-sm font-medium text-blue-400">Pipeline comercial</p>
-          <h1 className="mt-1 text-3xl font-bold">Prioridades de ventas</h1>
-          <p className="mt-2 text-slate-400">{scopeText}</p>
+    <main className="min-h-screen p-6 md:p-8 lg:p-10">
+      <div className="mx-auto max-w-[1700px]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Pipeline comercial</p>
+            <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight text-[#292722] md:text-5xl">Pipeline de ventas</h1>
+            <p className="mt-3 text-sm leading-6 text-[#625d55]">{scopeText}</p>
+          </div>
+          <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-[#d2c5b3] bg-[#f7f0e6]">
+            <div className="px-5 py-3">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[#81796e]">Valor total</p>
+              <p className="mt-1 font-serif text-xl text-[#302d28]">USD {totalValue.toLocaleString("es-UY")}</p>
+            </div>
+            <div className="border-l border-[#d2c5b3] px-5 py-3">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[#8d7553]">En decisión</p>
+              <p className="mt-1 font-serif text-xl text-[#6f5c40]">USD {decisionValue.toLocaleString("es-UY")}</p>
+            </div>
+          </div>
         </div>
 
         {error && (
-          <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-red-300">
-            No se pudo cargar el pipeline.
-          </div>
+          <div className="mt-6 rounded-xl border border-[#cfa9a0] bg-[#f5e6e1] p-4 text-sm text-[#7d4d44]">No se pudo cargar el pipeline.</div>
         )}
 
-        <section className="grid gap-5 xl:grid-cols-4">
-          <PipelineColumn title="HOT" subtitle="Alta prioridad" leads={hot} />
-          <PipelineColumn title="WARM" subtitle="Seguimiento" leads={warm} />
-          <PipelineColumn title="COLD" subtitle="Baja prioridad" leads={cold} />
-          <PipelineColumn title="SIN CLASIFICAR" subtitle="Pendientes" leads={unclassified} />
+        <section className="mt-8 overflow-x-auto pb-3">
+          <div className="grid min-w-[1680px] grid-cols-7 gap-4">
+            {STAGES.map((stage) => {
+              const stageLeads = (leads || []).filter((lead) => (lead.pipeline_stage || "NEW") === stage.key);
+              const stageValue = stageLeads.reduce((sum, lead) => sum + Number(lead.budget_max || 0), 0);
+
+              return (
+                <div key={stage.key} className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6]">
+                  <div className="border-b border-[#d8ccbc] p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#8d7553]">Etapa</p>
+                        <h2 className="mt-1 font-serif text-lg font-medium text-[#302d28]">{stage.label}</h2>
+                      </div>
+                      <span className="rounded-full border border-[#d0c2ad] bg-[#eee4d5] px-2.5 py-1 text-xs text-[#6b6258]">{stageLeads.length}</span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-[#7b746a]">{stage.hint}</p>
+                    <p className="mt-4 font-serif text-lg text-[#6f5c40]">USD {stageValue.toLocaleString("es-UY")}</p>
+                  </div>
+
+                  <div className="space-y-3 p-3">
+                    {stageLeads.map((lead) => (
+                      <article key={lead.id} className="rounded-lg border border-[#d8ccbc] bg-[#fffaf2] p-4">
+                        <Link href={`/protected/leads/${lead.id}`} className="block">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-[#37332d]">{lead.full_name || "Sin nombre"}</p>
+                              <p className="mt-1 text-[11px] text-[#81796e]">{lead.primary_zone || "Zona sin definir"}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[9px] uppercase tracking-[0.12em] text-[#8b8378]">Score</p>
+                              <p className="font-serif text-lg text-[#6f5c40]">{lead.lead_score ?? "—"}</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 border-t border-[#e0d6c8] pt-3 text-xs leading-5 text-[#6d665d]">
+                            <p>{lead.operation || "Operación sin definir"} · {lead.lead_temperature || "Sin prioridad"}</p>
+                            <p>{lead.budget_max ? `${lead.currency || "USD"} ${Number(lead.budget_max).toLocaleString("es-UY")}` : "Presupuesto sin definir"}</p>
+                            <p className="mt-1 text-[#554f47]">{lead.next_action || "Sin acción definida"}</p>
+                          </div>
+                        </Link>
+
+                        <form action={updatePipelineStage} className="mt-3">
+                          <input type="hidden" name="lead_id" value={lead.id} />
+                          <select
+                            name="pipeline_stage"
+                            defaultValue={lead.pipeline_stage || "NEW"}
+                            className="w-full rounded-md border border-[#cdbfa9] bg-[#f7f0e6] px-2.5 py-2 text-xs text-[#4f4941]"
+                          >
+                            {STAGES.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+                          </select>
+                          <button className="mt-2 w-full rounded-md bg-[#302d28] px-3 py-2 text-xs font-semibold !text-[#fffaf2]">Mover etapa</button>
+                        </form>
+                      </article>
+                    ))}
+
+                    {!stageLeads.length && (
+                      <div className="rounded-lg border border-dashed border-[#d2c5b3] px-4 py-8 text-center text-xs text-[#92897d]">Sin oportunidades</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </section>
       </div>
     </main>
-  );
-}
-
-type Lead = {
-  id: string;
-  full_name: string | null;
-  phone: string;
-  primary_zone: string | null;
-  operation: string | null;
-  budget_max: number | null;
-  currency: string | null;
-  lead_temperature: string | null;
-  lead_score: number | null;
-  next_action: string | null;
-};
-
-function PipelineColumn({ title, subtitle, leads }: { title: string; subtitle: string; leads: Lead[] }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02]">
-      <div className="flex items-center justify-between border-b border-white/10 p-5">
-        <div>
-          <h2 className="font-bold">{title}</h2>
-          <p className="text-xs text-slate-500">{subtitle}</p>
-        </div>
-        <span className="rounded-full bg-white/5 px-3 py-1 text-sm font-semibold">{leads.length}</span>
-      </div>
-
-      <div className="space-y-3 p-4">
-        {leads.map((lead) => (
-          <Link key={lead.id} href={`/protected/leads/${lead.id}`} className="block rounded-xl border border-white/10 bg-slate-900 p-4 transition hover:border-blue-500/40 hover:bg-slate-800">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold">{lead.full_name || "Sin nombre"}</p>
-                <p className="mt-1 text-xs text-slate-500">{lead.phone}</p>
-              </div>
-              <span className="text-xl font-bold text-blue-400">{lead.lead_score ?? "—"}</span>
-            </div>
-
-            <div className="mt-4 space-y-1 text-sm text-slate-400">
-              <p>{lead.primary_zone || "Zona sin definir"}</p>
-              <p>{lead.operation || "Operación sin definir"}</p>
-              <p>{lead.budget_max ? `${lead.currency || ""} ${Number(lead.budget_max).toLocaleString()}` : "Presupuesto sin definir"}</p>
-            </div>
-
-            <div className="mt-4 border-t border-white/5 pt-3">
-              <p className="text-xs text-slate-500">Próxima acción</p>
-              <p className="mt-1 text-sm font-medium text-slate-200">{lead.next_action || "Sin acción definida"}</p>
-            </div>
-          </Link>
-        ))}
-
-        {!leads.length && (
-          <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-sm text-slate-600">
-            No hay leads
-          </div>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -131,13 +150,8 @@ function PipelineSkeleton() {
   return (
     <main className="min-h-screen p-8">
       <div className="mx-auto max-w-[1600px] animate-pulse">
-        <div className="h-8 w-64 rounded bg-white/10" />
-        <div className="mt-8 grid gap-5 xl:grid-cols-4">
-          <div className="h-96 rounded-2xl bg-white/5" />
-          <div className="h-96 rounded-2xl bg-white/5" />
-          <div className="h-96 rounded-2xl bg-white/5" />
-          <div className="h-96 rounded-2xl bg-white/5" />
-        </div>
+        <div className="h-10 w-64 rounded bg-[#e1d6c7]" />
+        <div className="mt-8 h-[520px] rounded-2xl bg-[#e7dccd]" />
       </div>
     </main>
   );

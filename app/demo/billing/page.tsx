@@ -1,0 +1,12 @@
+import Link from "next/link"
+import { Check, CreditCard } from "lucide-react"
+import { DEMO_PLAN_CONFIG, normalizeDemoPlan } from "@/lib/demo-plan"
+import { PageHeader } from "../demo-ui"
+
+export default async function DemoBillingPage({ searchParams }: { searchParams: Promise<{ plan?: string }> }) {
+  const params = await searchParams
+  const plan = normalizeDemoPlan(params.plan)
+  const config = DEMO_PLAN_CONFIG[plan]
+  const price = plan === "starter" ? 99 : plan === "professional" ? 249 : 499
+  return <main className="min-h-screen p-6 md:p-8 lg:p-10"><div className="mx-auto max-w-5xl"><PageHeader eyebrow="Suscripción" title="Mi Plan" subtitle="Así ve el Director el plan activo, sus límites y las capacidades incluidas. La demo no realiza cobros."/><section className="rounded-2xl border border-[#cdbfa9] bg-[#e9dfd0] p-7"><div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between"><div><div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#806945]"><CreditCard size={15}/>{config.label}</div><p className="mt-4 font-serif text-5xl text-[#302d28]">USD {price}<span className="ml-2 text-base text-[#81796e]">/mes</span></p><p className="mt-3 text-sm text-[#625d55]">{config.positioning}</p></div><Link href="/pricing" className="rounded-lg bg-[#302d28] px-5 py-3 text-sm font-semibold !text-[#fffaf2]">Comparar planes</Link></div><div className="mt-7 grid gap-4 md:grid-cols-3"><div className="rounded-xl border border-[#d2c5b3] bg-[#fffaf2] p-5"><p className="text-xs text-[#81796e]">Agentes</p><p className="mt-2 font-serif text-3xl text-[#37332d]">{config.maxAgents}</p></div><div className="rounded-xl border border-[#d2c5b3] bg-[#fffaf2] p-5"><p className="text-xs text-[#81796e]">Leads</p><p className="mt-2 font-serif text-xl text-[#37332d]">{config.leadLimit}</p></div><div className="rounded-xl border border-[#d2c5b3] bg-[#fffaf2] p-5"><p className="text-xs text-[#81796e]">Propiedades</p><p className="mt-2 font-serif text-xl text-[#37332d]">{config.propertyLimit}</p></div></div></section><section className="mt-6 rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6"><h2 className="font-serif text-2xl text-[#37332d]">Incluido en {config.label}</h2><div className="mt-5 grid gap-3 md:grid-cols-2">{config.capabilities.map((x)=><div key={x} className="flex gap-3 rounded-xl border border-[#ded2c2] bg-[#fffaf2] p-4 text-sm text-[#514b43]"><Check size={16} className="mt-0.5 text-[#786447]"/><span>{x}</span></div>)}</div></section></div></main>
+}

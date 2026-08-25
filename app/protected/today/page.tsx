@@ -10,6 +10,7 @@ import {
 } from "@/lib/commercial-ops";
 import { PIPELINE_STAGES } from "@/lib/pipeline-metrics";
 import { updatePipelineStage } from "@/app/protected/pipeline/actions";
+import WhatsAppButton from "@/app/protected/leads/[id]/WhatsAppButton";
 import { completeTodayFollowup, createNextDayFollowup } from "./actions";
 
 export default async function TodayPage() {
@@ -23,7 +24,7 @@ export default async function TodayPage() {
   const [{ data: leadsData }, { data: interactionsData }, { data: followupsData }] = await Promise.all([
     supabase
       .from("leads")
-      .select("id,full_name,pipeline_stage,stage_entered_at,expected_close_date,lead_temperature,requires_human,next_action,created_at,budget_max,currency")
+      .select("id,full_name,phone,pipeline_stage,stage_entered_at,expected_close_date,lead_temperature,requires_human,next_action,created_at,budget_max,currency")
       .order("lead_score", { ascending: false }),
     supabase.from("interactions").select("lead_id,created_at").order("created_at", { ascending: false }),
     supabase.from("followups").select("id,lead_id,title,due_at,status").eq("status", "PENDING").order("due_at", { ascending: true }),
@@ -103,7 +104,7 @@ export default async function TodayPage() {
                   <RiskPill level={item.risk.level} />
                 </div>
 
-                <div className="mt-5 grid gap-3 border-t border-[#e0d6c8] pt-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="mt-5 grid gap-3 border-t border-[#e0d6c8] pt-4 md:grid-cols-2 xl:grid-cols-5">
                   {item.overdueFollowup ? (
                     <form action={completeTodayFollowup}>
                       <input type="hidden" name="followup_id" value={item.overdueFollowup.id} />
@@ -127,6 +128,7 @@ export default async function TodayPage() {
                     <button className="rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2 text-xs font-semibold text-[#554f47]">Mover</button>
                   </form>
 
+                  <WhatsAppButton leadId={item.id} phone={item.phone} compact />
                   <Link href={`/protected/leads/${item.id}/edit`} className="inline-flex items-center justify-center rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2.5 text-xs font-semibold text-[#554f47]">Editar cierre / datos</Link>
                   <Link href={`/protected/leads/${item.id}`} className="inline-flex items-center justify-center rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2.5 text-xs font-semibold text-[#554f47]">Abrir ficha comercial</Link>
                 </div>

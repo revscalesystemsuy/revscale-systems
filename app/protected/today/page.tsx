@@ -115,7 +115,7 @@ export default async function TodayPage() {
                     <form action={createNextDayFollowup}>
                       <input type="hidden" name="lead_id" value={item.id} />
                       <input type="hidden" name="title" value={item.next_action || "Retomar contacto"} />
-                      <button className="w-full rounded-lg border border-[#cdbfa9] bg-[#f7f0e6] px-3 py-2.5 text-xs font-semibold text-[#554f47]">Seguimiento para mañana</button>
+                      <button className="w-full rounded-lg border border-[#cdbfa9] bg-[#f7f0e6] px-3 py-2.5 text-xs font-semibold text-[#554f47]">Próximo día hábil · 09:00</button>
                     </form>
                   )}
 

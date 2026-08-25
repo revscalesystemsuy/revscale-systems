@@ -66,6 +66,15 @@ export async function requireEnterpriseRole(allowedRoles: OrganizationRole[]) {
   return context;
 }
 
+export async function requirePeopleManager() {
+  const context = await requireActiveContext();
+
+  if (context.role === "OWNER") return context;
+  if (context.plan === "ENTERPRISE" && context.role === "MANAGER") return context;
+
+  redirect("/protected");
+}
+
 export async function requireManagementFeature(feature: PlanFeature) {
   const context = await requireActiveContext();
 

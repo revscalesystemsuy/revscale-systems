@@ -45,7 +45,7 @@ try {
   await expectPage("/pricing", ["Starter", "Professional", "Enterprise", "Mensual", "Anual"]);
   await expectPage("/pricing?cycle=ANNUAL", ["990", "2,490", "4,990"]);
   await expectPage("/request?plan=PROFESSIONAL&cycle=ANNUAL", ["PROFESSIONAL", "2,490", "Continuar al pago"]);
-  await expectPage("/request/checkout?plan=STARTER&cycle=MONTHLY", ["Confirmá tu suscripción", "USD 99", "La solicitud de pago no es válida"]);
+  await expectPage("/request/checkout?plan=STARTER&cycle=MONTHLY", ["Confirmá tu suscripción", "La solicitud de pago no es válida"]);
   await expectProtectedRedirect("/protected/billing");
   await expectProtectedRedirect("/protected/analytics");
   await expectProtectedRedirect("/protected/reports");

@@ -25,6 +25,10 @@ type CalendarItem = {
   risk: OpportunityRisk;
 };
 
+type UnscheduledItem = Omit<CalendarItem, "expected_close_date"> & {
+  expected_close_date: null;
+};
+
 type SearchParams = Promise<{ month?: string }>;
 
 const CALENDAR_SELECT = "id,full_name,pipeline_stage,stage_entered_at,expected_close_date,lead_temperature,requires_human,next_action,created_at,budget_max,currency";
@@ -59,6 +63,8 @@ export default async function CommercialCalendarPage({ searchParams }: { searchP
     { data: monthLeadsData },
     { data: overdueLeadsData },
     { count: overdueCount },
+    { data: unscheduledLeadsData },
+    { count: unscheduledCount },
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -82,6 +88,20 @@ export default async function CommercialCalendarPage({ searchParams }: { searchP
       .eq("organization_id", orgId)
       .in("pipeline_stage", OPEN_STAGES)
       .lt("expected_close_date", today),
+    supabase
+      .from("leads")
+      .select(CALENDAR_SELECT)
+      .eq("organization_id", orgId)
+      .in("pipeline_stage", OPEN_STAGES)
+      .is("expected_close_date", null)
+      .order("lead_score", { ascending: false })
+      .limit(8),
+    supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId)
+      .in("pipeline_stage", OPEN_STAGES)
+      .is("expected_close_date", null),
   ]);
 
   const now = new Date();
@@ -93,6 +113,11 @@ export default async function CommercialCalendarPage({ searchParams }: { searchP
   const overdue: CalendarItem[] = (overdueLeadsData || []).map((lead) => ({
     ...lead,
     expected_close_date: lead.expected_close_date as string,
+    risk: calculateOpportunityRisk(lead, { now }),
+  }));
+  const unscheduled: UnscheduledItem[] = (unscheduledLeadsData || []).map((lead) => ({
+    ...lead,
+    expected_close_date: null,
     risk: calculateOpportunityRisk(lead, { now }),
   }));
 
@@ -121,7 +146,7 @@ export default async function CommercialCalendarPage({ searchParams }: { searchP
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Agenda comercial</p>
             <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight text-[#292722] md:text-5xl">Calendario de cierres</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">Vista mensual de oportunidades abiertas por fecha estimada de cierre. Las vencidas quedan visibles arriba para priorizar intervención.</p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">RevScale arma esta vista automáticamente con las fechas estimadas de cierre cargadas en cada oportunidad. Si falta una fecha, la oportunidad aparece abajo para que el equipo la complete manualmente.</p>
           </div>
           <div className="flex items-center gap-2">
             <Link href={`/protected/calendar?month=${previousMonth}`} className="rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-4 py-2 text-sm font-semibold text-[#554f47]">Mes anterior</Link>
@@ -130,8 +155,9 @@ export default async function CommercialCalendarPage({ searchParams }: { searchP
           </div>
         </div>
 
-        <section className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <Summary title="Vencidos" value={overdueCount || 0} />
+          <Summary title="Sin fecha" value={unscheduledCount || 0} />
           <Summary title="En este mes" value={monthItems.length} />
           <Summary title="Riesgo alto" value={monthItems.filter((item) => item.risk.level === "HIGH").length} />
           <div className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] p-5">
@@ -150,6 +176,37 @@ export default async function CommercialCalendarPage({ searchParams }: { searchP
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {overdue.map((item) => <CloseCard key={item.id} item={item} compact />)}
+            </div>
+          </section>
+        )}
+
+        {unscheduled.length > 0 && (
+          <section className="mt-7 rounded-xl border border-[#d2c5b3] bg-[#efe6d9] p-5">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#8d7553]">Dato que requiere criterio humano</p>
+                <h2 className="mt-1 font-serif text-2xl text-[#37332d]">Oportunidades sin fecha estimada</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f685f]">RevScale no inventa una fecha de cierre. Detecta automáticamente cuáles oportunidades abiertas no la tienen y las deja acá para completarlas.</p>
+              </div>
+              <span className="rounded-full border border-[#cdbfa9] bg-[#fffaf2] px-3 py-1 text-xs font-semibold text-[#705d43]">{unscheduledCount || 0} pendientes</span>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {unscheduled.map((item) => (
+                <article key={item.id} className="rounded-xl border border-[#d8ccbc] bg-[#fffaf2] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[#37332d]">{item.full_name || "Sin nombre"}</p>
+                      <p className="mt-1 text-xs text-[#81796e]">{PIPELINE_STAGE_LABELS[item.pipeline_stage || "NEW"] || item.pipeline_stage}</p>
+                    </div>
+                    <span className="shrink-0 text-xs font-semibold text-[#756246]">R{item.risk.score}</span>
+                  </div>
+                  {Number(item.budget_max || 0) > 0 && <p className="mt-3 text-xs text-[#625d55]">{formatCommercialAmount((item.currency || "Sin moneda").toUpperCase(), Number(item.budget_max))}</p>}
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <Link href={`/protected/leads/${item.id}`} className="rounded-lg border border-[#cdbfa9] bg-[#f7f0e6] px-3 py-2 text-center text-xs font-semibold text-[#554f47]">Ver ficha</Link>
+                    <Link href={`/protected/leads/${item.id}/edit`} className="rounded-lg bg-[#302d28] px-3 py-2 text-center text-xs font-semibold !text-[#fffaf2]">Definir fecha</Link>
+                  </div>
+                </article>
+              ))}
             </div>
           </section>
         )}
@@ -211,13 +268,16 @@ function Summary({ title, value }: { title: string; value: number }) {
 function CloseCard({ item, compact = false }: { item: CalendarItem; compact?: boolean }) {
   const riskClass = item.risk.level === "HIGH" ? "border-[#b58d73]" : item.risk.level === "MEDIUM" ? "border-[#c4a86e]" : "border-[#d8ccbc]";
   return (
-    <Link href={`/protected/leads/${item.id}`} className={`block rounded-lg border ${riskClass} bg-[#f7f0e6] p-2.5 hover:bg-[#f1e7d8]`}>
-      <div className="flex items-start justify-between gap-2">
-        <p className="truncate text-xs font-semibold text-[#37332d]">{item.full_name || "Sin nombre"}</p>
-        <span className="shrink-0 text-[9px] font-semibold text-[#756246]">R{item.risk.score}</span>
-      </div>
-      {!compact && <p className="mt-1 text-[10px] text-[#81796e]">{PIPELINE_STAGE_LABELS[item.pipeline_stage || "NEW"] || item.pipeline_stage}</p>}
-      {Number(item.budget_max || 0) > 0 && <p className="mt-1 truncate text-[10px] text-[#625d55]">{formatCommercialAmount((item.currency || "Sin moneda").toUpperCase(), Number(item.budget_max))}</p>}
-    </Link>
+    <article className={`rounded-lg border ${riskClass} bg-[#f7f0e6] p-2.5`}>
+      <Link href={`/protected/leads/${item.id}`} className="block hover:opacity-80">
+        <div className="flex items-start justify-between gap-2">
+          <p className="truncate text-xs font-semibold text-[#37332d]">{item.full_name || "Sin nombre"}</p>
+          <span className="shrink-0 text-[9px] font-semibold text-[#756246]">R{item.risk.score}</span>
+        </div>
+        {!compact && <p className="mt-1 text-[10px] text-[#81796e]">{PIPELINE_STAGE_LABELS[item.pipeline_stage || "NEW"] || item.pipeline_stage}</p>}
+        {Number(item.budget_max || 0) > 0 && <p className="mt-1 truncate text-[10px] text-[#625d55]">{formatCommercialAmount((item.currency || "Sin moneda").toUpperCase(), Number(item.budget_max))}</p>}
+      </Link>
+      <Link href={`/protected/leads/${item.id}/edit`} className="mt-2 block border-t border-[#ddd1c0] pt-2 text-[10px] font-semibold text-[#725d40] hover:text-[#3f3529]">Editar fecha / datos</Link>
+    </article>
   );
 }

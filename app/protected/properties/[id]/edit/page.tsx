@@ -16,8 +16,6 @@ export default async function EditPropertyPage({ params }: { params: Promise<{ i
     .select("organization_id")
     .eq("user_id", userId)
     .eq("status", "ACTIVE")
-    .order("created_at", { ascending: true })
-    .limit(1)
     .maybeSingle();
 
   if (!membership) redirect("/protected");
@@ -43,8 +41,6 @@ export default async function EditPropertyPage({ params }: { params: Promise<{ i
       .select("organization_id")
       .eq("user_id", userId)
       .eq("status", "ACTIVE")
-      .order("created_at", { ascending: true })
-      .limit(1)
       .maybeSingle();
 
     if (!membership) throw new Error("No se encontró una organización para este usuario.");
@@ -54,23 +50,34 @@ export default async function EditPropertyPage({ params }: { params: Promise<{ i
 
     const numberOrNull = (name: string) => {
       const value = String(formData.get(name) || "").trim();
-      return value ? Number(value) : null;
+      if (!value) return null;
+      const number = Number(value);
+      if (!Number.isFinite(number) || number < 0) throw new Error(`Valor inválido en ${name}.`);
+      return number;
     };
+
+    const operation = String(formData.get("operation") || "COMPRA").toUpperCase();
+    const currency = String(formData.get("currency") || "USD").toUpperCase();
+    const status = String(formData.get("status") || "AVAILABLE").toUpperCase();
+
+    if (!["COMPRA", "ALQUILER"].includes(operation)) throw new Error("Operación inválida.");
+    if (!["USD", "UYU"].includes(currency)) throw new Error("Moneda inválida.");
+    if (!["AVAILABLE", "RESERVED", "SOLD"].includes(status)) throw new Error("Estado inválido.");
 
     const { error } = await supabase
       .from("properties")
       .update({
         title,
-        property_type: String(formData.get("property_type") || "").trim() || null,
-        operation: String(formData.get("operation") || "").trim() || null,
+        property_type: String(formData.get("property_type") || "").trim().toUpperCase() || null,
+        operation,
         zone: String(formData.get("zone") || "").trim() || null,
         address: String(formData.get("address") || "").trim() || null,
         price: numberOrNull("price"),
-        currency: String(formData.get("currency") || "").trim() || null,
+        currency,
         bedrooms: numberOrNull("bedrooms"),
         bathrooms: numberOrNull("bathrooms"),
         area_m2: numberOrNull("area_m2"),
-        status: String(formData.get("status") || "AVAILABLE").trim() || "AVAILABLE",
+        status,
         description: String(formData.get("description") || "").trim() || null,
       })
       .eq("id", id)
@@ -104,12 +111,17 @@ export default async function EditPropertyPage({ params }: { params: Promise<{ i
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
             <label className={labelClass}>Tipo de propiedad
-              <input name="property_type" defaultValue={property.property_type || ""} className={inputClass} placeholder="Apartamento, casa..." />
+              <select name="property_type" defaultValue={property.property_type || "APARTAMENTO"} className={inputClass}>
+                <option value="APARTAMENTO">Apartamento</option>
+                <option value="CASA">Casa</option>
+                <option value="TERRENO">Terreno</option>
+                <option value="LOCAL">Local comercial</option>
+                <option value="OFICINA">Oficina</option>
+              </select>
             </label>
             <label className={labelClass}>Operación
-              <select name="operation" defaultValue={property.operation || ""} className={inputClass}>
-                <option value="">Sin definir</option>
-                <option value="VENTA">Venta</option>
+              <select name="operation" defaultValue={property.operation === "VENTA" ? "COMPRA" : property.operation || "COMPRA"} className={inputClass}>
+                <option value="COMPRA">Venta / compra</option>
                 <option value="ALQUILER">Alquiler</option>
               </select>
             </label>
@@ -123,7 +135,7 @@ export default async function EditPropertyPage({ params }: { params: Promise<{ i
 
           <div className="mt-5 grid gap-5 md:grid-cols-3">
             <label className={labelClass}>Precio
-              <input name="price" type="number" step="any" defaultValue={property.price ?? ""} className={inputClass} />
+              <input name="price" type="number" min="0" step="any" defaultValue={property.price ?? ""} className={inputClass} />
             </label>
             <label className={labelClass}>Moneda
               <select name="currency" defaultValue={property.currency || "USD"} className={inputClass}>
@@ -142,13 +154,13 @@ export default async function EditPropertyPage({ params }: { params: Promise<{ i
 
           <div className="mt-5 grid gap-5 md:grid-cols-3">
             <label className={labelClass}>Dormitorios
-              <input name="bedrooms" type="number" defaultValue={property.bedrooms ?? ""} className={inputClass} />
+              <input name="bedrooms" type="number" min="0" defaultValue={property.bedrooms ?? ""} className={inputClass} />
             </label>
             <label className={labelClass}>Baños
-              <input name="bathrooms" type="number" defaultValue={property.bathrooms ?? ""} className={inputClass} />
+              <input name="bathrooms" type="number" min="0" defaultValue={property.bathrooms ?? ""} className={inputClass} />
             </label>
             <label className={labelClass}>Área m²
-              <input name="area_m2" type="number" step="any" defaultValue={property.area_m2 ?? ""} className={inputClass} />
+              <input name="area_m2" type="number" min="0" step="any" defaultValue={property.area_m2 ?? ""} className={inputClass} />
             </label>
           </div>
 

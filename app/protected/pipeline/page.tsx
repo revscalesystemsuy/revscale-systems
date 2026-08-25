@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { buildForecastByCurrency, formatCommercialAmount, LOSS_REASON_LABELS } from "@/lib/pipeline-metrics";
 import { updatePipelineStage } from "./actions";
 
 const STAGES = [
@@ -38,7 +39,7 @@ async function PipelineContent() {
 
   const { data: leads, error } = await supabase
     .from("leads")
-    .select("id,full_name,phone,primary_zone,operation,budget_max,currency,lead_temperature,lead_score,next_action,pipeline_stage")
+    .select("id,full_name,phone,primary_zone,operation,budget_max,currency,lead_temperature,lead_score,next_action,pipeline_stage,lost_reason")
     .order("updated_at", { ascending: false });
 
   const scopeText = membership?.role === "AGENT"
@@ -47,10 +48,7 @@ async function PipelineContent() {
       ? "Avance comercial de tu equipo."
       : "Avance comercial de toda la organización.";
 
-  const totalValue = (leads || []).reduce((sum, lead) => sum + Number(lead.budget_max || 0), 0);
-  const decisionValue = (leads || [])
-    .filter((lead) => ["VISIT", "NEGOTIATION"].includes(lead.pipeline_stage || "NEW"))
-    .reduce((sum, lead) => sum + Number(lead.budget_max || 0), 0);
+  const forecast = buildForecastByCurrency(leads || []);
 
   return (
     <main className="min-h-screen p-6 md:p-8 lg:p-10">
@@ -61,15 +59,16 @@ async function PipelineContent() {
             <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight text-[#292722] md:text-5xl">Pipeline de ventas</h1>
             <p className="mt-3 text-sm leading-6 text-[#625d55]">{scopeText}</p>
           </div>
-          <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-[#d2c5b3] bg-[#f7f0e6]">
-            <div className="px-5 py-3">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[#81796e]">Valor total</p>
-              <p className="mt-1 font-serif text-xl text-[#302d28]">USD {totalValue.toLocaleString("es-UY")}</p>
-            </div>
-            <div className="border-l border-[#d2c5b3] px-5 py-3">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[#8d7553]">En decisión</p>
-              <p className="mt-1 font-serif text-xl text-[#6f5c40]">USD {decisionValue.toLocaleString("es-UY")}</p>
-            </div>
+          <div className="flex flex-wrap gap-2">
+            {forecast.length ? forecast.map((item) => (
+              <div key={item.currency} className="min-w-[170px] rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] px-5 py-3">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[#81796e]">Pipeline · {item.currency}</p>
+                <p className="mt-1 font-serif text-xl text-[#302d28]">{formatCommercialAmount(item.currency, item.pipeline)}</p>
+                <p className="mt-1 text-[10px] text-[#81796e]">Forecast {formatCommercialAmount(item.currency, item.weighted)}</p>
+              </div>
+            )) : (
+              <div className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] px-5 py-3 text-sm text-[#81796e]">Sin presupuestos abiertos todavía.</div>
+            )}
           </div>
         </div>
 
@@ -81,7 +80,13 @@ async function PipelineContent() {
           <div className="grid min-w-[1680px] grid-cols-7 gap-4">
             {STAGES.map((stage) => {
               const stageLeads = (leads || []).filter((lead) => (lead.pipeline_stage || "NEW") === stage.key);
-              const stageValue = stageLeads.reduce((sum, lead) => sum + Number(lead.budget_max || 0), 0);
+              const stageValues = stageLeads.reduce<Record<string, number>>((acc, lead) => {
+                const value = Number(lead.budget_max || 0);
+                if (!Number.isFinite(value) || value <= 0) return acc;
+                const currency = (lead.currency || "Sin moneda").toUpperCase();
+                acc[currency] = (acc[currency] || 0) + value;
+                return acc;
+              }, {});
 
               return (
                 <div key={stage.key} className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6]">
@@ -94,7 +99,10 @@ async function PipelineContent() {
                       <span className="rounded-full border border-[#d0c2ad] bg-[#eee4d5] px-2.5 py-1 text-xs text-[#6b6258]">{stageLeads.length}</span>
                     </div>
                     <p className="mt-2 text-xs leading-5 text-[#7b746a]">{stage.hint}</p>
-                    <p className="mt-4 font-serif text-lg text-[#6f5c40]">USD {stageValue.toLocaleString("es-UY")}</p>
+                    <div className="mt-4 space-y-1">
+                      {Object.entries(stageValues).map(([currency, value]) => <p key={currency} className="font-serif text-lg text-[#6f5c40]">{formatCommercialAmount(currency, value)}</p>)}
+                      {!Object.keys(stageValues).length && <p className="text-xs text-[#92897d]">Sin valor cargado</p>}
+                    </div>
                   </div>
 
                   <div className="space-y-3 p-3">
@@ -113,12 +121,13 @@ async function PipelineContent() {
                           </div>
                           <div className="mt-3 border-t border-[#e0d6c8] pt-3 text-xs leading-5 text-[#6d665d]">
                             <p>{lead.operation || "Operación sin definir"} · {lead.lead_temperature || "Sin prioridad"}</p>
-                            <p>{lead.budget_max ? `${lead.currency || "USD"} ${Number(lead.budget_max).toLocaleString("es-UY")}` : "Presupuesto sin definir"}</p>
+                            <p>{lead.budget_max ? `${lead.currency || "Sin moneda"} ${Number(lead.budget_max).toLocaleString("es-UY")}` : "Presupuesto sin definir"}</p>
                             <p className="mt-1 text-[#554f47]">{lead.next_action || "Sin acción definida"}</p>
+                            {lead.pipeline_stage === "LOST" && lead.lost_reason && <p className="mt-2 text-[#7d4d44]">Motivo: {LOSS_REASON_LABELS[lead.lost_reason] || lead.lost_reason}</p>}
                           </div>
                         </Link>
 
-                        <form action={updatePipelineStage} className="mt-3">
+                        <form action={updatePipelineStage} className="mt-3 space-y-2">
                           <input type="hidden" name="lead_id" value={lead.id} />
                           <select
                             name="pipeline_stage"
@@ -127,7 +136,11 @@ async function PipelineContent() {
                           >
                             {STAGES.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
                           </select>
-                          <button className="mt-2 w-full rounded-md bg-[#302d28] px-3 py-2 text-xs font-semibold !text-[#fffaf2]">Mover etapa</button>
+                          <select name="lost_reason" defaultValue={lead.lost_reason || ""} className="w-full rounded-md border border-[#cdbfa9] bg-[#fffaf2] px-2.5 py-2 text-xs text-[#4f4941]">
+                            <option value="">Motivo si se marca perdido</option>
+                            {Object.entries(LOSS_REASON_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                          </select>
+                          <button className="w-full rounded-md bg-[#302d28] px-3 py-2 text-xs font-semibold !text-[#fffaf2]">Mover etapa</button>
                         </form>
                       </article>
                     ))}
@@ -141,6 +154,7 @@ async function PipelineContent() {
             })}
           </div>
         </section>
+        <p className="mt-3 text-xs text-[#81796e]">El forecast pondera el presupuesto máximo según la etapa comercial. No representa comisión ni facturación de RevScale.</p>
       </div>
     </main>
   );

@@ -35,19 +35,25 @@ async function PipelineContent({ searchParams }: { searchParams: Promise<{ filte
   const [{ data: membership }, { data: leadsData, error }, { data: interactionsData }, { data: followupsData }] = await Promise.all([
     supabase.from("organization_members").select("role").eq("user_id", userId).eq("status", "ACTIVE").single(),
     supabase.from("leads").select("id,full_name,phone,primary_zone,operation,budget_max,currency,lead_temperature,lead_score,next_action,pipeline_stage,lost_reason,stage_entered_at,expected_close_date,requires_human,created_at").order("updated_at", { ascending: false }),
-    supabase.from("interactions").select("lead_id,created_at").order("created_at", { ascending: false }),
+    supabase.from("latest_interaction_by_lead").select("lead_id,last_interaction_at"),
     supabase.from("followups").select("lead_id,due_at,status").eq("status", "PENDING").order("due_at", { ascending: true }),
   ]);
 
   const leads = leadsData || [];
-  const interactions = interactionsData || [];
   const followups = followupsData || [];
+  const lastInteractionByLead = new Map((interactionsData || []).map((item) => [item.lead_id, item.last_interaction_at]));
+  const followupsByLead = new Map<string, typeof followups>();
+  for (const followup of followups) {
+    const existing = followupsByLead.get(followup.lead_id) || [];
+    existing.push(followup);
+    followupsByLead.set(followup.lead_id, existing);
+  }
   const now = new Date();
   const today = getBusinessDateKey(now);
 
   const enrichedLeads = leads.map((lead) => {
-    const lastInteraction = interactions.find((item) => item.lead_id === lead.id)?.created_at || null;
-    const leadFollowups = followups.filter((item) => item.lead_id === lead.id);
+    const lastInteraction = lastInteractionByLead.get(lead.id) || null;
+    const leadFollowups = followupsByLead.get(lead.id) || [];
     const overdueFollowup = leadFollowups.some((item) => item.due_at && new Date(item.due_at).getTime() < now.getTime());
     const risk = calculateOpportunityRisk(lead, {
       now,

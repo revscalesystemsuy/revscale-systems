@@ -1,8 +1,23 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { OPEN_PIPELINE_STAGE_SET, PIPELINE_STAGE_LABELS, calculateOpportunityRisk, getBusinessDateKey } from "@/lib/commercial-ops";
+import { OPEN_PIPELINE_STAGE_SET, PIPELINE_STAGE_LABELS, calculateOpportunityRisk, getBusinessDateKey, type OpportunityRisk } from "@/lib/commercial-ops";
 import { formatCommercialAmount } from "@/lib/pipeline-metrics";
+
+type CalendarItem = {
+  id: string;
+  full_name: string | null;
+  pipeline_stage: string | null;
+  stage_entered_at: string | null;
+  expected_close_date: string;
+  lead_temperature: string | null;
+  requires_human: boolean | null;
+  next_action: string | null;
+  created_at: string | null;
+  budget_max: number | string | null;
+  currency: string | null;
+  risk: OpportunityRisk;
+};
 
 export default async function CommercialCalendarPage() {
   const supabase = await createClient();
@@ -22,14 +37,18 @@ export default async function CommercialCalendarPage() {
   nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
   const monthEndExclusive = nextMonth.toISOString().slice(0, 10);
 
-  const items = (leadsData || [])
-    .filter((lead) => OPEN_PIPELINE_STAGE_SET.has(lead.pipeline_stage || "NEW"))
-    .map((lead) => ({ ...lead, risk: calculateOpportunityRisk(lead, { now }) }));
+  const items: CalendarItem[] = (leadsData || [])
+    .filter((lead) => Boolean(lead.expected_close_date) && OPEN_PIPELINE_STAGE_SET.has(lead.pipeline_stage || "NEW"))
+    .map((lead) => ({
+      ...lead,
+      expected_close_date: lead.expected_close_date as string,
+      risk: calculateOpportunityRisk(lead, { now }),
+    }));
 
-  const overdue = items.filter((lead) => lead.expected_close_date! < today);
+  const overdue = items.filter((lead) => lead.expected_close_date < today);
   const todayItems = items.filter((lead) => lead.expected_close_date === today);
-  const thisMonth = items.filter((lead) => lead.expected_close_date! >= monthStart && lead.expected_close_date! < monthEndExclusive);
-  const future = items.filter((lead) => lead.expected_close_date! >= monthEndExclusive);
+  const thisMonth = items.filter((lead) => lead.expected_close_date >= monthStart && lead.expected_close_date < monthEndExclusive);
+  const future = items.filter((lead) => lead.expected_close_date >= monthEndExclusive);
 
   return (
     <main className="min-h-screen p-6 md:p-8 lg:p-10">
@@ -60,7 +79,7 @@ function Summary({ title, value }: { title: string; value: number }) {
   return <div className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] p-5"><p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#80786e]">{title}</p><p className="mt-3 font-serif text-3xl text-[#2f2c27]">{value}</p></div>;
 }
 
-function CalendarPanel({ title, items, empty }: { title: string; items: any[]; empty: string }) {
+function CalendarPanel({ title, items, empty }: { title: string; items: CalendarItem[]; empty: string }) {
   return (
     <section className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] p-6">
       <h2 className="font-serif text-2xl text-[#37332d]">{title}</h2>

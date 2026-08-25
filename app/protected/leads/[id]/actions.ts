@@ -36,6 +36,7 @@ function revalidateCommercialLead(leadId: string) {
   revalidatePath("/protected/today");
   revalidatePath("/protected/calendar");
   revalidatePath("/protected/executive");
+  revalidatePath("/protected/notifications");
 }
 
 export async function createLeadFollowup(formData: FormData) {
@@ -141,24 +142,40 @@ export async function generateWhatsAppMessage(formData: FormData) {
   return `Hola ${lead.full_name || "cliente"}, vi que estás buscando ${lead.property_type || "una propiedad"}${lead.bedrooms_min ? ` de ${lead.bedrooms_min} dormitorios` : ""} en ${lead.primary_zone || "la zona que te interesa"}.\n\nTengo opciones que pueden ajustarse a lo que buscás.\n\n¿Coordinamos una visita?`;
 }
 
-export async function saveWhatsAppInteraction(formData: FormData) {
+export async function confirmWhatsAppSent(formData: FormData) {
   const leadId = String(formData.get("lead_id") || "").trim();
   const message = String(formData.get("message") || "").trim();
   if (!leadId || !message) throw new Error("Datos incompletos");
+  if (message.length > 5000) throw new Error("El mensaje es demasiado largo");
 
   const { supabase, organizationId, lead } = await getLeadContext(leadId);
+  const recentThreshold = new Date(Date.now() - 90_000).toISOString();
 
-  const { error } = await supabase.from("interactions").insert({
-    organization_id: organizationId,
-    lead_id: leadId,
-    channel: "WHATSAPP",
-    direction: "OUTBOUND",
-    actor: "AGENT",
-    message,
-    ai_response: null,
-    detected_intent: "CONTACTAR_LEAD",
-  });
-  if (error) throw new Error(error.message);
+  const { data: recent, error: recentError } = await supabase
+    .from("interactions")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("lead_id", leadId)
+    .eq("channel", "WHATSAPP")
+    .eq("direction", "OUTBOUND")
+    .eq("message", message)
+    .gte("created_at", recentThreshold)
+    .limit(1);
+  if (recentError) throw new Error(recentError.message);
+
+  if (!recent?.length) {
+    const { error } = await supabase.from("interactions").insert({
+      organization_id: organizationId,
+      lead_id: leadId,
+      channel: "WHATSAPP",
+      direction: "OUTBOUND",
+      actor: "AGENT",
+      message,
+      ai_response: null,
+      detected_intent: "CONTACTAR_LEAD",
+    });
+    if (error) throw new Error(error.message);
+  }
 
   if ((lead.pipeline_stage || "NEW") === "NEW") {
     const { error: stageError } = await supabase
@@ -171,4 +188,10 @@ export async function saveWhatsAppInteraction(formData: FormData) {
 
   revalidateCommercialLead(leadId);
   revalidatePath("/protected/interactions");
+  return { recorded: true };
+}
+
+// Backward-compatible server export. New UI flows must require explicit send confirmation.
+export async function saveWhatsAppInteraction(formData: FormData) {
+  return confirmWhatsAppSent(formData);
 }

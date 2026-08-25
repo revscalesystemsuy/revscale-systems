@@ -1,18 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-
-function monthStartOffset(base: Date, offset: number) {
-  return new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + offset, 1));
-}
-
-function monthKey(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function monthLabel(date: Date) {
-  return new Intl.DateTimeFormat("es-UY", { month: "long", year: "numeric", timeZone: "America/Montevideo" }).format(date);
-}
+import { getBusinessMonthWindow } from "@/lib/commercial-ops";
 
 export default async function MonthlyExecutivePage() {
   const supabase = await createClient();
@@ -29,8 +18,9 @@ export default async function MonthlyExecutivePage() {
   if (!membership || membership.role !== "OWNER") redirect("/protected");
 
   const now = new Date();
-  const firstMonth = monthStartOffset(now, -5);
-  const nextMonth = monthStartOffset(now, 1);
+  const windows = Array.from({ length: 6 }, (_, index) => getBusinessMonthWindow(now, index - 5));
+  const firstWindow = windows[0];
+  const currentWindow = windows[windows.length - 1];
 
   const [{ data: goalsData }, { data: wonEventsData }] = await Promise.all([
     supabase
@@ -38,30 +28,28 @@ export default async function MonthlyExecutivePage() {
       .select("period_month,target_won_count")
       .eq("organization_id", membership.organization_id)
       .eq("scope_type", "ORGANIZATION")
-      .gte("period_month", monthKey(firstMonth))
-      .lt("period_month", monthKey(nextMonth)),
+      .gte("period_month", firstWindow.periodMonth)
+      .lt("period_month", currentWindow.nextPeriodMonth),
     supabase
       .from("lead_stage_events")
       .select("lead_id,changed_at")
       .eq("organization_id", membership.organization_id)
       .eq("to_stage", "WON")
-      .gte("changed_at", firstMonth.toISOString())
-      .lt("changed_at", nextMonth.toISOString()),
+      .gte("changed_at", firstWindow.startIso)
+      .lt("changed_at", currentWindow.endIso),
   ]);
 
   const goals = goalsData || [];
   const wonEvents = wonEventsData || [];
-  const months = Array.from({ length: 6 }, (_, index) => monthStartOffset(now, index - 5)).map((date) => {
-    const start = monthKey(date);
-    const end = monthKey(monthStartOffset(date, 1));
-    const target = Number(goals.find((goal) => goal.period_month === start)?.target_won_count || 0);
+  const months = windows.map((window) => {
+    const target = Number(goals.find((goal) => goal.period_month === window.periodMonth)?.target_won_count || 0);
     const won = new Set(
       wonEvents
-        .filter((event) => event.changed_at.slice(0, 10) >= start && event.changed_at.slice(0, 10) < end)
+        .filter((event) => event.changed_at >= window.startIso && event.changed_at < window.endIso)
         .map((event) => event.lead_id),
     ).size;
     const pct = target ? Math.round((won / target) * 100) : 0;
-    return { start, label: monthLabel(date), target, won, pct };
+    return { start: window.periodMonth, label: window.label, target, won, pct };
   });
 
   const current = months[months.length - 1];
@@ -75,7 +63,7 @@ export default async function MonthlyExecutivePage() {
         <Link href="/protected/executive" className="text-sm font-medium text-[#725d40]">Volver a Dirección</Link>
         <p className="mt-7 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Evolución comercial</p>
         <h1 className="mt-3 font-serif text-4xl font-medium text-[#292722] md:text-5xl">Objetivos mes contra mes</h1>
-        <p className="mt-3 text-sm leading-6 text-[#625d55]">Últimos seis meses de meta de cierres, cierres reales y cumplimiento.</p>
+        <p className="mt-3 text-sm leading-6 text-[#625d55]">Últimos seis meses de meta de cierres, cierres reales y cumplimiento. Los cortes mensuales usan hora de Uruguay.</p>
 
         <section className="mt-7 grid gap-4 md:grid-cols-3">
           <Metric title="Cierres este mes" value={String(current.won)} />

@@ -11,6 +11,20 @@ import { updatePipelineStage } from "@/app/protected/pipeline/actions";
 import Link from "next/link";
 import { CalendarClock, Pencil } from "lucide-react";
 
+function formatMontevideoDateTimeLocal(value: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Montevideo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(value);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value || "";
+  return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
+}
+
 export default async function LeadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
@@ -58,7 +72,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
     : { data: [] as { id: string; full_name: string | null }[] };
   const actorNames = new Map((actorProfiles || []).map((profile) => [profile.id, profile.full_name || "Usuario"]));
 
-  const defaultQuickDue = new Date(Date.now() + 86_400_000).toISOString().slice(0, 16);
+  const defaultQuickDue = formatMontevideoDateTimeLocal(new Date(Date.now() + 86_400_000));
 
   return (
     <main className="min-h-screen p-6 md:p-8 lg:p-10">
@@ -180,6 +194,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
                 <label className="text-xs font-semibold uppercase tracking-[0.12em] text-[#81796e]">Nuevo seguimiento</label>
                 <input name="title" defaultValue={lead.next_action || "Seguimiento comercial"} className="mt-2 w-full rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2.5 text-sm text-[#4f4941]" />
                 <input name="due_at" type="datetime-local" defaultValue={defaultQuickDue} className="mt-2 w-full rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2.5 text-sm text-[#4f4941]" />
+                <p className="mt-1.5 text-[11px] text-[#8a8176]">Hora de Uruguay</p>
                 <button className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#bfae96] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#554f47]"><CalendarClock size={15} /> Crear seguimiento</button>
               </form>
 

@@ -7,7 +7,7 @@ import {
   OPEN_PIPELINE_STAGE_SET,
   PIPELINE_STAGE_LABELS,
   calculateOpportunityRisk,
-  getBusinessDateKey,
+  getBusinessMonthWindow,
 } from "@/lib/commercial-ops";
 
 export default async function ExecutivePage() {
@@ -26,14 +26,12 @@ export default async function ExecutivePage() {
   if (membership.role !== "OWNER") redirect("/protected");
 
   const now = new Date();
-  const today = getBusinessDateKey(now);
-  const [year, month] = today.split("-").map(Number);
-  const periodMonth = `${year}-${String(month).padStart(2, "0")}-01`;
-  const nextMonthDate = new Date(Date.UTC(year, month, 1));
-  const monthEndExclusive = nextMonthDate.toISOString().slice(0, 10);
-  const monthStartIso = `${periodMonth}T00:00:00.000Z`;
-  const nextMonthIso = `${monthEndExclusive}T00:00:00.000Z`;
-  const monthLabel = new Intl.DateTimeFormat("es-UY", { month: "long", year: "numeric", timeZone: "America/Montevideo" }).format(now);
+  const businessMonth = getBusinessMonthWindow(now);
+  const periodMonth = businessMonth.periodMonth;
+  const monthEndExclusive = businessMonth.nextPeriodMonth;
+  const monthStartIso = businessMonth.startIso;
+  const nextMonthIso = businessMonth.endIso;
+  const monthLabel = businessMonth.label;
 
   async function saveGoal(formData: FormData) {
     "use server";

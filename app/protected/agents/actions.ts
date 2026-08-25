@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requirePeopleManager } from "@/lib/organization-role";
 
 async function getManagerContext() {
@@ -15,6 +16,7 @@ export async function inviteAgent(formData: FormData) {
   const phone = String(formData.get("phone") || "").trim();
   const requestedRole = String(formData.get("role") || "AGENT").toUpperCase();
   const requestedTeamId = String(formData.get("team_id") || "").trim() || null;
+  const returnTo = String(formData.get("return_to") || "") === "onboarding" ? "onboarding" : "";
 
   if (!name || !email) throw new Error("Nombre y email son obligatorios.");
   if (currentRole === "MANAGER" && !teamId) {
@@ -40,6 +42,8 @@ export async function inviteAgent(formData: FormData) {
 
   revalidatePath("/protected/agents");
   revalidatePath("/protected/teams");
+  revalidatePath("/protected/onboarding");
+  if (returnTo) redirect("/protected/onboarding");
 }
 
 export async function updateAgent(formData: FormData) {

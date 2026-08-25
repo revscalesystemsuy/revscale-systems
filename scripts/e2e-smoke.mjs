@@ -49,6 +49,7 @@ try {
   await expectProtectedRedirect("/protected/billing");
   await expectProtectedRedirect("/protected/analytics");
   await expectProtectedRedirect("/protected/reports");
+  await expectProtectedRedirect("/protected/executive");
   console.log("E2E smoke checks passed");
 } finally {
   server.kill("SIGTERM");

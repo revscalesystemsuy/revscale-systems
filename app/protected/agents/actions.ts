@@ -1,14 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireEnterpriseRole } from "@/lib/organization-role";
+import { requirePeopleManager } from "@/lib/organization-role";
 
 async function getManagerContext() {
-  return requireEnterpriseRole(["OWNER", "MANAGER"]);
+  return requirePeopleManager();
 }
 
 export async function inviteAgent(formData: FormData) {
-  const { role: currentRole, teamId, supabase } = await getManagerContext();
+  const { role: currentRole, teamId, plan, supabase } = await getManagerContext();
 
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim().toLowerCase();
@@ -21,7 +21,8 @@ export async function inviteAgent(formData: FormData) {
     throw new Error("El Gerente debe pertenecer a un equipo para invitar agentes.");
   }
 
-  const role = currentRole === "OWNER" && ["OWNER", "MANAGER", "AGENT"].includes(requestedRole)
+  const enterprise = plan === "ENTERPRISE";
+  const role = enterprise && currentRole === "OWNER" && ["OWNER", "MANAGER", "AGENT"].includes(requestedRole)
     ? requestedRole
     : "AGENT";
 
@@ -31,7 +32,7 @@ export async function inviteAgent(formData: FormData) {
       email,
       phone,
       role,
-      team_id: currentRole === "MANAGER" ? teamId : requestedTeamId,
+      team_id: enterprise ? (currentRole === "MANAGER" ? teamId : requestedTeamId) : null,
     },
   });
 
@@ -42,7 +43,7 @@ export async function inviteAgent(formData: FormData) {
 }
 
 export async function updateAgent(formData: FormData) {
-  const { role: currentRole, supabase } = await getManagerContext();
+  const { role: currentRole, plan, supabase } = await getManagerContext();
   const id = String(formData.get("id") || "");
   const name = String(formData.get("name") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
@@ -57,7 +58,7 @@ export async function updateAgent(formData: FormData) {
   });
   if (profileError) throw new Error(profileError.message);
 
-  if (currentRole === "OWNER") {
+  if (currentRole === "OWNER" && plan === "ENTERPRISE") {
     if (!["OWNER", "MANAGER", "AGENT"].includes(requestedRole)) throw new Error("Rol inválido.");
     const { error: roleError } = await supabase.rpc("update_organization_member", {
       p_member_id: id,

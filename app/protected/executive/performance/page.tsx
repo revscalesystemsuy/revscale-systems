@@ -61,10 +61,9 @@ export default async function TeamPerformancePage() {
       .eq("organization_id", orgId)
       .gte("changed_at", HISTORY_START),
     supabase
-      .from("interactions")
-      .select("lead_id,created_at")
-      .eq("organization_id", orgId)
-      .order("created_at", { ascending: false }),
+      .from("latest_interaction_by_lead")
+      .select("lead_id,last_interaction_at")
+      .eq("organization_id", orgId),
     supabase
       .from("followups")
       .select("lead_id,assigned_to,due_at,status")
@@ -76,9 +75,23 @@ export default async function TeamPerformancePage() {
   const profiles = profilesData || [];
   const leads = leadsData || [];
   const events = eventsData || [];
-  const interactions = interactionsData || [];
   const followups = followupsData || [];
-  const nameFor = (id: string) => profiles.find((profile) => profile.id === id)?.full_name || "Agente sin nombre";
+  const profileNameById = new Map(profiles.map((profile) => [profile.id, profile.full_name]));
+  const lastInteractionByLead = new Map((interactionsData || []).map((item) => [item.lead_id, item.last_interaction_at]));
+  const followupsByLead = new Map<string, typeof followups>();
+  const overdueFollowupsByAgent = new Map<string, number>();
+
+  for (const followup of followups) {
+    const leadItems = followupsByLead.get(followup.lead_id) || [];
+    leadItems.push(followup);
+    followupsByLead.set(followup.lead_id, leadItems);
+
+    if (followup.assigned_to && followup.due_at && new Date(followup.due_at).getTime() < now.getTime()) {
+      overdueFollowupsByAgent.set(followup.assigned_to, (overdueFollowupsByAgent.get(followup.assigned_to) || 0) + 1);
+    }
+  }
+
+  const nameFor = (id: string) => profileNameById.get(id) || "Agente sin nombre";
 
   const rows: AgentRow[] = members.map((member) => {
     const agentId = member.user_id;
@@ -92,9 +105,9 @@ export default async function TeamPerformancePage() {
     let stalled = 0;
 
     for (const lead of agentOpen) {
-      const lastInteractionAt = interactions.find((item) => item.lead_id === lead.id)?.created_at || null;
-      const leadFollowups = followups.filter((item) => item.lead_id === lead.id);
-      const hasOverdueFollowup = leadFollowups.some((item) => new Date(item.due_at).getTime() < now.getTime());
+      const lastInteractionAt = lastInteractionByLead.get(lead.id) || null;
+      const leadFollowups = followupsByLead.get(lead.id) || [];
+      const hasOverdueFollowup = leadFollowups.some((item) => item.due_at && new Date(item.due_at).getTime() < now.getTime());
       const risk = calculateOpportunityRisk(lead, {
         now,
         lastInteractionAt,
@@ -104,8 +117,6 @@ export default async function TeamPerformancePage() {
       if (risk.level === "HIGH") highRisk += 1;
       if (risk.isStalled) stalled += 1;
     }
-
-    const overdueFollowups = followups.filter((item) => item.assigned_to === agentId && new Date(item.due_at).getTime() < now.getTime()).length;
 
     return {
       id: agentId,
@@ -117,7 +128,7 @@ export default async function TeamPerformancePage() {
       open: agentOpen.length,
       highRisk,
       stalled,
-      overdueFollowups,
+      overdueFollowups: overdueFollowupsByAgent.get(agentId) || 0,
     };
   });
 

@@ -26,20 +26,25 @@ export default async function TodayPage() {
       .from("leads")
       .select("id,full_name,phone,pipeline_stage,stage_entered_at,expected_close_date,lead_temperature,requires_human,next_action,created_at,budget_max,currency")
       .order("lead_score", { ascending: false }),
-    supabase.from("interactions").select("lead_id,created_at").order("created_at", { ascending: false }),
+    supabase.from("latest_interaction_by_lead").select("lead_id,last_interaction_at"),
     supabase.from("followups").select("id,lead_id,title,due_at,status").eq("status", "PENDING").order("due_at", { ascending: true }),
   ]);
 
   const now = new Date();
   const today = getBusinessDateKey(now);
-  const interactions = interactionsData || [];
-  const followups = followupsData || [];
+  const lastInteractionByLead = new Map((interactionsData || []).map((item) => [item.lead_id, item.last_interaction_at]));
+  const followupsByLead = new Map<string, typeof followupsData>();
+  for (const followup of followupsData || []) {
+    const existing = followupsByLead.get(followup.lead_id) || [];
+    existing.push(followup);
+    followupsByLead.set(followup.lead_id, existing);
+  }
 
   const priorities = (leadsData || [])
     .filter((lead) => OPEN_PIPELINE_STAGE_SET.has(lead.pipeline_stage || "NEW"))
     .map((lead) => {
-      const lastInteraction = interactions.find((item) => item.lead_id === lead.id)?.created_at || null;
-      const leadFollowups = followups.filter((item) => item.lead_id === lead.id);
+      const lastInteraction = lastInteractionByLead.get(lead.id) || null;
+      const leadFollowups = followupsByLead.get(lead.id) || [];
       const overdue = leadFollowups.find((item) => item.due_at && new Date(item.due_at).getTime() < now.getTime());
       const risk = calculateOpportunityRisk(lead, {
         now,

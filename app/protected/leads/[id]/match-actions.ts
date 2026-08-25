@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentSubscription, currentPlanHasFeature } from "@/lib/plan-access";
 
@@ -83,18 +84,114 @@ export async function getMatchingProperties(leadId: string) {
   return matches;
 }
 
-export async function generatePropertyWhatsApp(leadId: string, propertyId: string) {
+async function getPropertyWhatsAppContext(leadId: string, propertyId: string) {
   const allowed = await currentPlanHasFeature("matching");
   if (!allowed) throw new Error("El Matching IA está disponible desde el plan Professional.");
 
   const subscription = await getCurrentSubscription();
-  if (!subscription?.organizationId) throw new Error("Sin organización");
+  if (!subscription?.organizationId) throw new Error("Sin organización activa");
 
   const supabase = await createClient();
-  const { data: lead } = await supabase.from("leads").select("full_name").eq("id", leadId).eq("organization_id", subscription.organizationId).maybeSingle();
-  const { data: property } = await supabase.from("properties").select("title,zone,price,currency,bedrooms").eq("id", propertyId).eq("organization_id", subscription.organizationId).maybeSingle();
+  const [{ data: lead }, { data: property }] = await Promise.all([
+    supabase
+      .from("leads")
+      .select("id,full_name,pipeline_stage")
+      .eq("id", leadId)
+      .eq("organization_id", subscription.organizationId)
+      .maybeSingle(),
+    supabase
+      .from("properties")
+      .select("id,title,zone,price,currency,bedrooms")
+      .eq("id", propertyId)
+      .eq("organization_id", subscription.organizationId)
+      .maybeSingle(),
+  ]);
 
-  if (!lead || !property) throw new Error("Datos no encontrados");
+  if (!lead || !property) throw new Error("Lead o propiedad no encontrados o sin acceso");
 
-  return `Hola ${lead.full_name || "cliente"} 👋\n\nEncontré una propiedad que puede interesarte:\n\n🏠 ${property.title}\n\n📍 ${property.zone}\n\n💰 ${property.currency} ${Number(property.price).toLocaleString()}\n\n🛏 ${property.bedrooms} dormitorios\n\n¿Coordinamos una visita?`;
+  return {
+    supabase,
+    organizationId: subscription.organizationId,
+    lead,
+    property,
+  };
+}
+
+function revalidatePropertyWhatsApp(leadId: string) {
+  revalidatePath(`/protected/leads/${leadId}`);
+  revalidatePath("/protected/leads");
+  revalidatePath("/protected/interactions");
+  revalidatePath("/protected/pipeline");
+  revalidatePath("/protected/today");
+  revalidatePath("/protected/executive");
+  revalidatePath("/protected/notifications");
+}
+
+export async function generatePropertyWhatsApp(leadId: string, propertyId: string) {
+  const { lead, property } = await getPropertyWhatsAppContext(leadId, propertyId);
+
+  const price = property.price == null
+    ? "Precio a consultar"
+    : `${property.currency || ""} ${Number(property.price).toLocaleString("es-UY")}`.trim();
+  const bedrooms = property.bedrooms == null
+    ? ""
+    : `\nDormitorios: ${property.bedrooms}`;
+  const zone = property.zone ? `\nZona: ${property.zone}` : "";
+
+  return `Hola ${lead.full_name || "cliente"}, encontré una propiedad que puede interesarte.\n\n${property.title}${zone}\nPrecio: ${price}${bedrooms}\n\n¿Querés que coordinemos una visita?`;
+}
+
+export async function confirmPropertyWhatsAppSent(formData: FormData) {
+  const leadId = String(formData.get("lead_id") || "").trim();
+  const propertyId = String(formData.get("property_id") || "").trim();
+  const message = String(formData.get("message") || "").trim();
+
+  if (!leadId || !propertyId || !message) throw new Error("Datos incompletos");
+  if (message.length > 5000) throw new Error("El mensaje es demasiado largo");
+
+  const { supabase, organizationId, lead } = await getPropertyWhatsAppContext(leadId, propertyId);
+  const recentThreshold = new Date(Date.now() - 90_000).toISOString();
+
+  const { data: recent, error: recentError } = await supabase
+    .from("interactions")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("lead_id", leadId)
+    .eq("property_id", propertyId)
+    .eq("channel", "WHATSAPP")
+    .eq("direction", "OUTBOUND")
+    .eq("message", message)
+    .gte("created_at", recentThreshold)
+    .limit(1);
+  if (recentError) throw new Error(recentError.message);
+
+  if (!recent?.length) {
+    const { error: interactionError } = await supabase.from("interactions").insert({
+      organization_id: organizationId,
+      lead_id: leadId,
+      property_id: propertyId,
+      channel: "WHATSAPP",
+      direction: "OUTBOUND",
+      actor: "AGENT",
+      message,
+      ai_response: null,
+      detected_intent: "ENVIAR_PROPIEDAD",
+    });
+    if (interactionError) throw new Error(interactionError.message);
+  }
+
+  if ((lead.pipeline_stage || "NEW") === "NEW") {
+    const { data: updatedLead, error: stageError } = await supabase
+      .from("leads")
+      .update({ pipeline_stage: "CONTACTED", updated_at: new Date().toISOString() })
+      .eq("id", leadId)
+      .eq("organization_id", organizationId)
+      .select("id")
+      .maybeSingle();
+    if (stageError) throw new Error(stageError.message);
+    if (!updatedLead) throw new Error("No tenés acceso para actualizar este lead");
+  }
+
+  revalidatePropertyWhatsApp(leadId);
+  return { recorded: true };
 }

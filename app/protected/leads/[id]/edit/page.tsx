@@ -24,7 +24,7 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
 
   const { data: lead } = await supabase
     .from("leads")
-    .select("id,full_name,phone,email,operation,property_type,primary_zone,budget_max,currency,bedrooms_min,lead_score,lead_temperature,next_action,requires_human,pipeline_stage,lost_reason")
+    .select("id,full_name,phone,email,operation,property_type,primary_zone,budget_max,currency,bedrooms_min,lead_score,lead_temperature,next_action,requires_human,pipeline_stage,lost_reason,expected_close_date")
     .eq("id", id)
     .eq("organization_id", membership.organization_id)
     .maybeSingle();
@@ -60,9 +60,10 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
     if (!validStages.has(pipelineStage as (typeof PIPELINE_STAGES)[number][0])) throw new Error("Etapa comercial inválida.");
 
     const lostReason = String(formData.get("lost_reason") || "").trim().toUpperCase();
-    if (pipelineStage === "LOST" && !LOSS_REASONS.has(lostReason)) {
-      throw new Error("Seleccioná un motivo de pérdida.");
-    }
+    if (pipelineStage === "LOST" && !LOSS_REASONS.has(lostReason)) throw new Error("Seleccioná un motivo de pérdida.");
+
+    const expectedCloseDate = String(formData.get("expected_close_date") || "").trim() || null;
+    if (expectedCloseDate && !/^\d{4}-\d{2}-\d{2}$/.test(expectedCloseDate)) throw new Error("Fecha estimada inválida.");
 
     const zone = String(formData.get("primary_zone") || "").trim();
     let score = 30;
@@ -86,6 +87,7 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
         lead_score: score,
         lead_temperature: temperature,
         next_action: String(formData.get("next_action") || "").trim() || null,
+        expected_close_date: pipelineStage === "WON" || pipelineStage === "LOST" ? null : expectedCloseDate,
         pipeline_stage: pipelineStage,
         lost_reason: pipelineStage === "LOST" ? lostReason : null,
         requires_human: formData.get("requires_human") === "on",
@@ -103,6 +105,7 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
     revalidatePath("/protected/pipeline");
     revalidatePath("/protected/analytics");
     revalidatePath("/protected/reports");
+    revalidatePath("/protected/executive");
     revalidatePath(`/protected/leads/${id}`);
     redirect(`/protected/leads/${id}`);
   }
@@ -117,7 +120,7 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
         <div className="mt-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Gestión comercial</p>
           <h1 className="mt-3 font-serif text-4xl font-medium text-[#292722] md:text-5xl">Editar lead</h1>
-          <p className="mt-3 text-sm leading-6 text-[#625d55]">Corregí datos, preferencias, próxima acción y etapa comercial desde un solo lugar.</p>
+          <p className="mt-3 text-sm leading-6 text-[#625d55]">Corregí datos, preferencias, próxima acción, etapa y fecha estimada de cierre.</p>
         </div>
 
         <form action={updateLead} className="mt-8 rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] p-6">
@@ -132,6 +135,7 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
             <label className={label}>Presupuesto máximo<input name="budget_max" type="number" min="0" step="any" defaultValue={lead.budget_max ?? ""} className={input} /></label>
             <label className={label}>Moneda<select name="currency" defaultValue={lead.currency || "USD"} className={input}><option value="USD">USD</option><option value="UYU">UYU</option></select></label>
             <label className={label}>Etapa comercial<select name="pipeline_stage" defaultValue={lead.pipeline_stage || "NEW"} className={input}>{PIPELINE_STAGES.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
+            <label className={label}>Fecha estimada de cierre<input name="expected_close_date" type="date" defaultValue={lead.expected_close_date || ""} className={input} /></label>
             <label className={label}>Motivo si se marca perdido<select name="lost_reason" defaultValue={lead.lost_reason || ""} className={input}><option value="">Seleccionar motivo</option>{Object.entries(LOSS_REASON_LABELS).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
             <label className={label}>Próxima acción<input name="next_action" defaultValue={lead.next_action || ""} className={input} placeholder="Llamar, enviar opciones, coordinar visita..." /></label>
           </div>

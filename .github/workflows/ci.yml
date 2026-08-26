@@ -28,3 +28,23 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm run test:e2e
+
+  sync-demo:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Merge verified main into revscale-demo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin revscale-demo
+          git checkout -B revscale-demo origin/revscale-demo
+          git merge --no-edit "$GITHUB_SHA"
+          git push origin revscale-demo

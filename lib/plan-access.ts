@@ -1,22 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
+import { entitlementPlanHasFeature, plansForFeature, type PlanFeature } from "@/lib/plan-entitlements";
 
 export type PlanName = "TRIAL" | "STARTER" | "PROFESSIONAL" | "ENTERPRISE";
-export type PlanFeature =
-  | "ai_assistant"
-  | "whatsapp_ai"
-  | "matching"
-  | "analytics"
-  | "reports"
-  | "automations"
-  | "commissions"
-  | "property_distribution"
-  | "documents"
-  | "esignature"
-  | "legal_automations"
-  | "territory_acquisition"
-  | "integrations"
-  | "enterprise_operations"
-  | "development_projects";
+export type { PlanFeature };
+export { plansForFeature };
 
 export function normalizePlan(plan?: string | null): PlanName {
   const value = String(plan || "TRIAL").toUpperCase();
@@ -27,22 +14,7 @@ export function normalizePlan(plan?: string | null): PlanName {
 }
 
 export function planHasFeature(plan: string | null | undefined, feature: PlanFeature) {
-  const normalized = normalizePlan(plan);
-  if (
-    feature === "integrations" ||
-    feature === "enterprise_operations" ||
-    feature === "development_projects" ||
-    feature === "esignature" ||
-    feature === "legal_automations" ||
-    feature === "territory_acquisition"
-  ) return normalized === "ENTERPRISE";
-
-  if (
-    feature === "ai_assistant" || feature === "whatsapp_ai" || feature === "matching" ||
-    feature === "analytics" || feature === "reports" || feature === "automations" ||
-    feature === "commissions" || feature === "property_distribution" || feature === "documents"
-  ) return normalized === "PROFESSIONAL" || normalized === "ENTERPRISE";
-  return false;
+  return entitlementPlanHasFeature(normalizePlan(plan), feature);
 }
 
 export async function getCurrentSubscription() {

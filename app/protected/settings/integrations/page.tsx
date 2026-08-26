@@ -11,11 +11,11 @@ export default async function IntegrationsPage() {
 
   const { data: membership } = await supabase
     .from("organization_members")
-    .select("organization_id")
+    .select("organization_id,role")
     .eq("user_id", userId)
     .eq("status", "ACTIVE")
     .single();
-  if (!membership?.organization_id) redirect("/protected");
+  if (!membership?.organization_id || membership.role !== "OWNER") redirect("/protected");
 
   const [{ data: organization }, { data: connection }, { data: whatsappSettings }] = await Promise.all([
     supabase.from("organizations").select("name").eq("id", membership.organization_id).single(),

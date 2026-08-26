@@ -53,26 +53,33 @@ export default async function NewPropertyPage() {
     if (!["USD", "UYU"].includes(currency)) throw new Error("Moneda inválida.");
     if (!["AVAILABLE", "RESERVED", "SOLD"].includes(status)) throw new Error("Estado inválido.");
 
-    const { error } = await supabase.from("properties").insert({
-      organization_id: membership.organization_id,
-      title,
-      property_type: String(formData.get("property_type") || "").trim().toUpperCase() || null,
-      operation,
-      zone: String(formData.get("zone") || "").trim() || null,
-      address: String(formData.get("address") || "").trim() || null,
-      price: numberOrNull("price"),
-      currency,
-      bedrooms: numberOrNull("bedrooms"),
-      bathrooms: numberOrNull("bathrooms"),
-      area_m2: numberOrNull("area_m2"),
-      status,
-      description: String(formData.get("description") || "").trim() || null,
-    });
+    const { data: createdProperty, error } = await supabase
+      .from("properties")
+      .insert({
+        organization_id: membership.organization_id,
+        title,
+        property_type: String(formData.get("property_type") || "").trim().toUpperCase() || null,
+        operation,
+        zone: String(formData.get("zone") || "").trim() || null,
+        address: String(formData.get("address") || "").trim() || null,
+        price: numberOrNull("price"),
+        currency,
+        bedrooms: numberOrNull("bedrooms"),
+        bathrooms: numberOrNull("bathrooms"),
+        area_m2: numberOrNull("area_m2"),
+        status,
+        description: String(formData.get("description") || "").trim() || null,
+      })
+      .select("id")
+      .single();
 
     if (error) throw new Error(error.message);
+    if (!createdProperty) throw new Error("No se pudo crear la propiedad.");
 
     revalidatePath("/protected/properties");
-    redirect("/protected/properties");
+    revalidatePath(`/protected/properties/${createdProperty.id}`);
+    revalidatePath("/protected/notifications");
+    redirect(`/protected/properties/${createdProperty.id}`);
   }
 
   const inputClass = "mt-2 w-full rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2.5 text-sm text-[#37332d] outline-none transition focus:border-[#8d7553]";
@@ -86,7 +93,7 @@ export default async function NewPropertyPage() {
         <div className="mt-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Inventario inmobiliario</p>
           <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight text-[#292722] md:text-5xl">Nueva propiedad</h1>
-          <p className="mt-3 text-sm leading-6 text-[#625d55]">Cargá los datos comerciales completos para mejorar búsquedas y matching.</p>
+          <p className="mt-3 text-sm leading-6 text-[#625d55]">Cargá los datos comerciales completos. En Professional y Enterprise, RevScale calcula automáticamente los clientes compatibles apenas guardás la propiedad.</p>
         </div>
 
         <form action={createProperty} className="mt-8 rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] p-6 shadow-[0_18px_45px_rgba(72,58,40,0.04)]">

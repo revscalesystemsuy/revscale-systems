@@ -22,6 +22,7 @@ export default async function EditDevelopmentUnitPage({ params }: { params: Prom
   ]);
 
   if (!project || !unit) redirect(`/protected/developments/${id}`);
+  const syncedPropertyId = unit.property_id;
 
   async function saveUnit(formData: FormData) {
     "use server";
@@ -58,7 +59,7 @@ export default async function EditDevelopmentUnitPage({ params }: { params: Prom
     revalidatePath(`/protected/developments/${id}`);
     revalidatePath("/protected/properties");
     revalidatePath("/protected/notifications");
-    if (unit.property_id) revalidatePath(`/protected/properties/${unit.property_id}`);
+    if (syncedPropertyId) revalidatePath(`/protected/properties/${syncedPropertyId}`);
     redirect(`/protected/developments/${id}`);
   }
 
@@ -82,7 +83,7 @@ export default async function EditDevelopmentUnitPage({ params }: { params: Prom
           <Field label="Precio"><input name="price" type="number" min="0" step="any" defaultValue={unit.price ?? ""} className={inputClass}/></Field>
           <Field label="Moneda"><select name="currency" defaultValue={unit.currency} className={inputClass}><option value="USD">USD</option><option value="UYU">UYU</option></select></Field>
           <div className="md:col-span-2"><Field label="Notas"><textarea name="notes" rows={4} defaultValue={unit.notes || ""} className={inputClass}/></Field></div>
-          <div className="md:col-span-2 flex flex-wrap gap-3 border-t border-[#d8ccbb] pt-5"><button className="inline-flex items-center gap-2 rounded-lg bg-[#302d28] px-5 py-3 text-sm font-semibold !text-[#fffaf2]"><Save size={15}/>Guardar cambios</button>{unit.property_id && <Link href={`/protected/properties/${unit.property_id}`} className="rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-5 py-3 text-sm font-semibold text-[#5f513e]">Ver propiedad sincronizada</Link>}</div>
+          <div className="md:col-span-2 flex flex-wrap gap-3 border-t border-[#d8ccbb] pt-5"><button className="inline-flex items-center gap-2 rounded-lg bg-[#302d28] px-5 py-3 text-sm font-semibold !text-[#fffaf2]"><Save size={15}/>Guardar cambios</button>{syncedPropertyId && <Link href={`/protected/properties/${syncedPropertyId}`} className="rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-5 py-3 text-sm font-semibold text-[#5f513e]">Ver propiedad sincronizada</Link>}</div>
         </form>
       </div>
     </main>

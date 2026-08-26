@@ -1,10 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import rawEntitlements from "@/lib/plan-entitlements.json";
+import { entitlementPlanHasFeature, plansForFeature, type PlanFeature } from "@/lib/plan-entitlements";
 
 export type PlanName = "TRIAL" | "STARTER" | "PROFESSIONAL" | "ENTERPRISE";
-export type PlanFeature = keyof typeof rawEntitlements;
-
-const PLAN_FEATURE_ENTITLEMENTS = rawEntitlements as Record<PlanFeature, readonly PlanName[]>;
+export type { PlanFeature };
+export { plansForFeature };
 
 export function normalizePlan(plan?: string | null): PlanName {
   const value = String(plan || "TRIAL").toUpperCase();
@@ -15,12 +14,7 @@ export function normalizePlan(plan?: string | null): PlanName {
 }
 
 export function planHasFeature(plan: string | null | undefined, feature: PlanFeature) {
-  const normalized = normalizePlan(plan);
-  return PLAN_FEATURE_ENTITLEMENTS[feature].includes(normalized);
-}
-
-export function plansForFeature(feature: PlanFeature) {
-  return PLAN_FEATURE_ENTITLEMENTS[feature];
+  return entitlementPlanHasFeature(normalizePlan(plan), feature);
 }
 
 export async function getCurrentSubscription() {

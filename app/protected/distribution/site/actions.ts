@@ -25,12 +25,19 @@ export async function savePublicSite(formData: FormData) {
     organization_id: context.organizationId,
     site_slug: org.slug,
     is_active: formData.get("is_active") === "on",
-    tagline: text(formData.get("tagline"), 180), about: text(formData.get("about"), 1800),
-    logo_url: url(formData.get("logo_url")), hero_image_url: url(formData.get("hero_image_url")),
-    accent_color: /^#[0-9a-fA-F]{6}$/.test(String(formData.get("accent_color") || "")) ? String(formData.get("accent_color")) : "#302d28",
-    public_phone: text(formData.get("public_phone"), 40), public_email: text(formData.get("public_email"), 180), public_whatsapp: text(formData.get("public_whatsapp"), 40), public_address: text(formData.get("public_address"), 240),
-    instagram_url: url(formData.get("instagram_url")), facebook_url: url(formData.get("facebook_url")),
-    seo_title: text(formData.get("seo_title"), 160) || `${org.name || "Inmobiliaria"} | Propiedades`, seo_description: text(formData.get("seo_description"), 320),
+    tagline: text(formData.get("tagline"), 180),
+    about: text(formData.get("about"), 1800),
+    logo_url: url(formData.get("logo_url")),
+    hero_image_url: null,
+    accent_color: "#302d28",
+    public_phone: text(formData.get("public_phone"), 40),
+    public_email: text(formData.get("public_email"), 180),
+    public_whatsapp: text(formData.get("public_whatsapp"), 40),
+    public_address: text(formData.get("public_address"), 240),
+    instagram_url: url(formData.get("instagram_url")),
+    facebook_url: url(formData.get("facebook_url")),
+    seo_title: text(formData.get("seo_title"), 160) || `${org.name || "Inmobiliaria"} | Propiedades`,
+    seo_description: text(formData.get("seo_description"), 320),
     lead_capture_enabled: formData.get("lead_capture_enabled") === "on",
     custom_domain: requestedDomain,
     custom_domain_status: requestedDomain ? (domainChanged ? "PENDING" : existing?.custom_domain_status || "PENDING") : "NOT_CONFIGURED",
@@ -39,5 +46,7 @@ export async function savePublicSite(formData: FormData) {
 
   const { error } = await context.supabase.from("brokerage_public_sites").upsert(payload, { onConflict: "organization_id" });
   if (error) throw new Error(error.message);
-  revalidatePath("/protected/distribution"); revalidatePath("/protected/distribution/site"); revalidatePath(`/inmobiliaria/${org.slug}`);
+  revalidatePath("/protected/distribution");
+  revalidatePath("/protected/distribution/site");
+  revalidatePath(`/inmobiliaria/${org.slug}`);
 }

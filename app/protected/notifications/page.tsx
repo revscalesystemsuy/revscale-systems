@@ -7,7 +7,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("es-UY", { dateStyle: "short", timeStyle: "short", timeZone: "America/Montevideo" }).format(new Date(value));
 }
 
-const AUTOMATION_TYPES = new Set(["NEW_LEAD_UNCONTACTED", "VISIT_NO_FOLLOWUP", "NEGOTIATION_IDLE_5D"]);
+const AUTOMATION_TYPES = new Set(["NEW_LEAD_UNCONTACTED", "VISIT_NO_FOLLOWUP", "NEGOTIATION_IDLE_5D", "PROPERTY_MATCH"]);
 
 export default async function NotificationsPage() {
   const supabase = await createClient();
@@ -35,24 +35,13 @@ export default async function NotificationsPage() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Prioridades comerciales</p>
             <h1 className="mt-3 font-serif text-4xl font-medium text-[#292722] md:text-5xl">Notificaciones</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">RevScale vigila seguimientos vencidos, cierres previstos, oportunidades estancadas y fugas comerciales que requieren atención.</p>
-            <p className="mt-2 text-xs text-[#81796e]">El motor se actualiza automáticamente cada 15 minutos. Las nuevas automatizaciones detectan lead nuevo sin contacto a los 30 minutos, visita sin próximo seguimiento a las 24 horas y negociación sin movimiento a los 5 días.</p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">RevScale vigila seguimientos, cierres, oportunidades estancadas y nuevas coincidencias entre propiedades y clientes.</p>
+            <p className="mt-2 text-xs text-[#81796e]">Los matches de propiedades se recalculan inmediatamente al crear o modificar inventario; las demás automatizaciones comerciales se actualizan según su propio evento o ventana de control.</p>
           </div>
-
           <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] px-5 py-3 text-center">
-              <p className="text-xs text-[#81796e]">Sin leer</p>
-              <p className="mt-1 font-serif text-2xl text-[#4b4238]">{unread}</p>
-            </div>
-            <div className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] px-5 py-3 text-center">
-              <p className="text-xs text-[#81796e]">Fugas detectadas</p>
-              <p className="mt-1 font-serif text-2xl text-[#4b4238]">{automationUnread}</p>
-            </div>
-            {unread > 0 && (
-              <form action={markAllNotificationsRead}>
-                <button className="rounded-xl border border-[#cdbfa9] bg-[#fffaf2] px-4 py-3 text-sm font-semibold text-[#5f513e] hover:bg-[#f4eadc]">Marcar todas como leídas</button>
-              </form>
-            )}
+            <div className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] px-5 py-3 text-center"><p className="text-xs text-[#81796e]">Sin leer</p><p className="mt-1 font-serif text-2xl text-[#4b4238]">{unread}</p></div>
+            <div className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] px-5 py-3 text-center"><p className="text-xs text-[#81796e]">Automáticas</p><p className="mt-1 font-serif text-2xl text-[#4b4238]">{automationUnread}</p></div>
+            {unread > 0 && <form action={markAllNotificationsRead}><button className="rounded-xl border border-[#cdbfa9] bg-[#fffaf2] px-4 py-3 text-sm font-semibold text-[#5f513e] hover:bg-[#f4eadc]">Marcar todas como leídas</button></form>}
           </div>
         </div>
 
@@ -83,7 +72,6 @@ export default async function NotificationsPage() {
             );
           })}
         </section>
-
         {!items.length && <div className="mt-8 rounded-xl border border-dashed border-[#cdbfa9] bg-[#f7f0e6] p-12 text-center"><h2 className="font-serif text-xl text-[#37332d]">No hay alertas pendientes</h2><p className="mt-2 text-sm text-[#81796e]">Cuando RevScale detecte algo que requiera atención, aparecerá acá.</p></div>}
       </div>
     </main>

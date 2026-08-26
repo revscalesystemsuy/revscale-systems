@@ -1,18 +1,12 @@
-import { PIPELINE_STAGES } from "@/lib/pipeline-metrics";
+import {
+  OPEN_PIPELINE_STAGE_SET,
+  PIPELINE_STAGE_LABELS,
+  PIPELINE_STAGE_STALE_DAYS,
+} from "@/lib/pipeline-config";
 
 export const BUSINESS_TIME_ZONE = "America/Montevideo";
-export const OPEN_PIPELINE_STAGES = ["NEW", "CONTACTED", "QUALIFIED", "VISIT", "NEGOTIATION"] as const;
-export const OPEN_PIPELINE_STAGE_SET = new Set<string>(OPEN_PIPELINE_STAGES);
-
-export const STALE_STAGE_DAYS: Record<string, number> = {
-  NEW: 3,
-  CONTACTED: 3,
-  QUALIFIED: 7,
-  VISIT: 7,
-  NEGOTIATION: 10,
-};
-
-export const PIPELINE_STAGE_LABELS = Object.fromEntries(PIPELINE_STAGES) as Record<string, string>;
+export { OPEN_PIPELINE_STAGE_SET, PIPELINE_STAGE_LABELS };
+export const STALE_STAGE_DAYS: Record<string, number> = PIPELINE_STAGE_STALE_DAYS;
 
 export type CommercialRiskLead = {
   pipeline_stage: string | null;
@@ -190,7 +184,7 @@ export function calculateOpportunityRisk(
     reasons.push("seguimiento vencido");
   } else if (
     options.hasPendingFollowup === false &&
-    ["QUALIFIED", "VISIT", "NEGOTIATION"].includes(stage)
+    ["QUALIFIED", "VISIT", "NEGOTIATION", "RESERVED", "DOCUMENTATION", "CONTRACT", "HANDOVER"].includes(stage)
   ) {
     score += 10;
     reasons.push("sin seguimiento pendiente definido");

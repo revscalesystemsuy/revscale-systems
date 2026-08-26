@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Building2, CalendarClock, MessageSquareText, Trophy } from "lucide-react";
 import { getCurrentOrganizationContext } from "@/lib/organization-role";
 import { planHasFeature } from "@/lib/plan-access";
-import { addAcquisitionActivity, convertProspectToProperty, updateProspectStage } from "../../../actions";
+import { addAcquisitionActivity, convertProspectToProperty, updateProspectStage } from "../../actions";
 
 const STAGES = [["IDENTIFIED","Identificado"],["CONTACTED","Contactado"],["QUALIFIED","Calificado"],["VALUATION","Tasación"],["PROPOSAL","Propuesta"],["WON","Captado"],["LOST","Perdido"]] as const;
 

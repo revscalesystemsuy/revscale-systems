@@ -1,231 +1,86 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Facebook,
-  Globe2,
-  Instagram,
-  MessageCircle,
-  PlugZap,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { redirect } from "next/navigation";
+import { ArrowLeft, CheckCircle2, Facebook, Globe2, Instagram, MessageCircle, PlugZap, ShieldCheck } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function IntegrationsPage() {
   const supabase = await createClient();
-
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
-
-  if (!userId) {
-    redirect("/auth/login");
-  }
+  if (!userId) redirect("/auth/login");
 
   const { data: membership } = await supabase
     .from("organization_members")
-    .select("organization_id")
+    .select("organization_id,role")
     .eq("user_id", userId)
+    .eq("status", "ACTIVE")
     .single();
+  if (!membership?.organization_id || membership.role !== "OWNER") redirect("/protected");
 
-  if (!membership?.organization_id) {
-    redirect("/protected");
-  }
+  const [{ data: organization }, { data: connection }, { data: whatsappSettings }] = await Promise.all([
+    supabase.from("organizations").select("name").eq("id", membership.organization_id).single(),
+    supabase
+      .from("whatsapp_connections")
+      .select("status,webhook_status,display_phone_number,verified_name,last_webhook_at")
+      .eq("organization_id", membership.organization_id)
+      .maybeSingle(),
+    supabase
+      .from("whatsapp_ai_settings")
+      .select("mode,auto_reply_enabled")
+      .eq("organization_id", membership.organization_id)
+      .maybeSingle(),
+  ]);
 
-  const { data: organization } = await supabase
-    .from("organizations")
-    .select("name")
-    .eq("id", membership.organization_id)
-    .single();
+  const whatsappConnected = connection?.status === "CONNECTED";
+  const webhookVerified = connection?.webhook_status === "VERIFIED";
+  const whatsappLive = whatsappConnected && webhookVerified && whatsappSettings?.mode === "LIVE" && whatsappSettings?.auto_reply_enabled === true;
+  const whatsappStatus = whatsappLive ? "LIVE" : whatsappConnected ? "CONECTADO" : "PENDIENTE DE CONEXIÓN";
 
   return (
-    <main className="min-h-screen bg-slate-950 p-8 text-white">
+    <main className="min-h-screen p-6 md:p-8 lg:p-10">
       <div className="mx-auto max-w-6xl">
-        <Link
-          href="/protected/settings"
-          className="inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Volver a configuración
-        </Link>
+        <Link href="/protected/settings" className="inline-flex items-center gap-2 text-sm text-[#7a6e5c] transition hover:text-[#403b34]"><ArrowLeft className="h-4 w-4" /> Volver a configuración</Link>
 
-        <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="mt-6 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl border border-blue-400/20 bg-blue-500/10 p-3 text-blue-300">
-                <PlugZap className="h-6 w-6" />
-              </div>
-
-              <div>
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-blue-300">
-                  RevScale PropertyOS
-                </p>
-                <h1 className="mt-1 text-3xl font-bold">Integraciones</h1>
-              </div>
-            </div>
-
-            <p className="mt-4 max-w-3xl text-slate-400">
-              Conectá los canales donde recibe consultas tu inmobiliaria para que los leads
-              entren automáticamente a RevScale y el equipo pueda priorizarlos, seguirlos y
-              trabajarlos desde un solo lugar.
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Canales y entradas</p>
+            <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight text-[#292722] md:text-5xl">Integraciones</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">Conectá los canales donde recibe consultas tu inmobiliaria para que los leads entren automáticamente a RevScale y el equipo pueda trabajarlos desde un solo lugar.</p>
           </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Organización</p>
-            <p className="mt-1 font-semibold">{organization?.name || "Tu inmobiliaria"}</p>
-          </div>
+          <div className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] px-5 py-4"><p className="text-[10px] uppercase tracking-[0.16em] text-[#81796e]">Organización</p><p className="mt-1 font-semibold text-[#403b34]">{organization?.name || "Tu inmobiliaria"}</p></div>
         </div>
 
-        <section className="mt-10 grid gap-5 md:grid-cols-2">
-          <IntegrationCard
-            icon={<Globe2 className="h-6 w-6" />}
-            title="Sitio web"
-            description="Recibí automáticamente en RevScale las consultas que llegan desde los formularios de tu página web."
-            status="DISPONIBLE"
-            statusClassName="border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
-            accentClassName="border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
-          >
-            <div className="mt-5 rounded-xl border border-white/10 bg-slate-950/70 p-4">
-              <p className="text-sm font-semibold text-white">Qué hace RevScale por vos</p>
-              <div className="mt-4 space-y-3 text-sm text-slate-300">
-                <Feature text="Recibe los leads de tu web sin carga manual." />
-                <Feature text="Detecta si el contacto ya existe y evita duplicados." />
-                <Feature text="Organiza la información y calcula una prioridad inicial." />
-                <Feature text="Deja el lead listo para seguimiento, matching y próximas acciones." />
-              </div>
+        <section className="mt-8 grid gap-5 md:grid-cols-2">
+          <IntegrationCard icon={<Globe2 className="h-5 w-5" />} title="Sitio web" description="Recibí automáticamente las consultas que llegan desde los formularios de tu página web." status="DISPONIBLE" statusTone="ready">
+            <div className="mt-5 space-y-3 rounded-xl border border-[#ddd1c0] bg-[#fffaf2] p-4 text-sm text-[#625d55]"><Feature text="Recibe leads sin carga manual." /><Feature text="Deduplica por ID externo, teléfono y email." /><Feature text="Conserva origen, campaña, UTM y propiedad." /><Feature text="Alimenta SLA, matching y próximas acciones." /></div>
+          </IntegrationCard>
+
+          <IntegrationCard icon={<MessageCircle className="h-5 w-5" />} title="WhatsApp Business" description="Centralizá conversaciones de WhatsApp Business, calificá consultas y derivá a una persona cuando haga falta." status={whatsappStatus} statusTone={whatsappLive ? "live" : whatsappConnected ? "ready" : "pending"}>
+            <div className="mt-5 rounded-xl border border-[#ddd1c0] bg-[#fffaf2] p-4">
+              <p className="text-sm font-semibold text-[#403b34]">{whatsappConnected ? connection?.verified_name || "Cuenta conectada" : "Infraestructura lista"}</p>
+              <p className="mt-2 text-sm leading-6 text-[#665f56]">{whatsappConnected ? `${connection?.display_phone_number || "Número vinculado"} · webhook ${webhookVerified ? "verificado" : "pendiente"}.` : "Falta vincular una cuenta y número reales de Meta WhatsApp Business. RevScale no simula una conexión que todavía no existe."}</p>
             </div>
-
-            <div className="mt-5 rounded-xl border border-blue-400/20 bg-blue-500/[0.06] p-4">
-              <p className="text-sm leading-6 text-slate-300">
-                La conexión técnica se configura de forma segura por detrás. Tu equipo no tiene
-                que copiar claves, ver códigos ni modificar RevScale.
-              </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <Link href="/protected/settings/whatsapp" className="rounded-lg border border-[#cdbfa9] bg-[#eee4d5] px-4 py-2.5 text-center text-sm font-semibold text-[#554f47]">Ver activación</Link>
+              <Link href="/protected/inbox" className="rounded-lg bg-[#302d28] px-4 py-2.5 text-center text-sm font-semibold !text-[#fffaf2]">Abrir Inbox</Link>
             </div>
-
-            <a
-              href="https://wa.me/59892715418?text=Hola%2C%20quiero%20conectar%20el%20sitio%20web%20de%20mi%20inmobiliaria%20con%20RevScale."
-              target="_blank"
-              rel="noreferrer"
-              className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-400"
-            >
-              Solicitar conexión del sitio web
-            </a>
           </IntegrationCard>
 
-          <IntegrationCard
-            icon={<MessageCircle className="h-6 w-6" />}
-            title="WhatsApp Business"
-            description="Centralizá conversaciones de WhatsApp Business y convertí mensajes entrantes en oportunidades comerciales."
-            status="PRÓXIMAMENTE"
-            statusClassName="border-blue-400/20 bg-blue-500/10 text-blue-300"
-            accentClassName="border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
-          >
-            <p className="mt-5 text-sm leading-6 text-slate-400">
-              La inmobiliaria podrá autorizar su cuenta de WhatsApp Business y hacer que los
-              mensajes relevantes alimenten automáticamente sus leads en RevScale.
-            </p>
-          </IntegrationCard>
-
-          <IntegrationCard
-            icon={<Instagram className="h-6 w-6" />}
-            title="Instagram"
-            description="Centralizá consultas que llegan por mensajes de una cuenta profesional de Instagram."
-            status="PRÓXIMAMENTE"
-            statusClassName="border-blue-400/20 bg-blue-500/10 text-blue-300"
-            accentClassName="border-pink-400/20 bg-pink-500/10 text-pink-300"
-          >
-            <p className="mt-5 text-sm leading-6 text-slate-400">
-              Las consultas podrán sumarse al perfil comercial del lead para que el equipo no
-              tenga que revisar distintos canales por separado.
-            </p>
-          </IntegrationCard>
-
-          <IntegrationCard
-            icon={<Facebook className="h-6 w-6" />}
-            title="Facebook"
-            description="Centralizá consultas de Messenger y leads provenientes de campañas."
-            status="PRÓXIMAMENTE"
-            statusClassName="border-blue-400/20 bg-blue-500/10 text-blue-300"
-            accentClassName="border-blue-400/20 bg-blue-500/10 text-blue-300"
-          >
-            <p className="mt-5 text-sm leading-6 text-slate-400">
-              RevScale podrá identificar el origen de cada oportunidad y mantener su actividad
-              comercial dentro del mismo lead.
-            </p>
-          </IntegrationCard>
+          <IntegrationCard icon={<Instagram className="h-5 w-5" />} title="Instagram" description="Centralizá consultas que llegan por mensajes de una cuenta profesional de Instagram." status="PRÓXIMAMENTE" statusTone="future"><p className="mt-5 text-sm leading-6 text-[#81796e]">Las consultas podrán sumarse al perfil comercial del lead para evitar revisar distintos canales por separado.</p></IntegrationCard>
+          <IntegrationCard icon={<Facebook className="h-5 w-5" />} title="Facebook" description="Centralizá consultas de Messenger y leads provenientes de campañas." status="PRÓXIMAMENTE" statusTone="future"><p className="mt-5 text-sm leading-6 text-[#81796e]">RevScale podrá identificar el origen de cada oportunidad y conservar su actividad dentro del mismo lead.</p></IntegrationCard>
         </section>
 
-        <section className="mt-8 rounded-2xl border border-blue-400/20 bg-blue-500/[0.06] p-6">
-          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-            <div className="flex gap-4">
-              <div className="mt-1 rounded-xl bg-blue-500/10 p-2 text-blue-300">
-                <Sparkles className="h-5 w-5" />
-              </div>
-
-              <div>
-                <h2 className="text-lg font-semibold">Todo llega a un mismo lugar</h2>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                  El objetivo es que tu equipo no tenga que copiar consultas ni revisar cada
-                  canal por separado. RevScale organiza cada oportunidad para priorización,
-                  seguimiento y matching con propiedades.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 whitespace-nowrap rounded-xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
-              <ShieldCheck className="h-4 w-4 text-blue-300" />
-              Integraciones seguras
-            </div>
-          </div>
+        <section className="mt-8 rounded-xl border border-[#cdbfa9] bg-[#eee4d5] p-6">
+          <div className="flex gap-4"><div className="rounded-lg border border-[#cdbfa9] bg-[#fffaf2] p-2.5 text-[#705f47]"><PlugZap className="h-5 w-5" /></div><div><h2 className="font-serif text-xl font-medium text-[#37332d]">Todo llega a un mismo lugar</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-[#665f56]">RevScale organiza cada oportunidad para priorización, seguimiento, SLA y matching. Los secretos de los proveedores permanecen en backend y nunca se muestran al equipo comercial.</p><div className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-[#625d55]"><ShieldCheck className="h-4 w-4" /> Integraciones con aislamiento por organización y equipo</div></div></div>
         </section>
       </div>
     </main>
   );
 }
 
-function Feature({ text }: { text: string }) {
-  return (
-    <div className="flex items-start gap-2">
-      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
-      <span>{text}</span>
-    </div>
-  );
-}
+function Feature({ text }: { text: string }) { return <div className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#6d7557]" /><span>{text}</span></div>; }
 
-function IntegrationCard({
-  icon,
-  title,
-  description,
-  status,
-  statusClassName,
-  accentClassName,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  status: string;
-  statusClassName: string;
-  accentClassName: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className={`rounded-xl border p-3 ${accentClassName}`}>{icon}</div>
-
-        <span
-          className={`rounded-full border px-3 py-1 text-[11px] font-semibold tracking-wide ${statusClassName}`}
-        >
-          {status}
-        </span>
-      </div>
-
-      <h2 className="mt-5 text-xl font-semibold">{title}</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p>
-      {children}
-    </article>
-  );
+function IntegrationCard({ icon, title, description, status, statusTone, children }: { icon: React.ReactNode; title: string; description: string; status: string; statusTone: "live" | "ready" | "pending" | "future"; children: React.ReactNode }) {
+  const tone = statusTone === "live" ? "border-[#aab89b] bg-[#e4e8dc] text-[#536048]" : statusTone === "ready" ? "border-[#c4b795] bg-[#eee4d5] text-[#66583f]" : statusTone === "pending" ? "border-[#cbb99f] bg-[#efe3d3] text-[#755c3f]" : "border-[#d2c5b3] bg-[#f0e8dc] text-[#81796e]";
+  return <article className="rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6 shadow-[0_14px_38px_rgba(72,58,40,0.04)]"><div className="flex items-start justify-between gap-4"><div className="rounded-xl border border-[#d2c5b3] bg-[#eee4d5] p-3 text-[#786448]">{icon}</div><span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] ${tone}`}>{status}</span></div><h2 className="mt-5 font-serif text-2xl font-medium text-[#37332d]">{title}</h2><p className="mt-2 text-sm leading-6 text-[#665f56]">{description}</p>{children}</article>;
 }

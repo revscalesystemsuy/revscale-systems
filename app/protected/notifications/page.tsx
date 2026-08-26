@@ -15,6 +15,7 @@ const AUTOMATION_TYPES = new Set([
   "SLA_WARNING",
   "SLA_BREACHED",
   "SLA_ESCALATED",
+  "WHATSAPP_HANDOFF",
 ]);
 
 export default async function NotificationsPage() {
@@ -36,6 +37,7 @@ export default async function NotificationsPage() {
   const unread = items.filter((item) => !item.read_at).length;
   const automationUnread = items.filter((item) => !item.read_at && AUTOMATION_TYPES.has(item.type)).length;
   const slaUnread = items.filter((item) => !item.read_at && ["SLA_WARNING", "SLA_BREACHED", "SLA_ESCALATED"].includes(item.type)).length;
+  const whatsappUnread = items.filter((item) => !item.read_at && item.type === "WHATSAPP_HANDOFF").length;
 
   return (
     <main className="min-h-screen p-6 md:p-8 lg:p-10">
@@ -44,13 +46,14 @@ export default async function NotificationsPage() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Prioridades comerciales</p>
             <h1 className="mt-3 font-serif text-4xl font-medium text-[#292722] md:text-5xl">Notificaciones</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">RevScale vigila SLA de primera respuesta, seguimientos, cierres, oportunidades estancadas y nuevas coincidencias entre propiedades y clientes.</p>
-            <p className="mt-2 text-xs text-[#81796e]">Las alertas SLA distinguen respuesta automática de primera respuesta humana y escalan a Dirección cuando corresponde.</p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">RevScale vigila SLA de primera respuesta, handoffs de WhatsApp, seguimientos, cierres, oportunidades estancadas y nuevas coincidencias entre propiedades y clientes.</p>
+            <p className="mt-2 text-xs text-[#81796e]">Las alertas SLA distinguen respuesta automática de primera respuesta humana. WhatsApp avisa al equipo cuando la IA se detiene y requiere intervención.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Summary label="Sin leer" value={unread} />
             <Summary label="Automáticas" value={automationUnread} />
             <Summary label="SLA" value={slaUnread} />
+            <Summary label="WhatsApp" value={whatsappUnread} />
             {unread > 0 && <form action={markAllNotificationsRead}><button className="rounded-xl border border-[#cdbfa9] bg-[#fffaf2] px-4 py-3 text-sm font-semibold text-[#5f513e] hover:bg-[#f4eadc]">Marcar todas como leídas</button></form>}
           </div>
         </div>
@@ -61,6 +64,7 @@ export default async function NotificationsPage() {
             const high = notification.priority === "HIGH";
             const automated = AUTOMATION_TYPES.has(notification.type);
             const sla = ["SLA_WARNING", "SLA_BREACHED", "SLA_ESCALATED"].includes(notification.type);
+            const whatsapp = notification.type === "WHATSAPP_HANDOFF";
             return (
               <article key={notification.id} className={`rounded-xl border p-5 ${unreadItem ? high ? "border-[#b88e75] bg-[#f1dfd2]" : "border-[#cdbfa9] bg-[#f7f0e6]" : "border-[#d7cbbb] bg-[#f4ecdf]"}`}>
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -70,7 +74,8 @@ export default async function NotificationsPage() {
                       {unreadItem && <Tag>Nueva</Tag>}
                       {high && <Tag strong>Alta</Tag>}
                       {sla && <Tag strong>SLA</Tag>}
-                      {automated && !sla && <Tag>Automática</Tag>}
+                      {whatsapp && <Tag strong>WhatsApp</Tag>}
+                      {automated && !sla && !whatsapp && <Tag>Automática</Tag>}
                     </div>
                     <p className="mt-2 text-sm text-[#625d55]">{notification.body}</p>
                     <p className="mt-2 text-xs text-[#8b8378]">{formatDate(notification.created_at)}</p>

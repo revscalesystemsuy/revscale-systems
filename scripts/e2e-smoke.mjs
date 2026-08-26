@@ -53,12 +53,16 @@ try {
   await expectPage("/demo/notifications", ["SLA incumplido", "SLA escalado", "SLA por vencer"]);
   await expectPage("/demo/reports", ["Cumplimiento SLA", "SLA por origen", "Mediana respuesta"]);
   await expectPage("/demo/leads/martin-rodriguez", ["Origen y velocidad", "InfoCasas", "Primera respuesta humana"]);
+  await expectPage("/demo/inbox", ["Inbox WhatsApp", "Datos de demostración", "IA atendiendo", "Espera humana"]);
+  await expectPage("/demo/inbox?conversation=valentina-mendez", ["Handoff automático", "negociar una seña"]);
+  await expectPage("/demo/integrations?plan=enterprise", ["WhatsApp Business", "Preparado", "WABA/número real"]);
 
   await expectProtectedRedirect("/protected/billing");
   await expectProtectedRedirect("/protected/analytics");
   await expectProtectedRedirect("/protected/reports");
   await expectProtectedRedirect("/protected/executive");
   await expectProtectedRedirect("/protected/today");
+  await expectProtectedRedirect("/protected/inbox");
   await expectProtectedRedirect("/protected/calendar");
   await expectProtectedRedirect("/protected/executive/monthly");
   await expectProtectedRedirect("/protected/settings/sla");

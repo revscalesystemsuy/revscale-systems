@@ -12,7 +12,7 @@ export default async function WhatsAppAiSettingsPage({ searchParams }: { searchP
   const [{ data: settings }, { data: connection }] = await Promise.all([
     context.supabase
       .from("whatsapp_ai_settings")
-      .select("mode,auto_reply_enabled,assistant_name,tone,address_style,emoji_level,response_length,human_handoff_enabled,business_hours_only")
+      .select("mode,auto_reply_enabled,assistant_name,tone,address_style,emoji_level,response_length,business_hours_only")
       .eq("organization_id", context.organizationId)
       .maybeSingle(),
     context.supabase
@@ -30,7 +30,6 @@ export default async function WhatsAppAiSettingsPage({ searchParams }: { searchP
     addressStyle: settings?.address_style || "VOS",
     emojiLevel: settings?.emoji_level || "LOW",
     responseLength: settings?.response_length || "SHORT",
-    humanHandoff: settings?.human_handoff_enabled ?? true,
     businessHoursOnly: settings?.business_hours_only ?? false,
   };
 
@@ -82,7 +81,7 @@ export default async function WhatsAppAiSettingsPage({ searchParams }: { searchP
               <Field label="Extensión"><select name="response_length" defaultValue={current.responseLength} className="mt-2 w-full rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2.5 text-sm"><option value="SHORT">Breve</option><option value="MEDIUM">Media</option></select></Field>
             </div>
             <div className="mt-6 space-y-3 border-t border-[#ddd1c0] pt-5">
-              <label className="flex items-start gap-3 text-sm text-[#554f47]"><input type="checkbox" name="human_handoff_enabled" defaultChecked={current.humanHandoff} className="mt-1" /><span><strong className="font-semibold text-[#37332d]">Handoff humano.</strong> Negociación, legal, reclamos, pedido de persona o baja confianza detienen la IA.</span></label>
+              <div className="flex items-start gap-3 rounded-xl border border-[#cdbfa9] bg-[#eee4d5] p-4 text-sm text-[#554f47]"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-[#705f47]" /><span><strong className="font-semibold text-[#37332d]">Handoff de seguridad obligatorio.</strong> Negociación, asuntos legales, reclamos, pedido de hablar con una persona o baja confianza siempre detienen la IA. Esta protección no puede desactivarse.</span></div>
               <label className="flex items-start gap-3 text-sm text-[#554f47]"><input type="checkbox" name="business_hours_only" defaultChecked={current.businessHoursOnly} className="mt-1" /><span><strong className="font-semibold text-[#37332d]">Solo horario comercial.</strong> Si se activa, la IA responde de lunes a viernes de 09:00 a 18:00, hora de Uruguay.</span></label>
             </div>
             <button className="mt-6 rounded-lg bg-[#302d28] px-5 py-2.5 text-sm font-semibold !text-[#fffaf2]">Guardar configuración</button>
@@ -95,6 +94,7 @@ export default async function WhatsAppAiSettingsPage({ searchParams }: { searchP
                 <Status done label="Base de conversaciones" detail="Inbox, mensajes, estados y RLS listos." />
                 <Status done label="Procesamiento del webhook" detail="Idempotencia, creación de leads y handoff listos." />
                 <Status done label="Envío humano" detail="Función autenticada y conectada al SLA." />
+                <Status done label="Handoff de seguridad" detail="Obligatorio y no desactivable." />
                 <Status done={Boolean(settings)} label="Reglas de IA" detail={settings ? "Configuradas." : "Guardá la personalidad del asistente."} />
                 <Status done={connected} label="Cuenta Meta WhatsApp" detail={connected ? "Número vinculado." : "Falta vincular el número real del cliente."} />
                 <Status done={webhookVerified} label="Webhook Meta" detail={webhookVerified ? "Meta ya entregó un evento válido." : "Falta verificarlo con Meta."} />

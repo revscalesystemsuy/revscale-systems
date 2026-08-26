@@ -19,14 +19,15 @@ export default async function PublicSiteSettingsPage() {
   if (!org?.slug) redirect("/protected/distribution");
   const publicHref = `/inmobiliaria/${org.slug}`;
   const isEnterprise = context.plan === "ENTERPRISE";
+  const siteReady = Boolean(site?.is_active);
   const publicUrl = site?.custom_domain && site.custom_domain_status === "ACTIVE" ? `https://${site.custom_domain}` : `https://revscale-systems-eta.vercel.app${publicHref}`;
 
   return <main className="min-h-screen p-5 md:p-8 lg:p-10"><div className="mx-auto max-w-[1250px]">
-    <div className="mb-7 flex flex-col gap-4 border-b border-[#d8cbb8] pb-6 md:flex-row md:items-end md:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[#8d7553]">Distribución · Sitio público</p><h1 className="mt-2 font-serif text-4xl text-[#302b25]">Web de la inmobiliaria</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-[#665f56]">Un portal independiente para {org.name || "tu inmobiliaria"}: marca propia, propiedades publicadas y consultas que entran directo al CRM.</p></div><div className="flex gap-2"><Link href="/protected/distribution" className="rounded-lg border border-[#cdbfa9] px-4 py-2.5 text-sm font-semibold text-[#5f513e]">Volver</Link><a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-[#302d28] px-4 py-2.5 text-sm font-semibold !text-[#fffaf2]">Ver sitio <ExternalLink size={14}/></a></div></div>
+    <div className="mb-7 flex flex-col gap-4 border-b border-[#d8cbb8] pb-6 md:flex-row md:items-end md:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[#8d7553]">Distribución · Sitio público</p><h1 className="mt-2 font-serif text-4xl text-[#302b25]">Web de la inmobiliaria</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-[#665f56]">Un portal independiente para {org.name || "tu inmobiliaria"}: marca propia, propiedades publicadas y consultas que entran directo al CRM.</p></div><div className="flex gap-2"><Link href="/protected/distribution" className="rounded-lg border border-[#cdbfa9] px-4 py-2.5 text-sm font-semibold text-[#5f513e]">Volver</Link>{siteReady ? <a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-[#302d28] px-4 py-2.5 text-sm font-semibold !text-[#fffaf2]">Ver sitio <ExternalLink size={14}/></a> : <span className="inline-flex items-center gap-2 rounded-lg border border-[#d2c5b3] bg-[#efe5d7] px-4 py-2.5 text-sm font-semibold text-[#81786d]">Activá y guardá el sitio</span>}</div></div>
 
     <section className="mb-6 grid gap-4 md:grid-cols-3"><Card icon={<Globe2 size={18}/>} title="URL exclusiva" text={publicUrl} /><Card icon={<Search size={18}/>} title="SEO + fichas" text="Cada propiedad tiene metadata, URL compartible y página pública propia."/><Card icon={<ShieldCheck size={18}/>} title="Leads aislados" text="Cada consulta entra únicamente al CRM de esta inmobiliaria con fuente WEB y UTM."/></section>
 
-    <div className="mb-6"><PublicSiteSharePanel url={publicUrl}/></div>
+    <div className="mb-6">{siteReady ? <PublicSiteSharePanel url={publicUrl}/> : <section className="rounded-2xl border border-dashed border-[#cdbfa9] bg-[#f7f0e6] p-5 text-sm text-[#716a61]">Configurá la identidad y guardá el sitio para habilitar el enlace público, compartir y código QR.</section>}</div>
 
     <form action={savePublicSite} className="grid gap-6 lg:grid-cols-[1.3fr_.7fr]">
       <div className="space-y-6">

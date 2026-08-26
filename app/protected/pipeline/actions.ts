@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentOrganizationContext } from "@/lib/organization-role";
+import { getPipelineStageKeys } from "@/lib/pipeline-config";
 
-const STAGES = new Set(["NEW", "CONTACTED", "QUALIFIED", "VISIT", "NEGOTIATION", "WON", "LOST"]);
 const LOSS_REASONS = new Set(["NO_RESPONSE", "BUDGET", "NO_MATCH", "COMPETITOR", "POSTPONED", "FINANCING", "INVALID_CONTACT", "OTHER"]);
 
 export async function updatePipelineStage(formData: FormData) {
@@ -16,8 +16,20 @@ export async function updatePipelineStage(formData: FormData) {
   const stage = String(formData.get("pipeline_stage") || "").trim().toUpperCase();
   const lostReason = String(formData.get("lost_reason") || "").trim().toUpperCase();
 
-  if (!leadId || !STAGES.has(stage)) {
-    throw new Error("Etapa comercial inválida.");
+  if (!leadId) throw new Error("Lead inválido.");
+
+  const { data: lead, error: leadError } = await context.supabase
+    .from("leads")
+    .select("id,operation")
+    .eq("id", leadId)
+    .eq("organization_id", context.organizationId)
+    .maybeSingle();
+
+  if (leadError) throw new Error(leadError.message);
+  if (!lead) throw new Error("No tenés acceso a este lead.");
+
+  if (!getPipelineStageKeys(lead.operation).has(stage)) {
+    throw new Error("Esa etapa no corresponde al flujo de esta operación.");
   }
 
   if (stage === "LOST" && !LOSS_REASONS.has(lostReason)) {

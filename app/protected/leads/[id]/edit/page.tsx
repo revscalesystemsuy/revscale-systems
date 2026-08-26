@@ -2,7 +2,8 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { LOSS_REASON_LABELS, PIPELINE_STAGES } from "@/lib/pipeline-metrics";
+import { LOSS_REASON_LABELS } from "@/lib/pipeline-metrics";
+import { getPipelineStageKeys, getPipelineStages, normalizePipelineOperation } from "@/lib/pipeline-config";
 import { Save } from "lucide-react";
 
 const LOSS_REASONS = new Set(Object.keys(LOSS_REASON_LABELS));
@@ -30,6 +31,8 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
     .maybeSingle();
   if (!lead) redirect("/protected/leads");
 
+  const visibleStages = getPipelineStages(lead.operation);
+
   async function updateLead(formData: FormData) {
     "use server";
     const supabase = await createClient();
@@ -45,6 +48,14 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
       .single();
     if (!membership) throw new Error("Sin organización activa.");
 
+    const { data: currentLead } = await supabase
+      .from("leads")
+      .select("operation,pipeline_stage")
+      .eq("id", id)
+      .eq("organization_id", membership.organization_id)
+      .maybeSingle();
+    if (!currentLead) throw new Error("No tenés acceso a este lead.");
+
     const fullName = String(formData.get("full_name") || "").trim();
     if (!fullName) throw new Error("El nombre es obligatorio.");
 
@@ -55,9 +66,11 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
     if (budget !== null && (!Number.isFinite(budget) || budget < 0)) throw new Error("Presupuesto inválido.");
     if (bedrooms !== null && (!Number.isInteger(bedrooms) || bedrooms < 0)) throw new Error("Dormitorios inválidos.");
 
-    const pipelineStage = String(formData.get("pipeline_stage") || "NEW").trim().toUpperCase();
-    const validStages = new Set(PIPELINE_STAGES.map(([value]) => value));
-    if (!validStages.has(pipelineStage as (typeof PIPELINE_STAGES)[number][0])) throw new Error("Etapa comercial inválida.");
+    const operation = normalizePipelineOperation(String(formData.get("operation") || "COMPRA"));
+    const operationChanged = normalizePipelineOperation(currentLead.operation) !== operation;
+    const submittedStage = String(formData.get("pipeline_stage") || "NEW").trim().toUpperCase();
+    const pipelineStage = operationChanged ? "NEW" : submittedStage;
+    if (!getPipelineStageKeys(operation).has(pipelineStage)) throw new Error("Etapa comercial inválida para esta operación.");
 
     const lostReason = String(formData.get("lost_reason") || "").trim().toUpperCase();
     if (pipelineStage === "LOST" && !LOSS_REASONS.has(lostReason)) throw new Error("Seleccioná un motivo de pérdida.");
@@ -78,7 +91,7 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
         full_name: fullName,
         phone: String(formData.get("phone") || "").trim() || null,
         email: String(formData.get("email") || "").trim().toLowerCase() || null,
-        operation: String(formData.get("operation") || "").trim().toUpperCase() || null,
+        operation,
         property_type: String(formData.get("property_type") || "").trim().toUpperCase() || null,
         primary_zone: zone || null,
         budget_max: budget,
@@ -128,13 +141,13 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
           <div className="mt-5 grid gap-5 md:grid-cols-2">
             <label className={label}>Teléfono<input name="phone" defaultValue={lead.phone || ""} className={input} /></label>
             <label className={label}>Email<input name="email" type="email" defaultValue={lead.email || ""} className={input} /></label>
-            <label className={label}>Operación<select name="operation" defaultValue={lead.operation || "COMPRA"} className={input}><option value="COMPRA">Compra</option><option value="ALQUILER">Alquiler</option></select></label>
+            <label className={label}>Flujo comercial<select name="operation" defaultValue={normalizePipelineOperation(lead.operation)} className={input}><option value="COMPRA">Venta · cliente comprador</option><option value="ALQUILER">Alquiler</option></select><span className="mt-1.5 block text-[11px] font-normal text-[#756e65]">Si cambiás de flujo, la oportunidad vuelve automáticamente a Nuevo lead.</span></label>
             <label className={label}>Tipo de propiedad<select name="property_type" defaultValue={lead.property_type || "APARTAMENTO"} className={input}><option value="APARTAMENTO">Apartamento</option><option value="CASA">Casa</option></select></label>
             <label className={label}>Zona<input name="primary_zone" defaultValue={lead.primary_zone || ""} className={input} /></label>
             <label className={label}>Dormitorios mínimos<input name="bedrooms_min" type="number" min="0" defaultValue={lead.bedrooms_min ?? ""} className={input} /></label>
             <label className={label}>Presupuesto máximo<input name="budget_max" type="number" min="0" step="any" defaultValue={lead.budget_max ?? ""} className={input} /></label>
             <label className={label}>Moneda<select name="currency" defaultValue={lead.currency || "USD"} className={input}><option value="USD">USD</option><option value="UYU">UYU</option></select></label>
-            <label className={label}>Etapa comercial<select name="pipeline_stage" defaultValue={lead.pipeline_stage || "NEW"} className={input}>{PIPELINE_STAGES.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
+            <label className={label}>Etapa comercial<select name="pipeline_stage" defaultValue={lead.pipeline_stage || "NEW"} className={input}>{visibleStages.map((stage) => <option key={stage.key} value={stage.key}>{stage.label}</option>)}</select><span className="mt-1.5 block text-[11px] font-normal text-[#756e65]">Las etapas visibles corresponden al flujo actual.</span></label>
             <label className={label}>Fecha estimada de cierre<input name="expected_close_date" type="date" defaultValue={lead.expected_close_date || ""} className={input} /></label>
             <label className={label}>Motivo si se marca perdido<select name="lost_reason" defaultValue={lead.lost_reason || ""} className={input}><option value="">Seleccionar motivo</option>{Object.entries(LOSS_REASON_LABELS).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
             <label className={label}>Próxima acción<input name="next_action" defaultValue={lead.next_action || ""} className={input} placeholder="Llamar, enviar opciones, coordinar visita..." /></label>

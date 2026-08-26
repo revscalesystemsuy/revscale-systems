@@ -6,7 +6,8 @@ import { getMatchingProperties } from "./match-actions";
 import PropertyWhatsAppButton from "./PropertyWhatsAppButton";
 import { currentPlanHasFeature } from "@/lib/plan-access";
 import { calculateOpportunityRisk, PIPELINE_STAGE_LABELS } from "@/lib/commercial-ops";
-import { formatDuration, LOSS_REASON_LABELS, PIPELINE_STAGES } from "@/lib/pipeline-metrics";
+import { formatDuration, LOSS_REASON_LABELS } from "@/lib/pipeline-metrics";
+import { getPipelineStages } from "@/lib/pipeline-config";
 import { updatePipelineStage } from "@/app/protected/pipeline/actions";
 import Link from "next/link";
 import { CalendarClock, Pencil } from "lucide-react";
@@ -73,6 +74,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
   const actorNames = new Map((actorProfiles || []).map((profile) => [profile.id, profile.full_name || "Usuario"]));
 
   const defaultQuickDue = formatMontevideoDateTimeLocal(new Date(Date.now() + 86_400_000));
+  const quickPipelineStages = getPipelineStages(lead.operation);
 
   return (
     <main className="min-h-screen p-6 md:p-8 lg:p-10">
@@ -137,7 +139,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
                           {event.previous_stage_duration_seconds !== null ? `Etapa anterior: ${formatDuration(Number(event.previous_stage_duration_seconds))}` : "Duración anterior no disponible"}
                         </p>
                       </div>
-                      <span className="text-xs text-[#92897d]">{new Date(event.changed_at).toLocaleString("es-UY", { timeZone: "America/Montevideo" })}</span>
+                      <span className="text-xs text-[#70695f]">{new Date(event.changed_at).toLocaleString("es-UY", { timeZone: "America/Montevideo" })}</span>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#81796e]">
                       <span>Actor: {event.changed_by ? actorNames.get(event.changed_by) || "Usuario" : "Sistema"}</span>
@@ -157,10 +159,10 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
                   <div key={interaction.id} className="rounded-xl border border-[#d7caba] bg-[#fffaf2] p-4">
                     <div className="flex justify-between gap-4">
                       <span className="font-semibold text-[#6f5c40]">{interaction.detected_intent === "ENVIAR_PROPIEDAD" ? "Propiedad enviada" : interaction.detected_intent === "CONTACTAR_LEAD" ? "Contacto realizado" : interaction.channel}</span>
-                      <span className="text-xs text-[#92897d]">{new Date(interaction.created_at).toLocaleString("es-UY", { timeZone: "America/Montevideo" })}</span>
+                      <span className="text-xs text-[#70695f]">{new Date(interaction.created_at).toLocaleString("es-UY", { timeZone: "America/Montevideo" })}</span>
                     </div>
                     <p className="mt-2 text-sm text-[#5f594f]">{interaction.message}</p>
-                    <p className="mt-2 text-xs text-[#8b8378]">Realizado por: {interaction.actor}</p>
+                    <p className="mt-2 text-xs text-[#6f685f]">Realizado por: {interaction.actor}</p>
                   </div>
                 ))}
               </div>
@@ -173,7 +175,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
                 <input type="hidden" name="lead_id" value={lead.id} />
                 <label className="text-xs font-semibold uppercase tracking-[0.12em] text-[#81796e]">Mover etapa</label>
                 <select name="pipeline_stage" defaultValue={lead.pipeline_stage || "NEW"} className="w-full rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2.5 text-sm text-[#4f4941]">
-                  {PIPELINE_STAGES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  {quickPipelineStages.map((stage) => <option key={stage.key} value={stage.key}>{stage.label}</option>)}
                 </select>
                 <select name="lost_reason" defaultValue={lead.lost_reason || ""} className="w-full rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2.5 text-sm text-[#4f4941]">
                   <option value="">Motivo si se marca perdido</option>
@@ -194,7 +196,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
                 <label className="text-xs font-semibold uppercase tracking-[0.12em] text-[#81796e]">Nuevo seguimiento</label>
                 <input name="title" defaultValue={lead.next_action || "Seguimiento comercial"} className="mt-2 w-full rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2.5 text-sm text-[#4f4941]" />
                 <input name="due_at" type="datetime-local" defaultValue={defaultQuickDue} className="mt-2 w-full rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2.5 text-sm text-[#4f4941]" />
-                <p className="mt-1.5 text-[11px] text-[#8a8176]">Hora de Uruguay</p>
+                <p className="mt-1.5 text-[11px] text-[#6f685f]">Hora de Uruguay</p>
                 <button className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#bfae96] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#554f47]"><CalendarClock size={15} /> Crear seguimiento</button>
               </form>
 

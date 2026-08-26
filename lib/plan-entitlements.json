@@ -1,0 +1,17 @@
+{
+  "ai_assistant": ["PROFESSIONAL", "ENTERPRISE"],
+  "whatsapp_ai": ["PROFESSIONAL", "ENTERPRISE"],
+  "matching": ["PROFESSIONAL", "ENTERPRISE"],
+  "analytics": ["PROFESSIONAL", "ENTERPRISE"],
+  "reports": ["PROFESSIONAL", "ENTERPRISE"],
+  "automations": ["PROFESSIONAL", "ENTERPRISE"],
+  "commissions": ["PROFESSIONAL", "ENTERPRISE"],
+  "property_distribution": ["PROFESSIONAL", "ENTERPRISE"],
+  "documents": ["PROFESSIONAL", "ENTERPRISE"],
+  "esignature": ["ENTERPRISE"],
+  "legal_automations": ["ENTERPRISE"],
+  "territory_acquisition": ["ENTERPRISE"],
+  "integrations": ["ENTERPRISE"],
+  "enterprise_operations": ["ENTERPRISE"],
+  "development_projects": ["ENTERPRISE"]
+}

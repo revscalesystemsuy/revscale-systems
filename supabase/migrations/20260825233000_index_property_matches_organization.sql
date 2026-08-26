@@ -1,0 +1,2 @@
+create index if not exists property_lead_matches_organization_id_idx
+on public.property_lead_matches(organization_id);

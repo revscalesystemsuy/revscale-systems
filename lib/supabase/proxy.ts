@@ -3,9 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { hasEnvVars } from "../utils";
 
 const PUBLIC_PATH_PREFIXES = ["/auth", "/demo", "/demos", "/pricing", "/request", "/inmobiliaria", "/p"];
+const PUBLIC_EXACT_PATHS = new Set(["/robots.txt", "/sitemap.xml"]);
 
 function isPublicPath(pathname: string) {
-  if (pathname === "/") return true;
+  if (pathname === "/" || PUBLIC_EXACT_PATHS.has(pathname)) return true;
   return PUBLIC_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 

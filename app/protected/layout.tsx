@@ -12,6 +12,7 @@ import {
   House,
   ListChecks,
   LogOut,
+  MapPinned,
   MessageCircle,
   MessagesSquare,
   Settings,
@@ -45,6 +46,7 @@ const ICONS = {
   MessageCircle,
   SlidersHorizontal,
   CreditCard,
+  MapPinned,
   Settings,
 } satisfies Record<ProductSurfaceIcon, typeof House>;
 

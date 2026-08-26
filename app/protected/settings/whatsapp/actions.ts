@@ -23,7 +23,6 @@ export async function saveWhatsAppAiPreparation(formData: FormData) {
   const addressStyle = pick(formData.get("address_style"), ADDRESS_STYLES, "VOS");
   const emojiLevel = pick(formData.get("emoji_level"), EMOJI_LEVELS, "LOW");
   const responseLength = pick(formData.get("response_length"), RESPONSE_LENGTHS, "SHORT");
-  const humanHandoffEnabled = formData.get("human_handoff_enabled") === "on";
   const businessHoursOnly = formData.get("business_hours_only") === "on";
 
   const { data: existing } = await context.supabase
@@ -42,7 +41,7 @@ export async function saveWhatsAppAiPreparation(formData: FormData) {
       address_style: addressStyle,
       emoji_level: emojiLevel,
       response_length: responseLength,
-      human_handoff_enabled: humanHandoffEnabled,
+      human_handoff_enabled: true,
       business_hours_only: businessHoursOnly,
       updated_by: context.userId,
       updated_at: new Date().toISOString(),
@@ -74,6 +73,7 @@ export async function activateWhatsAppLive() {
       organization_id: context.organizationId,
       mode: "LIVE",
       auto_reply_enabled: true,
+      human_handoff_enabled: true,
       updated_by: context.userId,
       updated_at: new Date().toISOString(),
     },

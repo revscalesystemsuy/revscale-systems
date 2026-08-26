@@ -1,4 +1,8 @@
-import { ALL_PIPELINE_STAGES, PIPELINE_STAGE_PROBABILITY } from "@/lib/pipeline-config";
+import {
+  ALL_PIPELINE_STAGES,
+  PIPELINE_STAGE_PROBABILITY,
+  getPipelineStageProbability,
+} from "@/lib/pipeline-config";
 
 export const PIPELINE_STAGES = ALL_PIPELINE_STAGES.map((stage) => [stage.key, stage.label] as const);
 
@@ -19,6 +23,7 @@ type PipelineValueLead = {
   pipeline_stage: string | null;
   budget_max: number | string | null;
   currency: string | null;
+  operation?: string | null;
 };
 
 export type CurrencyForecast = {
@@ -41,7 +46,7 @@ export function buildForecastByCurrency(leads: PipelineValueLead[]): CurrencyFor
     const currency = (lead.currency || "Sin moneda").toUpperCase();
     const current = grouped.get(currency) || { currency, pipeline: 0, weighted: 0, opportunities: 0 };
     current.pipeline += value;
-    current.weighted += value * (STAGE_PROBABILITY[stage] ?? 0.1);
+    current.weighted += value * getPipelineStageProbability(lead.operation, stage);
     current.opportunities += 1;
     grouped.set(currency, current);
   }

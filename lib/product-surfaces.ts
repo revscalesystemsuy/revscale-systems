@@ -22,7 +22,7 @@ export type ProductSurfaceIcon =
   | "CreditCard"
   | "Settings"
 
-export type ProductSurfaceAccess = "all" | "owner" | "owner_or_enterprise_manager"
+export type ProductSurfaceAccess = "all" | "owner" | "owner_or_manager" | "owner_or_enterprise_manager"
 
 export type ProductSurface = {
   id: string
@@ -47,6 +47,7 @@ export function canAccessRealSurface(
   if (!surface.realPlans.includes(options.plan)) return false
   if (surface.condition === "onboarding_incomplete" && !options.onboardingIncomplete) return false
   if (surface.realAccess === "owner") return options.role === "OWNER"
+  if (surface.realAccess === "owner_or_manager") return options.role === "OWNER" || options.role === "MANAGER"
   if (surface.realAccess === "owner_or_enterprise_manager") {
     return options.role === "OWNER" || (options.plan === "ENTERPRISE" && options.role === "MANAGER")
   }

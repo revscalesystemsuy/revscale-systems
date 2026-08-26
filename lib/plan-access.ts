@@ -9,6 +9,7 @@ export type PlanFeature =
   | "reports"
   | "automations"
   | "commissions"
+  | "property_distribution"
   | "integrations"
   | "enterprise_operations"
   | "development_projects";
@@ -39,7 +40,8 @@ export function planHasFeature(
     feature === "analytics" ||
     feature === "reports" ||
     feature === "automations" ||
-    feature === "commissions"
+    feature === "commissions" ||
+    feature === "property_distribution"
   ) {
     return normalized === "PROFESSIONAL" || normalized === "ENTERPRISE";
   }

@@ -1,0 +1,135 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { ExternalLink, Globe2, PauseCircle, Radio, Send, ShieldCheck } from "lucide-react";
+import { getCurrentOrganizationContext } from "@/lib/organization-role";
+import { planHasFeature } from "@/lib/plan-access";
+import { saveWebPublication } from "./actions";
+
+export default async function DistributionPage() {
+  const context = await getCurrentOrganizationContext();
+  if (!context) redirect("/auth/login");
+  if (!planHasFeature(context.plan, "property_distribution")) redirect("/protected/billing");
+  if (!["OWNER", "MANAGER"].includes(context.role)) redirect("/protected");
+
+  const [{ data: properties, error: propertiesError }, { data: publications, error: publicationsError }, { data: organization }] = await Promise.all([
+    context.supabase
+      .from("properties")
+      .select("id,title,property_type,operation,zone,address,price,currency,bedrooms,bathrooms,area_m2,status,description")
+      .eq("organization_id", context.organizationId)
+      .order("created_at", { ascending: false }),
+    context.supabase
+      .from("property_publications")
+      .select("id,property_id,channel,status,public_slug,title,description,address_label,cover_image_url,contact_name,contact_phone,published_at,last_synced_at,external_url,sync_error")
+      .eq("organization_id", context.organizationId),
+    context.supabase.from("organizations").select("name,slug").eq("id", context.organizationId).single(),
+  ]);
+
+  const publicationByProperty = new Map((publications || []).filter((item) => item.channel === "REVSCALE_WEB").map((item) => [item.property_id, item]));
+  const publishedCount = (publications || []).filter((item) => item.channel === "REVSCALE_WEB" && item.status === "PUBLISHED").length;
+  const catalogHref = `/inmobiliaria/${organization?.slug || context.organizationId}`;
+
+  return (
+    <main className="min-h-screen p-6 md:p-8 lg:p-10">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Distribución comercial</p>
+            <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight text-[#292722] md:text-5xl">Publicaciones</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">Convertí propiedades internas en avisos públicos sin exponer datos privados. El catálogo de RevScale queda listo para compartir y los portales externos quedan preparados como canales de sincronización.</p>
+          </div>
+          <Link href={catalogHref} target="_blank" className="inline-flex items-center gap-2 rounded-lg bg-[#302d28] px-5 py-3 text-sm font-semibold !text-[#fffaf2] transition hover:bg-[#3b3731]">
+            <Globe2 size={16} /> Ver catálogo público <ExternalLink size={14} />
+          </Link>
+        </div>
+
+        <section className="mb-8 grid gap-4 md:grid-cols-3">
+          <StatCard label="Inventario" value={properties?.length ?? 0} detail="propiedades internas" />
+          <StatCard label="Publicadas" value={publishedCount} detail="visibles en RevScale Web" />
+          <StatCard label="Catálogo" value="Activo" detail={organization?.name || "Tu inmobiliaria"} />
+        </section>
+
+        <section className="mb-8 grid gap-4 lg:grid-cols-3">
+          <ChannelCard icon={<Globe2 size={19} />} title="RevScale Web" status="Activo" text="Catálogo público y fichas SEO compartibles. Publicación controlada desde este panel." />
+          <ChannelCard icon={<Send size={19} />} title="Mercado Libre Inmuebles" status="Preparado" text="Canal modelado para conexión mediante credenciales oficiales de la inmobiliaria." />
+          <ChannelCard icon={<Radio size={19} />} title="Gallito / otros portales" status="Preparado" text="La capa de distribución ya admite estado, ID externo, URL y errores de sincronización por canal." />
+        </section>
+
+        {(propertiesError || publicationsError) && (
+          <div className="mb-6 rounded-xl border border-[#d9b7aa] bg-[#f4e4dc] p-4 text-sm text-[#7b4539]">No se pudo cargar toda la información de distribución.</div>
+        )}
+
+        <div className="space-y-5">
+          {(properties || []).map((property) => {
+            const publication = publicationByProperty.get(property.id);
+            const currentStatus = publication?.status || "DRAFT";
+            const publicHref = publication?.public_slug ? `/p/${publication.public_slug}` : null;
+            return (
+              <article key={property.id} className="rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-5 shadow-[0_16px_40px_rgba(72,58,40,0.04)] md:p-6">
+                <div className="flex flex-col gap-4 border-b border-[#ded2c1] pb-5 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge status={currentStatus} />
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8d7553]">{property.operation || "Sin operación"}</span>
+                    </div>
+                    <h2 className="mt-3 font-serif text-2xl font-medium text-[#37332d]">{property.title}</h2>
+                    <p className="mt-2 text-sm text-[#6f675d]">{property.zone || "Zona sin definir"} · {property.price ? `${property.currency || ""} ${Number(property.price).toLocaleString()}` : "Precio a consultar"}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Link href={`/protected/properties/${property.id}`} className="rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#5f513e]">Ver propiedad</Link>
+                    {publicHref && currentStatus === "PUBLISHED" && <Link href={publicHref} target="_blank" className="inline-flex items-center gap-2 rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#5f513e]">Abrir aviso <ExternalLink size={14}/></Link>}
+                  </div>
+                </div>
+
+                <form action={saveWebPublication} className="mt-5 grid gap-4 lg:grid-cols-2">
+                  <input type="hidden" name="property_id" value={property.id} />
+                  <Field label="Título público"><input name="title" defaultValue={publication?.title || property.title} className={inputClass} /></Field>
+                  <Field label="Foto principal (URL)"><input name="cover_image_url" type="url" defaultValue={publication?.cover_image_url || ""} placeholder="https://..." className={inputClass} /></Field>
+                  <Field label="Dirección visible"><input name="address_label" defaultValue={publication?.address_label || property.address || ""} className={inputClass} /></Field>
+                  <Field label="Contacto"><input name="contact_name" defaultValue={publication?.contact_name || ""} placeholder="Nombre del asesor o inmobiliaria" className={inputClass} /></Field>
+                  <Field label="WhatsApp / teléfono"><input name="contact_phone" defaultValue={publication?.contact_phone || ""} placeholder="598..." className={inputClass} /></Field>
+                  <Field label="Estado de publicación">
+                    <select name="status" defaultValue={currentStatus} className={inputClass}>
+                      <option value="DRAFT">Borrador</option>
+                      <option value="PUBLISHED">Publicado</option>
+                      <option value="PAUSED">Pausado</option>
+                    </select>
+                  </Field>
+                  <div className="lg:col-span-2">
+                    <Field label="Descripción pública"><textarea name="description" rows={4} defaultValue={publication?.description || property.description || ""} className={inputClass} /></Field>
+                  </div>
+                  <div className="lg:col-span-2 flex flex-col gap-3 border-t border-[#ded2c1] pt-4 md:flex-row md:items-center md:justify-between">
+                    <p className="flex items-center gap-2 text-xs text-[#81786d]"><ShieldCheck size={14}/> Solo los avisos publicados pueden ser leídos sin iniciar sesión.</p>
+                    <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#302d28] px-5 py-3 text-sm font-semibold text-[#fffaf2] transition hover:bg-[#3b3731]">
+                      {currentStatus === "PUBLISHED" ? <PauseCircle size={15}/> : <Send size={15}/>} Guardar publicación
+                    </button>
+                  </div>
+                </form>
+              </article>
+            );
+          })}
+        </div>
+
+        {!properties?.length && !propertiesError && <div className="rounded-xl border border-dashed border-[#cdbfa9] bg-[#f7f0e6] p-12 text-center text-sm text-[#716a61]">Primero cargá propiedades para poder publicarlas.</div>}
+      </div>
+    </main>
+  );
+}
+
+const inputClass = "mt-2 w-full rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2.5 text-sm text-[#37332d] outline-none placeholder:text-[#aaa091] focus:border-[#9f8a6d]";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[#756b5f]">{label}{children}</label>;
+}
+
+function StatCard({ label, value, detail }: { label: string; value: string | number; detail: string }) {
+  return <div className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] p-5"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a7a67]">{label}</p><p className="mt-2 font-serif text-3xl text-[#37332d]">{value}</p><p className="mt-1 text-xs text-[#81786d]">{detail}</p></div>;
+}
+
+function ChannelCard({ icon, title, status, text }: { icon: React.ReactNode; title: string; status: string; text: string }) {
+  return <div className="rounded-xl border border-[#d2c5b3] bg-[#efe5d7] p-5"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2 text-[#5f513e]">{icon}<h3 className="font-semibold">{title}</h3></div><span className="rounded-full border border-[#cdbfa9] bg-[#fffaf2] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#756b5f]">{status}</span></div><p className="mt-3 text-sm leading-6 text-[#665f56]">{text}</p></div>;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const labels: Record<string, string> = { DRAFT: "Borrador", READY: "Listo", PUBLISHED: "Publicado", PAUSED: "Pausado", ERROR: "Error" };
+  return <span className="rounded-full border border-[#cdbfa9] bg-[#fffaf2] px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#665942]">{labels[status] || status}</span>;
+}

@@ -190,6 +190,16 @@ begin
 
   get diagnostics inserted_count = row_count;
 
+  delete from public.notifications n
+  where n.property_id = target_property_id
+    and n.type = 'PROPERTY_MATCH'
+    and not exists (
+      select 1
+      from public.property_lead_matches m
+      where m.property_id = target_property_id
+        and m.assigned_to = n.user_id
+    );
+
   insert into public.notifications(
     organization_id,
     user_id,

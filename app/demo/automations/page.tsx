@@ -9,10 +9,10 @@ const RULES = [
 ];
 
 const HISTORY = [
-  ["Lead sin contacto", "Alerta enviada a Lucía por Martín Pereyra", "hace 8 min"],
-  ["Cierre próximo", "Agente y Dirección avisados por cierre estimado", "hace 21 min"],
-  ["Propiedad nueva", "Matching recalculado: 24 clientes, 8 matches altos", "hace 43 min"],
-  ["Visita realizada", "Seguimiento creado para mañana", "hace 1 h"],
+  ["Lead sin contacto", "Alerta enviada a Santiago Pérez por Valentina Méndez", "hace 8 min"],
+  ["Cierre próximo", "Laura Fernández y Dirección avisados por el cierre estimado de Martín Rodríguez", "hace 21 min"],
+  ["Propiedad nueva", "Apartamento Pocitos Premium: matching recalculado y agentes avisados", "hace 43 min"],
+  ["Visita realizada", "Seguimiento creado para Sofía Fernández con Santiago Pérez", "hace 1 h"],
 ];
 
 export default function DemoAutomationsPage() {
@@ -21,7 +21,7 @@ export default function DemoAutomationsPage() {
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Operación automática</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Inmobiliaria Horizonte · Operación automática</p>
             <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight text-[#292722] md:text-5xl">Automatizaciones</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55] md:text-[15px]">RevScale ejecuta tareas comerciales repetitivas aunque nadie tenga el sistema abierto.</p>
           </div>
@@ -46,7 +46,7 @@ export default function DemoAutomationsPage() {
         </section>
 
         <section className="mt-9 overflow-hidden rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] shadow-[0_18px_45px_rgba(72,58,40,0.04)]">
-          <div className="border-b border-[#ddd1c0] px-5 py-4 md:px-6"><h2 className="font-serif text-2xl font-medium text-[#302d28]">Historial reciente</h2><p className="mt-1 text-xs leading-5 text-[#81796e]">Cada acción automática queda registrada y auditable.</p></div>
+          <div className="border-b border-[#ddd1c0] px-5 py-4 md:px-6"><h2 className="font-serif text-2xl font-medium text-[#302d28]">Historial reciente</h2><p className="mt-1 text-xs leading-5 text-[#81796e]">Los ejemplos usan los mismos agentes, leads y propiedades del resto de la demo.</p></div>
           {HISTORY.map(([rule, summary, date]) => <article key={`${rule}-${summary}`} className="flex flex-col gap-2 border-b border-[#e2d7c8] px-5 py-4 last:border-0 md:flex-row md:items-center md:justify-between md:px-6"><div><p className="text-sm font-semibold text-[#474038]">{rule}</p><p className="mt-1 text-sm text-[#71695f]">{summary}</p></div><p className="shrink-0 text-xs text-[#8a8176]">{date}</p></article>)}
         </section>
       </div>

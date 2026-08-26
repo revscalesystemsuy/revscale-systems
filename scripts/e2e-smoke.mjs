@@ -33,9 +33,7 @@ async function expectPage(path, expectedText) {
 
 async function expectProtectedRedirect(path) {
   const response = await fetch(`${baseUrl}${path}`, { redirect: "manual" });
-  if (![302, 303, 307, 308].includes(response.status)) {
-    throw new Error(`${path} should redirect unauthenticated users, got ${response.status}`);
-  }
+  if (![302, 303, 307, 308].includes(response.status)) throw new Error(`${path} should redirect unauthenticated users, got ${response.status}`);
   const location = response.headers.get("location") || "";
   if (!location.includes("/auth/login")) throw new Error(`${path} redirected to unexpected location: ${location}`);
 }
@@ -52,6 +50,8 @@ try {
   await expectPage("/demo/today", ["SLA que requiere atención", "Objetivo 15 min", "primera respuesta humana"]);
   await expectPage("/demo/executive", ["Cumplimiento SLA", "Orígenes con menor SLA", "Sin respuesta humana"]);
   await expectPage("/demo/agents", ["SLA objetivo 15 minutos", "Mediana", "Fuera SLA"]);
+  await expectPage("/demo/notifications", ["SLA incumplido", "SLA escalado", "SLA por vencer"]);
+  await expectPage("/demo/reports", ["Cumplimiento SLA", "SLA por origen", "Mediana respuesta"]);
   await expectPage("/demo/leads/martin-rodriguez", ["Origen y velocidad", "InfoCasas", "Primera respuesta humana"]);
 
   await expectProtectedRedirect("/protected/billing");

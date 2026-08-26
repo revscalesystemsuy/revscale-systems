@@ -7,6 +7,7 @@ import {
   BarChart3,
   Bell,
   Building2,
+  CalendarClock,
   ChartNoAxesCombined,
   ChevronDown,
   ChevronRight,
@@ -50,6 +51,7 @@ const ICONS = {
   SlidersHorizontal,
   CreditCard,
   MapPinned,
+  CalendarClock,
   Settings,
 } satisfies Record<ProductSurfaceIcon, typeof House>
 

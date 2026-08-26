@@ -21,6 +21,7 @@ export type ProductSurfaceIcon =
   | "SlidersHorizontal"
   | "CreditCard"
   | "MapPinned"
+  | "CalendarClock"
   | "Settings"
 
 export type ProductSurfaceAccess = "all" | "owner" | "owner_or_manager" | "owner_or_enterprise_manager"

@@ -5,6 +5,7 @@ import {
   BarChart3,
   Bell,
   Building2,
+  CalendarClock,
   ChartNoAxesCombined,
   ChevronDown,
   ClipboardList,
@@ -34,7 +35,7 @@ import { MobileProtectedNav } from "./mobile-protected-nav";
 const ICONS = {
   House, ListChecks, Target, ClipboardList, Bell, Users, Workflow, Zap, Building2,
   MessagesSquare, Database, UsersRound, BarChart3, ChartNoAxesCombined,
-  MessageCircle, SlidersHorizontal, CreditCard, MapPinned, Settings,
+  MessageCircle, SlidersHorizontal, CreditCard, MapPinned, CalendarClock, Settings,
 } satisfies Record<ProductSurfaceIcon, typeof House>;
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {

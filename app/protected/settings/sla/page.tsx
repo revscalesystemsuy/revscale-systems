@@ -23,7 +23,7 @@ export default async function SlaSettingsPage() {
     .eq("organization_id", membership.organization_id)
     .single();
 
-  const editable = ["OWNER", "MANAGER"].includes(membership.role);
+  const editable = membership.role === "OWNER";
   const config = settings || {
     is_enabled: true,
     first_human_response_minutes: 15,
@@ -48,16 +48,16 @@ export default async function SlaSettingsPage() {
             </label>
 
             <div className="grid gap-4 md:grid-cols-3">
-              <Field label="Primera respuesta humana" name="first_human_response_minutes" value={config.first_human_response_minutes} suffix="min" disabled={!editable} />
-              <Field label="Avisar antes de vencer" name="warning_minutes_before" value={config.warning_minutes_before} suffix="min" disabled={!editable} />
-              <Field label="Escalar después de vencer" name="escalation_minutes_after" value={config.escalation_minutes_after} suffix="min" disabled={!editable} />
+              <Field label="Primera respuesta humana" name="first_human_response_minutes" value={config.first_human_response_minutes} min={1} suffix="min" disabled={!editable} />
+              <Field label="Avisar antes de vencer" name="warning_minutes_before" value={config.warning_minutes_before} min={0} suffix="min" disabled={!editable} />
+              <Field label="Escalar después de vencer" name="escalation_minutes_after" value={config.escalation_minutes_after} min={0} suffix="min" disabled={!editable} />
             </div>
 
             <div className="rounded-xl border border-[#d7caba] bg-[#eee4d5] p-4 text-sm leading-6 text-[#625d55]">
               <strong className="text-[#403b34]">Reasignación automática:</strong> preparada a nivel de arquitectura, pero desactivada. RevScale no moverá leads automáticamente hasta que existan reglas de cobertura suficientemente seguras.
             </div>
 
-            {editable ? <button className="rounded-lg bg-[#302d28] px-5 py-3 text-sm font-semibold !text-[#fffaf2]">Guardar SLA</button> : <p className="text-sm text-[#81796e]">Podés consultar esta configuración, pero solo Gerencia o Dirección puede modificarla.</p>}
+            {editable ? <button className="rounded-lg bg-[#302d28] px-5 py-3 text-sm font-semibold !text-[#fffaf2]">Guardar SLA</button> : <p className="text-sm text-[#81796e]">Podés consultar esta configuración, pero solo Dirección puede modificarla.</p>}
           </form>
         </section>
       </div>
@@ -65,6 +65,6 @@ export default async function SlaSettingsPage() {
   );
 }
 
-function Field({ label, name, value, suffix, disabled }: { label: string; name: string; value: number; suffix: string; disabled: boolean }) {
-  return <label className="rounded-xl border border-[#ddd1c0] bg-[#fffaf2] p-4"><span className="text-xs font-semibold uppercase tracking-[0.1em] text-[#81796e]">{label}</span><div className="mt-3 flex items-center gap-2"><input type="number" min={0} name={name} defaultValue={value} disabled={disabled} className="w-full rounded-lg border border-[#cdbfa9] bg-[#f7f0e6] px-3 py-2.5 text-[#37332d]" /><span className="text-xs text-[#81796e]">{suffix}</span></div></label>;
+function Field({ label, name, value, suffix, disabled, min }: { label: string; name: string; value: number; suffix: string; disabled: boolean; min: number }) {
+  return <label className="rounded-xl border border-[#ddd1c0] bg-[#fffaf2] p-4"><span className="text-xs font-semibold uppercase tracking-[0.1em] text-[#81796e]">{label}</span><div className="mt-3 flex items-center gap-2"><input type="number" min={min} name={name} defaultValue={value} disabled={disabled} className="w-full rounded-lg border border-[#cdbfa9] bg-[#f7f0e6] px-3 py-2.5 text-[#37332d]" /><span className="text-xs text-[#81796e]">{suffix}</span></div></label>;
 }

@@ -115,8 +115,15 @@ async function sendText(phoneNumberId: string, to: string, body: string) {
     body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to, type: "text", text: { preview_url: false, body } }),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`Meta send failed (${response.status}): ${payload?.error?.message || "unknown error"}`);
-  return String(payload?.messages?.[0]?.id || "") || null;
+  if (!response.ok) {
+    const error = new Error(`Meta send failed (${response.status}): ${payload?.error?.message || "unknown error"}`) as Error & { providerCode?: string; providerMessage?: string };
+    error.providerCode = String(payload?.error?.code || response.status);
+    error.providerMessage = String(payload?.error?.message || "Meta rejected the message").slice(0, 500);
+    throw error;
+  }
+  const messageId = String(payload?.messages?.[0]?.id || "") || null;
+  if (!messageId) throw new Error("Meta returned success without a message id");
+  return messageId;
 }
 
 async function qualifyLead(input: { text: string; lead: AnyRow; properties: AnyRow[]; settings: AnyRow }) {
@@ -135,6 +142,29 @@ async function qualifyLead(input: { text: string; lead: AnyRow; properties: AnyR
     output = data.output.flatMap((item: AnyRow) => Array.isArray(item?.content) ? item.content : []).map((item: AnyRow) => String(item?.text || "")).join("").trim();
   }
   return JSON.parse(output.replace(/^```json\s*/i, "").replace(/```$/i, "").trim());
+}
+
+async function claimWebhookEvent(db: ReturnType<typeof admin>, row: AnyRow) {
+  const inserted = await db.from("whatsapp_webhook_events").insert(row).select("id,processing_status").maybeSingle();
+  if (!inserted.error && inserted.data) return inserted.data;
+  if (inserted.error?.code !== "23505") throw inserted.error;
+
+  const existing = await db.from("whatsapp_webhook_events")
+    .select("id,processing_status")
+    .eq("event_key", row.event_key)
+    .maybeSingle();
+  if (existing.error || !existing.data) throw existing.error || new Error("Webhook event could not be recovered");
+  if (existing.data.processing_status !== "ERROR") return null;
+
+  const retried = await db.from("whatsapp_webhook_events").update({
+    processing_status: "RECEIVED",
+    error_message: null,
+    processed_at: null,
+    payload: row.payload,
+    received_at: new Date().toISOString(),
+  }).eq("id", existing.data.id).eq("processing_status", "ERROR").select("id,processing_status").maybeSingle();
+  if (retried.error) throw retried.error;
+  return retried.data || null;
 }
 
 async function notifyHandoff(db: ReturnType<typeof admin>, connection: AnyRow, lead: AnyRow, conversationId: string, reason: string) {
@@ -162,24 +192,105 @@ async function processStatus(db: ReturnType<typeof admin>, connection: AnyRow, s
   const externalId = String(status?.id || "");
   const state = String(status?.status || "").toUpperCase();
   if (!externalId || !state) return;
-  const { data: event, error } = await db.from("whatsapp_webhook_events").insert({ event_key: `status:${externalId}:${state}:${status?.timestamp || ""}`, organization_id: connection.organization_id, connection_id: connection.id, phone_number_id: connection.phone_number_id, external_message_id: externalId, event_type: `STATUS_${state}`, payload: status }).select("id").maybeSingle();
-  if (error?.code === "23505" || !event) return;
-  const timestamp = status?.timestamp ? new Date(Number(status.timestamp) * 1000).toISOString() : new Date().toISOString();
-  const patch: AnyRow = { status: ["SENT","DELIVERED","READ","FAILED"].includes(state) ? state : "SENT" };
-  if (state === "SENT") patch.sent_at = timestamp;
-  if (state === "DELIVERED") patch.delivered_at = timestamp;
-  if (state === "READ") patch.read_at = timestamp;
-  if (state === "FAILED") { patch.failed_at = timestamp; patch.error_code = String(status?.errors?.[0]?.code || "META_FAILED"); patch.error_message = String(status?.errors?.[0]?.message || status?.errors?.[0]?.title || "Delivery failed").slice(0, 500); }
-  await db.from("whatsapp_messages").update(patch).eq("external_message_id", externalId);
-  await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", processed_at: new Date().toISOString() }).eq("id", event.id);
+  const event = await claimWebhookEvent(db, { event_key: `status:${externalId}:${state}:${status?.timestamp || ""}`, organization_id: connection.organization_id, connection_id: connection.id, phone_number_id: connection.phone_number_id, external_message_id: externalId, event_type: `STATUS_${state}`, payload: status });
+  if (!event) return;
+
+  try {
+    const timestamp = status?.timestamp ? new Date(Number(status.timestamp) * 1000).toISOString() : new Date().toISOString();
+    const patch: AnyRow = { status: ["SENT","DELIVERED","READ","FAILED"].includes(state) ? state : "SENT" };
+    if (state === "SENT") patch.sent_at = timestamp;
+    if (state === "DELIVERED") patch.delivered_at = timestamp;
+    if (state === "READ") patch.read_at = timestamp;
+    if (state === "FAILED") { patch.failed_at = timestamp; patch.error_code = String(status?.errors?.[0]?.code || "META_FAILED"); patch.error_message = String(status?.errors?.[0]?.message || status?.errors?.[0]?.title || "Delivery failed").slice(0, 500); }
+    const updated = await db.from("whatsapp_messages").update(patch).eq("external_message_id", externalId);
+    if (updated.error) throw updated.error;
+    await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", error_message: null, processed_at: new Date().toISOString() }).eq("id", event.id);
+  } catch (error) {
+    await db.from("whatsapp_webhook_events").update({ processing_status: "ERROR", error_message: String(error).slice(0, 1000), processed_at: new Date().toISOString() }).eq("id", event.id);
+    throw error;
+  }
+}
+
+async function ensureAiInteraction(db: ReturnType<typeof admin>, message: AnyRow, lead: AnyRow, qualification: AnyRow, score: number) {
+  if (message.interaction_id) return message.interaction_id;
+  const interactionTime = message.sent_at || message.created_at || new Date().toISOString();
+  const existing = await db.from("interactions")
+    .select("id")
+    .eq("organization_id", lead.organization_id)
+    .eq("lead_id", lead.id)
+    .eq("channel", "WHATSAPP")
+    .eq("direction", "OUTBOUND")
+    .eq("actor", "AI")
+    .eq("message", message.body)
+    .eq("created_at", interactionTime)
+    .limit(1)
+    .maybeSingle();
+  if (existing.error) throw existing.error;
+
+  let interactionId = existing.data?.id || null;
+  if (!interactionId) {
+    const inserted = await db.from("interactions").insert({ organization_id: lead.organization_id, lead_id: lead.id, channel: "WHATSAPP", direction: "OUTBOUND", actor: "AI", message: message.body, ai_response: message.body, detected_intent: qualification.intent, lead_score_after: score, requires_human: false, created_at: interactionTime }).select("id").single();
+    if (inserted.error) throw inserted.error;
+    interactionId = inserted.data.id;
+  }
+  const linked = await db.from("whatsapp_messages").update({ interaction_id: interactionId }).eq("id", message.id).is("interaction_id", null);
+  if (linked.error) throw linked.error;
+  return interactionId;
+}
+
+async function sendAiReply(db: ReturnType<typeof admin>, connection: AnyRow, conversation: AnyRow, lead: AnyRow, inboundExternalId: string, waContactId: string, qualification: AnyRow, score: number) {
+  const idempotencyKey = `ai:${inboundExternalId}`;
+  const reservation = await db.from("whatsapp_messages").insert({ organization_id: connection.organization_id, conversation_id: conversation.id, lead_id: lead.id, direction: "OUTBOUND", sender_type: "AI", body: qualification.reply, message_type: "TEXT", status: "QUEUED", detected_intent: qualification.intent, confidence: qualification.confidence, requires_human: false, model_provider: "OPENAI", model_name: openAiModel, idempotency_key: idempotencyKey }).select("id,body,status,interaction_id,external_message_id,sent_at,created_at,error_code,error_message").maybeSingle();
+
+  let outbound = reservation.data;
+  if (reservation.error?.code === "23505") {
+    const existing = await db.from("whatsapp_messages").select("id,body,status,interaction_id,external_message_id,sent_at,created_at,error_code,error_message").eq("organization_id", connection.organization_id).eq("idempotency_key", idempotencyKey).maybeSingle();
+    if (existing.error || !existing.data) throw existing.error || new Error("AI outbound reservation could not be recovered");
+    outbound = existing.data;
+  } else if (reservation.error) {
+    throw reservation.error;
+  }
+  if (!outbound) throw new Error("AI outbound reservation failed");
+
+  if (["SENT","DELIVERED","READ"].includes(outbound.status)) {
+    await ensureAiInteraction(db, outbound, lead, qualification, score);
+    return outbound;
+  }
+  if (outbound.status === "QUEUED" && reservation.error?.code === "23505") {
+    return outbound;
+  }
+  if (outbound.status === "FAILED") {
+    const reset = await db.from("whatsapp_messages").update({ status: "QUEUED", failed_at: null, error_code: null, error_message: null }).eq("id", outbound.id).eq("status", "FAILED").select("id,body,status,interaction_id,external_message_id,sent_at,created_at,error_code,error_message").maybeSingle();
+    if (reset.error || !reset.data) return outbound;
+    outbound = reset.data;
+  }
+
+  let sentId: string;
+  try {
+    sentId = await sendText(connection.phone_number_id, waContactId, outbound.body);
+  } catch (error) {
+    const providerCode = String((error as Error & { providerCode?: string }).providerCode || "PROVIDER_SEND_FAILED");
+    const providerMessage = String((error as Error & { providerMessage?: string }).providerMessage || error).slice(0, 500);
+    const explicitProviderFailure = providerCode !== "PROVIDER_SEND_FAILED";
+    await db.from("whatsapp_messages").update(explicitProviderFailure ? { status: "FAILED", failed_at: new Date().toISOString(), error_code: providerCode, error_message: providerMessage } : { error_code: "PROVIDER_STATE_UNKNOWN", error_message: providerMessage }).eq("id", outbound.id);
+    if (!explicitProviderFailure) return outbound;
+    throw error;
+  }
+
+  const sentAt = new Date().toISOString();
+  const sent = await db.from("whatsapp_messages").update({ external_message_id: sentId, status: "SENT", sent_at: sentAt, failed_at: null, error_code: null, error_message: null }).eq("id", outbound.id).select("id,body,status,interaction_id,external_message_id,sent_at,created_at,error_code,error_message").single();
+  if (sent.error) throw sent.error;
+  outbound = sent.data;
+  await ensureAiInteraction(db, outbound, lead, qualification, score);
+  return outbound;
 }
 
 async function processInbound(db: ReturnType<typeof admin>, connection: AnyRow, message: AnyRow, contact: AnyRow | null) {
   const externalId = String(message?.id || "");
   const waContactId = normalizePhone(message?.from);
   if (!externalId || !waContactId) return;
-  const { data: event, error: eventError } = await db.from("whatsapp_webhook_events").insert({ event_key: `message:${externalId}`, organization_id: connection.organization_id, connection_id: connection.id, phone_number_id: connection.phone_number_id, external_message_id: externalId, event_type: "MESSAGE_INBOUND", payload: message }).select("id").maybeSingle();
-  if (eventError?.code === "23505" || !event) return;
+  const event = await claimWebhookEvent(db, { event_key: `message:${externalId}`, organization_id: connection.organization_id, connection_id: connection.id, phone_number_id: connection.phone_number_id, external_message_id: externalId, event_type: "MESSAGE_INBOUND", payload: message });
+  if (!event) return;
 
   try {
     const now = new Date().toISOString();
@@ -202,9 +313,15 @@ async function processInbound(db: ReturnType<typeof admin>, connection: AnyRow, 
 
     const body = messageBody(message);
     const providerTimestamp = message?.timestamp ? new Date(Number(message.timestamp) * 1000).toISOString() : now;
-    const inbound = await db.from("whatsapp_messages").insert({ organization_id: connection.organization_id, conversation_id: conversation.id, lead_id: lead.id, direction: "INBOUND", sender_type: "CUSTOMER", external_message_id: externalId, body, message_type: safeMessageType(message?.type), status: "RECEIVED", provider_timestamp: providerTimestamp, reply_to_external_message_id: message?.context?.id || null });
+    const inbound = await db.from("whatsapp_messages").insert({ organization_id: connection.organization_id, conversation_id: conversation.id, lead_id: lead.id, direction: "INBOUND", sender_type: "CUSTOMER", external_message_id: externalId, body, message_type: safeMessageType(message?.type), status: "RECEIVED", provider_timestamp: providerTimestamp, reply_to_external_message_id: message?.context?.id || null }).select("id").maybeSingle();
     if (inbound.error && inbound.error.code !== "23505") throw inbound.error;
-    await db.from("interactions").insert({ organization_id: connection.organization_id, lead_id: lead.id, channel: "WHATSAPP", direction: "INBOUND", actor: "LEAD", message: body, created_at: providerTimestamp });
+
+    const existingInboundInteraction = await db.from("interactions").select("id").eq("organization_id", connection.organization_id).eq("lead_id", lead.id).eq("channel", "WHATSAPP").eq("direction", "INBOUND").eq("actor", "LEAD").eq("message", body).eq("created_at", providerTimestamp).limit(1).maybeSingle();
+    if (existingInboundInteraction.error) throw existingInboundInteraction.error;
+    if (!existingInboundInteraction.data) {
+      const interaction = await db.from("interactions").insert({ organization_id: connection.organization_id, lead_id: lead.id, channel: "WHATSAPP", direction: "INBOUND", actor: "LEAD", message: body, created_at: providerTimestamp });
+      if (interaction.error) throw interaction.error;
+    }
     await db.from("whatsapp_connections").update({ last_webhook_at: now, webhook_status: "VERIFIED", updated_at: now, last_error: null }).eq("id", connection.id);
 
     const { data: settings } = await db.from("whatsapp_ai_settings").select("*").eq("organization_id", connection.organization_id).maybeSingle();
@@ -214,13 +331,13 @@ async function processInbound(db: ReturnType<typeof admin>, connection: AnyRow, 
 
     if (forceHandoff) {
       await markHumanRequired(db, connection, lead, conversation, "Consulta sensible o pedido explícito de atención humana", "CUSTOMER", Number(lead.lead_score || 20));
-      await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", processed_at: new Date().toISOString() }).eq("id", event.id);
+      await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", error_message: null, processed_at: new Date().toISOString() }).eq("id", event.id);
       return;
     }
 
     if (!automationAllowed || !openAiKey) {
       await db.from("whatsapp_conversations").update({ next_action: !withinHours ? "Responder al iniciar el horario comercial" : "Responder conversación de WhatsApp", updated_at: now }).eq("id", conversation.id);
-      await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", processed_at: new Date().toISOString() }).eq("id", event.id);
+      await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", error_message: null, processed_at: new Date().toISOString() }).eq("id", event.id);
       return;
     }
 
@@ -239,13 +356,13 @@ async function processInbound(db: ReturnType<typeof admin>, connection: AnyRow, 
     } catch (error) {
       console.error("WhatsApp qualification failed safely", error);
       await markHumanRequired(db, connection, lead, conversation, "No se pudo clasificar la consulta con suficiente seguridad", "SYSTEM", Math.max(Number(lead.lead_score || 20), 70));
-      await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", processed_at: new Date().toISOString() }).eq("id", event.id);
+      await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", error_message: null, processed_at: new Date().toISOString() }).eq("id", event.id);
       return;
     }
 
     if (!qualification || qualification.confidence === null || qualification.confidence < 0.55 || qualification.requires_human) {
       await markHumanRequired(db, connection, lead, conversation, qualification?.handoff_reason || "Baja confianza en la clasificación automática", "AI", Math.max(Number(lead.lead_score || 20), 70), qualification?.next_action);
-      await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", processed_at: new Date().toISOString() }).eq("id", event.id);
+      await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", error_message: null, processed_at: new Date().toISOString() }).eq("id", event.id);
       return;
     }
 
@@ -258,19 +375,21 @@ async function processInbound(db: ReturnType<typeof admin>, connection: AnyRow, 
     fields.lead_score = score;
     fields.lead_temperature = temperature(score);
     fields.updated_at = now;
-    await db.from("leads").update(fields).eq("id", lead.id).eq("organization_id", connection.organization_id);
-    // The existing lead-change DB trigger refreshes property matching.
+    const leadUpdate = await db.from("leads").update(fields).eq("id", lead.id).eq("organization_id", connection.organization_id);
+    if (leadUpdate.error) throw leadUpdate.error;
 
     if (qualification.reply && accessToken) {
-      const sentId = await sendText(connection.phone_number_id, waContactId, qualification.reply);
-      await db.from("whatsapp_messages").insert({ organization_id: connection.organization_id, conversation_id: conversation.id, lead_id: lead.id, direction: "OUTBOUND", sender_type: "AI", external_message_id: sentId, body: qualification.reply, message_type: "TEXT", status: "SENT", detected_intent: qualification.intent, confidence: qualification.confidence, requires_human: false, model_provider: "OPENAI", model_name: openAiModel, sent_at: now });
-      await db.from("interactions").insert({ organization_id: connection.organization_id, lead_id: lead.id, channel: "WHATSAPP", direction: "OUTBOUND", actor: "AI", message: qualification.reply, ai_response: qualification.reply, detected_intent: qualification.intent, lead_score_after: score, requires_human: false, created_at: now });
-      await db.from("whatsapp_conversations").update({ last_message_at: now, last_outbound_at: now, priority: score, next_action: qualification.next_action || lead.next_action, context_property_id: qualification.context_property_id || conversation.context_property_id, updated_at: now }).eq("id", conversation.id);
+      const outbound = await sendAiReply(db, connection, conversation, lead, externalId, waContactId, qualification, score);
+      if (outbound.status === "QUEUED" && outbound.error_code === "PROVIDER_STATE_UNKNOWN") {
+        await markHumanRequired(db, connection, lead, conversation, "El estado de una respuesta automática quedó incierto; se pausó la IA para evitar duplicados", "SYSTEM", Math.max(score, 75));
+      } else if (["SENT","DELIVERED","READ"].includes(outbound.status)) {
+        await db.from("whatsapp_conversations").update({ last_message_at: outbound.sent_at || now, last_outbound_at: outbound.sent_at || now, priority: score, next_action: qualification.next_action || lead.next_action, context_property_id: qualification.context_property_id || conversation.context_property_id, updated_at: now }).eq("id", conversation.id);
+      }
     } else {
       await db.from("whatsapp_conversations").update({ next_action: "Responder conversación de WhatsApp", priority: score, updated_at: now }).eq("id", conversation.id);
     }
 
-    await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", processed_at: new Date().toISOString() }).eq("id", event.id);
+    await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", error_message: null, processed_at: new Date().toISOString() }).eq("id", event.id);
   } catch (error) {
     await db.from("whatsapp_webhook_events").update({ processing_status: "ERROR", error_message: String(error).slice(0, 1000), processed_at: new Date().toISOString() }).eq("id", event.id);
     await db.from("whatsapp_connections").update({ last_error: String(error).slice(0, 500), updated_at: new Date().toISOString() }).eq("id", connection.id);
@@ -301,7 +420,9 @@ Deno.serve(async (req: Request) => {
       if (!phoneNumberId) continue;
       const { data: connection } = await db.from("whatsapp_connections").select("*").eq("phone_number_id", phoneNumberId).eq("status", "CONNECTED").maybeSingle();
       if (!connection) continue;
-      for (const status of value?.statuses || []) await processStatus(db, connection, status);
+      for (const status of value?.statuses || []) {
+        try { await processStatus(db, connection, status); } catch (error) { console.error("WhatsApp status processing error", error); }
+      }
       for (const message of value?.messages || []) {
         const contact = (value?.contacts || []).find((item: AnyRow) => normalizePhone(item?.wa_id) === normalizePhone(message?.from)) || value?.contacts?.[0] || null;
         await processInbound(db, connection, message, contact);

@@ -6,6 +6,8 @@ import { getCurrentOrganizationContext } from "@/lib/organization-role";
 import { planHasFeature } from "@/lib/plan-access";
 import { updateReactivationOpportunity } from "./actions";
 
+type RelatedRow = Record<string, string | number | boolean | null | undefined>;
+
 export default async function ReactivationPage() {
   const context = await getCurrentOrganizationContext();
   if (!context) redirect("/auth/login");
@@ -59,9 +61,9 @@ export default async function ReactivationPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-[#c7b89f] bg-[#eee4d5] px-3 py-1 text-[11px] font-semibold text-[#6d5a40]">{typeLabel(item.opportunity_type)}</span><span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${item.score >= 90 ? "border-[#b2b99f] bg-[#e5e9dc] text-[#515b42]" : "border-[#d1c3ad] bg-[#fffaf2] text-[#665842]"}`}>Score {item.score}</span>{item.compatibility != null && <span className="text-xs text-[#81796e]">Match {item.compatibility}%</span>}</div>
-                  <h2 className="mt-4 font-serif text-2xl text-[#302d28]">{lead?.full_name || "Lead"}</h2>
+                  <h2 className="mt-4 font-serif text-2xl text-[#302d28]">{String(lead?.full_name || "Lead")}</h2>
                   <p className="mt-2 text-sm leading-6 text-[#625d55]">{item.reason}</p>
-                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[#81796e]">{property?.title && <span>{property.title}</span>}{property?.zone && <span>{property.zone}</span>}{lead?.lead_temperature && <span>{lead.lead_temperature}</span>}<span>{formatDate(item.detected_at)}</span></div>
+                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[#81796e]">{property?.title && <span>{String(property.title)}</span>}{property?.zone && <span>{String(property.zone)}</span>}{lead?.lead_temperature && <span>{String(lead.lead_temperature)}</span>}<span>{formatDate(item.detected_at)}</span></div>
                   {typeof ctx.old_price === "number" && typeof ctx.new_price === "number" && <p className="mt-3 text-xs font-semibold text-[#705f47]">Precio: {formatMoney(ctx.old_price)} → {formatMoney(ctx.new_price)}</p>}
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2 lg:max-w-xs lg:justify-end">
@@ -79,7 +81,7 @@ export default async function ReactivationPage() {
   );
 }
 
-function relation(value: unknown): Record<string, unknown> | null { if (Array.isArray(value)) return relation(value[0]); return value && typeof value === "object" ? value as Record<string, unknown> : null; }
+function relation(value: unknown): RelatedRow | null { if (Array.isArray(value)) return relation(value[0]); return value && typeof value === "object" ? value as RelatedRow : null; }
 function typeLabel(type: string) { return ({ NEW_MATCH: "Nuevo match", PRICE_DROP: "Baja de precio", BACK_AVAILABLE: "Volvió disponible", NEW_UNIT: "Nueva unidad", DORMANT_STRONG_MATCH: "Lead dormido" } as Record<string,string>)[type] || type; }
 function statusLabel(status: string) { return ({ CONTACTED: "Contactada", DISMISSED: "Descartada", CONVERTED: "Convertida" } as Record<string,string>)[status] || status; }
 function formatDate(value: string) { return new Intl.DateTimeFormat("es-UY", { dateStyle: "short", timeStyle: "short", timeZone: "America/Montevideo" }).format(new Date(value)); }

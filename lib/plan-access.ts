@@ -7,6 +7,7 @@ export type PlanFeature =
   | "matching"
   | "analytics"
   | "reports"
+  | "automations"
   | "integrations"
   | "enterprise_operations"
   | "development_projects";
@@ -35,7 +36,8 @@ export function planHasFeature(
     feature === "whatsapp_ai" ||
     feature === "matching" ||
     feature === "analytics" ||
-    feature === "reports"
+    feature === "reports" ||
+    feature === "automations"
   ) {
     return normalized === "PROFESSIONAL" || normalized === "ENTERPRISE";
   }

@@ -22,6 +22,7 @@ import {
   Users,
   UsersRound,
   Workflow,
+  Zap,
 } from "lucide-react"
 import { DEMO_COMPANY } from "@/lib/demo-data"
 import { DEMO_PLAN_CONFIG, demoHref, normalizeDemoPlan } from "@/lib/demo-plan"
@@ -35,6 +36,7 @@ const ICONS = {
   Bell,
   Users,
   Workflow,
+  Zap,
   Building2,
   MessagesSquare,
   Database,

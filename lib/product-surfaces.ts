@@ -10,6 +10,7 @@ export type ProductSurfaceIcon =
   | "Bell"
   | "Users"
   | "Workflow"
+  | "Zap"
   | "Building2"
   | "MessagesSquare"
   | "Database"

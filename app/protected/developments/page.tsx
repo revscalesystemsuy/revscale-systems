@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { Building2, CalendarDays, MapPin, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -109,5 +110,5 @@ export default async function DevelopmentsPage() {
 }
 
 const inputClass = "mt-2 w-full rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2.5 text-sm text-[#37332d] outline-none transition focus:border-[#8d7553]";
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="text-sm font-medium text-[#4f4941]">{label}{children}</label>; }
+function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="text-sm font-medium text-[#4f4941]">{label}{children}</label>; }
 function Metric({ label, value }: { label: string; value: number }) { return <div><p className="font-serif text-xl text-[#4b4238]">{value}</p><p className="mt-1 text-[10px] uppercase tracking-wide text-[#81796e]">{label}</p></div>; }

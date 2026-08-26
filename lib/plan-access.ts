@@ -8,7 +8,8 @@ export type PlanFeature =
   | "analytics"
   | "reports"
   | "integrations"
-  | "enterprise_operations";
+  | "enterprise_operations"
+  | "development_projects";
 
 export function normalizePlan(plan?: string | null): PlanName {
   const value = String(plan || "TRIAL").toUpperCase();
@@ -25,7 +26,7 @@ export function planHasFeature(
 ) {
   const normalized = normalizePlan(plan);
 
-  if (feature === "integrations" || feature === "enterprise_operations") {
+  if (feature === "integrations" || feature === "enterprise_operations" || feature === "development_projects") {
     return normalized === "ENTERPRISE";
   }
 

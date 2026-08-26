@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Bath, BedDouble, MapPin, Ruler } from "lucide-react";
+import { Bath, BedDouble, Building2, Instagram, Mail, MapPin, MessageCircle, Phone, Ruler, Search } from "lucide-react";
 import { DEMO_PROPERTIES, formatUSD } from "@/lib/demo-data";
 import { normalizeDemoPlan } from "@/lib/demo-plan";
 
@@ -17,27 +17,21 @@ export default async function DemoCatalogPage({ searchParams }: { searchParams: 
   const plan = normalizeDemoPlan(requestedPlan);
   const properties = DEMO_PROPERTIES.filter((property) => IMAGES[property.id]);
 
-  return (
-    <main className="min-h-screen bg-[#f3eadf] px-5 py-7 text-[#302d28] md:px-8 md:py-10">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex flex-col gap-4 border-b border-[#d8cbb8] pb-7 md:flex-row md:items-end md:justify-between">
-          <div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8d7553]">Catálogo público · Demo</p><h1 className="mt-2 font-serif text-4xl font-medium">Inmobiliaria Horizonte</h1><p className="mt-3 text-sm text-[#625d55]">Propiedades disponibles publicadas desde RevScale.</p></div>
-          <Link href={`/demo/distribution?plan=${plan}`} className="text-sm font-semibold text-[#6a5a45]">Volver a Distribución</Link>
-        </div>
+  return <main className="min-h-screen bg-[#f3eadf] text-[#302d28]">
+    <header className="sticky top-0 z-20 border-b border-[#d8cbb8] bg-[#f8f1e8]/95 px-5 py-4 backdrop-blur md:px-8"><div className="mx-auto flex max-w-7xl items-center justify-between gap-4"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#cdbfa9]"><Building2 size={18}/></span><div><p className="font-serif text-xl">Inmobiliaria Horizonte</p><p className="text-[9px] font-semibold uppercase tracking-[.16em] text-[#8d7553]">Sitio público · Demo</p></div></div><div className="flex gap-2"><a href="#contacto" className="inline-flex items-center gap-2 rounded-lg border border-[#cdbfa9] px-3 py-2 text-sm font-semibold"><MessageCircle size={15}/> Consultar</a><Link href={`/demo/distribution?plan=${plan}`} className="rounded-lg bg-[#302d28] px-4 py-2 text-sm font-semibold !text-[#fffaf2]">Volver al CRM</Link></div></div></header>
 
-        <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {properties.map((property) => (
-            <article key={property.id} className="overflow-hidden rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] shadow-[0_14px_30px_rgba(76,62,42,0.05)]">
-              <div className="relative aspect-[16/10]"><Image src={IMAGES[property.id]} alt={property.title} fill className="object-cover" sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"/><div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent"/><div className="absolute left-4 top-4"><span className="rounded-full border border-white/30 bg-black/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">{property.operation}</span></div></div>
-              <div className="p-5"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8d7553]">{property.zone}</p><h2 className="mt-2 font-serif text-2xl font-medium">{property.title}</h2><p className="mt-2 flex items-center gap-1.5 text-xs text-[#81786d]"><MapPin size={13}/>{property.address}</p><div className="mt-5 grid grid-cols-3 border-y border-[#ddd1c0] py-4 text-xs text-[#625d55]"><Feature icon={<BedDouble size={15}/>} text={`${property.bedrooms} dorm.`}/><Feature icon={<Bath size={15}/>} text={`${property.bathrooms} baños`}/><Feature icon={<Ruler size={15}/>} text={`${property.areaM2} m²`}/></div><p className="mt-5 font-serif text-2xl">{formatUSD(property.priceUSD)}</p></div>
-            </article>
-          ))}
-        </section>
-      </div>
-    </main>
-  );
+    <section className="relative overflow-hidden border-b border-[#d8cbb8] bg-[#e9dfd0]"><div className="absolute inset-0"><Image src={IMAGES["carrasco-sur"]} alt="Propiedad destacada" fill priority className="object-cover opacity-30"/></div><div className="absolute inset-0 bg-gradient-to-r from-[#f3eadf] via-[#f3eadf]/90 to-[#f3eadf]/35"/><div className="relative mx-auto max-w-7xl px-5 py-20 md:px-8 md:py-28"><p className="text-[10px] font-semibold uppercase tracking-[.2em] text-[#8d7553]">Inmobiliaria Horizonte</p><h1 className="mt-3 max-w-3xl font-serif text-5xl leading-[1.02] md:text-7xl">Encontramos el lugar donde empieza tu próxima etapa.</h1><p className="mt-6 max-w-xl text-sm leading-7 text-[#625d55] md:text-base">Venta y alquiler de propiedades seleccionadas en Montevideo y Ciudad de la Costa. Atención personalizada de principio a fin.</p><p className="mt-7 text-sm font-semibold text-[#6a5a45]">5 propiedades publicadas</p></div></section>
+
+    <div className="mx-auto max-w-7xl px-5 py-10 md:px-8 md:py-14">
+      <div className="mb-8 grid gap-3 rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-4 md:grid-cols-[1fr_1fr_1fr_auto]"><DemoSelect label="Operación" value="Venta y alquiler"/><DemoSelect label="Tipo" value="Todos los tipos"/><DemoSelect label="Zona" value="Todas las zonas"/><button className="mt-auto inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#302d28] px-5 text-sm font-semibold text-white"><Search size={15}/> Buscar</button></div>
+
+      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{properties.map((property) => <article key={property.id} className="overflow-hidden rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] shadow-[0_14px_30px_rgba(76,62,42,.05)]"><div className="relative aspect-[16/10]"><Image src={IMAGES[property.id]} alt={property.title} fill className="object-cover" sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"/><div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent"/><span className="absolute left-4 top-4 rounded-full border border-white/30 bg-black/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">{property.operation}</span></div><div className="p-5"><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#8d7553]">{property.zone}</p><h2 className="mt-2 font-serif text-2xl">{property.title}</h2><p className="mt-2 flex items-center gap-1.5 text-xs text-[#81786d]"><MapPin size={13}/>{property.address}</p><div className="mt-5 grid grid-cols-3 border-y border-[#ddd1c0] py-4 text-xs text-[#625d55]"><Feature icon={<BedDouble size={15}/>} text={`${property.bedrooms} dorm.`}/><Feature icon={<Bath size={15}/>} text={`${property.bathrooms} baños`}/><Feature icon={<Ruler size={15}/>} text={`${property.areaM2} m²`}/></div><p className="mt-5 font-serif text-2xl">{formatUSD(property.priceUSD)}</p><button className="mt-4 w-full rounded-lg border border-[#cdbfa9] bg-[#fffaf2] py-2.5 text-sm font-semibold text-[#5f513e]">Ver propiedad</button></div></article>)}</section>
+
+      <section id="contacto" className="mt-14 grid gap-7 rounded-3xl border border-[#d2c5b3] bg-[#e8dccb] p-6 md:grid-cols-[.8fr_1.2fr] md:p-9"><div><p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[#8d7553]">Contacto</p><h2 className="mt-3 font-serif text-4xl">Contanos qué estás buscando.</h2><p className="mt-4 text-sm leading-6 text-[#665f56]">En el producto real esta consulta entra como lead WEB directamente al CRM de Horizonte, con la propiedad y la campaña de origen. Nunca se comparte con otra inmobiliaria.</p><div className="mt-6 space-y-3 text-sm text-[#665f56]"><p className="flex gap-2"><Phone size={15}/> +598 99 456 789</p><p className="flex gap-2"><Mail size={15}/> ventas@horizonte.uy</p><p className="flex gap-2"><MapPin size={15}/> Pocitos, Montevideo</p><p className="flex gap-2"><Instagram size={15}/> @inmobiliariahorizonte</p></div></div><div className="space-y-3"><input readOnly placeholder="Nombre y apellido" className="w-full rounded-lg border border-[#d2c5b3] bg-[#fffaf2] px-4 py-3 text-sm"/><div className="grid gap-3 sm:grid-cols-2"><input readOnly placeholder="WhatsApp / teléfono" className="rounded-lg border border-[#d2c5b3] bg-[#fffaf2] px-4 py-3 text-sm"/><input readOnly placeholder="Email" className="rounded-lg border border-[#d2c5b3] bg-[#fffaf2] px-4 py-3 text-sm"/></div><textarea readOnly rows={4} placeholder="¿Qué propiedad estás buscando?" className="w-full rounded-lg border border-[#d2c5b3] bg-[#fffaf2] px-4 py-3 text-sm"/><button className="w-full rounded-lg bg-[#302d28] px-5 py-3 text-sm font-semibold text-[#fffaf2]">Enviar consulta · Demo</button></div></section>
+    </div>
+    <footer className="border-t border-[#d8cbb8] px-5 py-7 text-center text-xs text-[#81786d]">{plan === "enterprise" ? "Dominio propio + white-label disponibles en Enterprise" : "Sitio inmobiliario operado con RevScale PropertyOS"}</footer>
+  </main>;
 }
 
-function Feature({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return <div className="flex items-center justify-center gap-1.5">{icon}<span>{text}</span></div>;
-}
+function DemoSelect({ label, value }: { label: string; value: string }) { return <label className="text-xs font-semibold text-[#665f56]"><span className="mb-2 block">{label}</span><span className="flex h-11 items-center rounded-lg border border-[#d2c5b3] bg-[#fffaf2] px-3 text-sm font-normal">{value}</span></label>; }
+function Feature({ icon, text }: { icon: React.ReactNode; text: string }) { return <div className="flex items-center justify-center gap-1.5">{icon}<span>{text}</span></div>; }

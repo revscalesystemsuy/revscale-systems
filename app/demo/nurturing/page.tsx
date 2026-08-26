@@ -13,7 +13,7 @@ export default async function DemoNurturingPage({ searchParams }: { searchParams
   const plan = params.plan === "enterprise" ? "enterprise" : "professional";
   return (
     <div className="min-h-screen bg-[#ece4d8] text-[#302d28] lg:flex">
-      <DemoSidebar plan={plan} />
+      <DemoSidebar />
       <main className="min-w-0 flex-1 p-6 md:p-8 lg:p-10">
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">

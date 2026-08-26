@@ -34,7 +34,7 @@ const NAVIGATION_STRUCTURE: NavigationStructureItem[] = [
     id: "commercial-operations",
     label: "Operación comercial",
     icon: "Workflow",
-    items: ["automations", "nurturing", "commissions"],
+    items: ["automations", "nurturing", "reactivation", "commissions"],
   },
   {
     kind: "group",

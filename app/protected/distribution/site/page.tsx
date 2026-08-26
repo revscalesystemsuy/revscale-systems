@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ExternalLink, Globe2, Link2, LockKeyhole, Paintbrush, Search, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
+import { PublicSiteSharePanel } from "@/components/public-site-share-panel";
 import { getCurrentOrganizationContext } from "@/lib/organization-role";
 import { planHasFeature } from "@/lib/plan-access";
 import { savePublicSite } from "./actions";
@@ -18,11 +19,14 @@ export default async function PublicSiteSettingsPage() {
   if (!org?.slug) redirect("/protected/distribution");
   const publicHref = `/inmobiliaria/${org.slug}`;
   const isEnterprise = context.plan === "ENTERPRISE";
+  const publicUrl = site?.custom_domain && site.custom_domain_status === "ACTIVE" ? `https://${site.custom_domain}` : `https://revscale-systems-eta.vercel.app${publicHref}`;
 
   return <main className="min-h-screen p-5 md:p-8 lg:p-10"><div className="mx-auto max-w-[1250px]">
-    <div className="mb-7 flex flex-col gap-4 border-b border-[#d8cbb8] pb-6 md:flex-row md:items-end md:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[#8d7553]">Distribución · Sitio público</p><h1 className="mt-2 font-serif text-4xl text-[#302b25]">Web de la inmobiliaria</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-[#665f56]">Un portal independiente para {org.name || "tu inmobiliaria"}: marca propia, propiedades publicadas y consultas que entran directo al CRM.</p></div><div className="flex gap-2"><Link href="/protected/distribution" className="rounded-lg border border-[#cdbfa9] px-4 py-2.5 text-sm font-semibold text-[#5f513e]">Volver</Link><Link href={publicHref} target="_blank" className="inline-flex items-center gap-2 rounded-lg bg-[#302d28] px-4 py-2.5 text-sm font-semibold !text-[#fffaf2]">Ver sitio <ExternalLink size={14}/></Link></div></div>
+    <div className="mb-7 flex flex-col gap-4 border-b border-[#d8cbb8] pb-6 md:flex-row md:items-end md:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[#8d7553]">Distribución · Sitio público</p><h1 className="mt-2 font-serif text-4xl text-[#302b25]">Web de la inmobiliaria</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-[#665f56]">Un portal independiente para {org.name || "tu inmobiliaria"}: marca propia, propiedades publicadas y consultas que entran directo al CRM.</p></div><div className="flex gap-2"><Link href="/protected/distribution" className="rounded-lg border border-[#cdbfa9] px-4 py-2.5 text-sm font-semibold text-[#5f513e]">Volver</Link><a href={publicUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-[#302d28] px-4 py-2.5 text-sm font-semibold !text-[#fffaf2]">Ver sitio <ExternalLink size={14}/></a></div></div>
 
-    <section className="mb-6 grid gap-4 md:grid-cols-3"><Card icon={<Globe2 size={18}/>} title="URL exclusiva" text={`revscale-systems-eta.vercel.app${publicHref}`} /><Card icon={<Search size={18}/>} title="SEO + fichas" text="Cada propiedad tiene metadata, URL compartible y página pública propia."/><Card icon={<ShieldCheck size={18}/>} title="Leads aislados" text="Cada consulta entra únicamente al CRM de esta inmobiliaria con fuente WEB y UTM."/></section>
+    <section className="mb-6 grid gap-4 md:grid-cols-3"><Card icon={<Globe2 size={18}/>} title="URL exclusiva" text={publicUrl} /><Card icon={<Search size={18}/>} title="SEO + fichas" text="Cada propiedad tiene metadata, URL compartible y página pública propia."/><Card icon={<ShieldCheck size={18}/>} title="Leads aislados" text="Cada consulta entra únicamente al CRM de esta inmobiliaria con fuente WEB y UTM."/></section>
+
+    <div className="mb-6"><PublicSiteSharePanel url={publicUrl}/></div>
 
     <form action={savePublicSite} className="grid gap-6 lg:grid-cols-[1.3fr_.7fr]">
       <div className="space-y-6">
@@ -39,7 +43,7 @@ export default async function PublicSiteSettingsPage() {
       <div className="space-y-6">
         <Panel title="Publicación" icon={<Globe2 size={17}/>}><Toggle name="is_active" label="Sitio público activo" checked={site?.is_active ?? true}/><Toggle name="lead_capture_enabled" label="Capturar consultas en CRM" checked={site?.lead_capture_enabled ?? true}/><p className="text-xs leading-5 text-[#81786d]">Solo las propiedades marcadas como Publicadas en Distribución aparecen afuera del CRM.</p></Panel>
         <Panel title="Dominio y white-label" icon={isEnterprise ? <Globe2 size={17}/> : <LockKeyhole size={17}/>}>
-          {isEnterprise ? <><Field label="Dominio propio"><input name="custom_domain" placeholder="propiedades.tuinmobiliaria.com.uy" defaultValue={site?.custom_domain || ""}/></Field><p className="text-xs leading-5 text-[#81786d]">Estado: <strong>{site?.custom_domain_status || "NOT_CONFIGURED"}</strong>. Al cambiarlo queda pendiente de validación DNS y conexión en Vercel.</p><Toggle name="hide_revscale_branding" label="Ocultar Powered by RevScale" checked={site?.hide_revscale_branding || false}/></> : <div className="rounded-xl border border-[#d2c5b3] bg-[#efe5d7] p-4"><p className="text-sm font-semibold">Disponible en Enterprise</p><p className="mt-2 text-xs leading-5 text-[#716a61]">Professional incluye el sitio completo con URL RevScale. Enterprise suma dominio propio y white-label.</p></div>}
+          {isEnterprise ? <><Field label="Dominio propio"><input name="custom_domain" placeholder="propiedades.tuinmobiliaria.com.uy" defaultValue={site?.custom_domain || ""}/></Field><p className="text-xs leading-5 text-[#81786d]">Estado: <strong>{site?.custom_domain_status || "NOT_CONFIGURED"}</strong>. Al cambiarlo queda pendiente de validación DNS y conexión en Vercel antes de quedar activo.</p><Toggle name="hide_revscale_branding" label="Ocultar Powered by RevScale" checked={site?.hide_revscale_branding || false}/></> : <div className="rounded-xl border border-[#d2c5b3] bg-[#efe5d7] p-4"><p className="text-sm font-semibold">Disponible en Enterprise</p><p className="mt-2 text-xs leading-5 text-[#716a61]">Professional incluye el sitio completo con URL RevScale. Enterprise suma dominio propio y white-label.</p></div>}
         </Panel>
         <button className="w-full rounded-lg bg-[#302d28] px-5 py-3 text-sm font-semibold text-[#fffaf2]">Guardar sitio público</button>
       </div>

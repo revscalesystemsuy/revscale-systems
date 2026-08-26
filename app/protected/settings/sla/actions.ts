@@ -16,8 +16,8 @@ export async function updateSlaSettings(formData: FormData) {
     .eq("status", "ACTIVE")
     .single();
 
-  if (!membership || !["OWNER", "MANAGER"].includes(membership.role)) {
-    throw new Error("No tenés permisos para modificar el SLA.");
+  if (!membership || membership.role !== "OWNER") {
+    throw new Error("Solo Dirección puede modificar el SLA de la organización.");
   }
 
   const firstHumanResponseMinutes = Number(formData.get("first_human_response_minutes"));
@@ -45,4 +45,5 @@ export async function updateSlaSettings(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/protected/settings/sla");
   revalidatePath("/protected/settings");
+  revalidatePath("/protected/leads");
 }

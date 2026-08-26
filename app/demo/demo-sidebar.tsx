@@ -8,6 +8,7 @@ import {
   Bell,
   Building2,
   ChartNoAxesCombined,
+  ChevronDown,
   ChevronRight,
   ClipboardList,
   CreditCard,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react"
 import { DEMO_COMPANY } from "@/lib/demo-data"
 import { DEMO_PLAN_CONFIG, demoHref, normalizeDemoPlan } from "@/lib/demo-plan"
+import { buildNavigationEntries } from "@/lib/navigation-structure"
 import { demoSurfacesForPlan, type ProductSurfaceIcon } from "@/lib/product-surfaces"
 
 const ICONS = {
@@ -63,6 +65,7 @@ export function DemoSidebar() {
   const planKey = normalizeDemoPlan(searchParams.get("plan"))
   const config = DEMO_PLAN_CONFIG[planKey]
   const visibleItems = demoSurfacesForPlan(planKey)
+  const navigationEntries = buildNavigationEntries(visibleItems)
 
   return (
     <>
@@ -74,7 +77,20 @@ export function DemoSidebar() {
       <aside className={`fixed z-50 flex h-screen w-72 flex-col border-r border-[#d7cbb9] bg-[#e8dece] px-5 py-6 transition-transform lg:sticky lg:top-0 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="px-2"><p className="font-serif text-[1.45rem] leading-none tracking-tight text-[#2e2a24]">RevScale</p><p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#8a714d]">PropertyOS</p></div>
         <div className="mx-2 mt-7 border-y border-[#d1c4b1] py-4"><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#665f56]">Demo seleccionada</p><div className="mt-2 flex items-center justify-between gap-3"><p className="text-sm font-semibold text-[#37332d]">{config.label}</p><Link href="/demos" className="text-[11px] font-semibold text-[#7a6344] underline-offset-4 hover:underline">Cambiar</Link></div><p className="mt-2 text-xs text-[#665f56]">Hasta {config.maxAgents} agentes</p><p className="mt-3 text-xs font-medium text-[#4b453d]">{DEMO_COMPANY.name}</p><p className="mt-1 text-xs text-[#6b6359]">{DEMO_COMPANY.market}</p></div>
-        <nav className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto pr-1">{visibleItems.map((item) => { const active = isActive(pathname, item.demoHref); const Icon = ICONS[item.icon]; return <Link key={item.id} href={demoHref(item.demoHref, planKey)} onClick={() => setOpen(false)} className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${active ? "bg-[#d9c9b3] text-[#302b24]" : "text-[#665f56] hover:bg-[#dfd3c2] hover:text-[#302c26]"}`}><Icon size={16} strokeWidth={1.6} className={active ? "text-[#7a6344]" : "text-[#756e64]"} /><span className="flex-1">{item.label}</span>{active && <ChevronRight size={14} className="text-[#745f43]" />}</Link>})}</nav>
+        <nav className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto pr-1">
+          {navigationEntries.map((entry) => {
+            if (entry.kind === "item") {
+              const item = entry.item
+              const active = isActive(pathname, item.demoHref)
+              const Icon = ICONS[item.icon]
+              return <Link key={item.id} href={demoHref(item.demoHref, planKey)} onClick={() => setOpen(false)} className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${active ? "bg-[#d9c9b3] text-[#302b24]" : "text-[#665f56] hover:bg-[#dfd3c2] hover:text-[#302c26]"}`}><Icon size={16} strokeWidth={1.6} className={active ? "text-[#7a6344]" : "text-[#756e64]"} /><span className="flex-1">{item.label}</span>{active && <ChevronRight size={14} className="text-[#745f43]" />}</Link>
+            }
+
+            const Icon = ICONS[entry.icon]
+            const hasActiveChild = entry.items.some((item) => isActive(pathname, item.demoHref))
+            return <details key={entry.id} open={hasActiveChild ? true : undefined} className="group/nav rounded-lg open:bg-[#e1d5c5]"><summary className={`flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2.5 text-sm transition [&::-webkit-details-marker]:hidden ${hasActiveChild ? "text-[#302b24]" : "text-[#665f56] hover:bg-[#dfd3c2] hover:text-[#302c26]"}`}><span className="flex items-center gap-3"><Icon size={16} strokeWidth={1.6} className={hasActiveChild ? "text-[#7a6344]" : "text-[#756e64]"}/><span>{entry.label}</span></span><ChevronDown size={14} className="text-[#745f43] transition-transform group-open/nav:rotate-180" /></summary><div className="mb-1 ml-5 mt-1 border-l border-[#c9baa5] pl-2">{entry.items.map((item) => { const active = isActive(pathname, item.demoHref); const ChildIcon = ICONS[item.icon]; return <Link key={item.id} href={demoHref(item.demoHref, planKey)} onClick={() => setOpen(false)} className={`group flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] transition ${active ? "bg-[#d6c6b0] text-[#302b24]" : "text-[#665f56] hover:bg-[#dfd3c2] hover:text-[#302c26]"}`}><ChildIcon size={15} strokeWidth={1.5} className={active ? "text-[#7a6344]" : "text-[#756e64]"}/><span className="flex-1">{item.label}</span>{active && <ChevronRight size={13} className="text-[#745f43]" />}</Link> })}</div></details>
+          })}
+        </nav>
         <div className="mx-2 mt-6 border-t border-[#d1c4b1] pt-5"><Link href={`/pricing?plan=${config.paddlePlan}`} className="text-xs font-semibold text-[#5c5141] transition hover:text-[#2f2b25]">Contratar {config.label}</Link><p className="mt-4 text-[10px] uppercase tracking-[0.16em] text-[#665f56]">RevScale Systems</p><p className="mt-1 text-xs text-[#665f56]">Inteligencia comercial inmobiliaria</p></div>
       </aside>
     </>

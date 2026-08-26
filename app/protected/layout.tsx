@@ -6,6 +6,7 @@ import {
   Bell,
   Building2,
   ChartNoAxesCombined,
+  ChevronDown,
   ClipboardList,
   CreditCard,
   Database,
@@ -24,6 +25,7 @@ import {
   Zap,
 } from "lucide-react";
 import { planHasFeature } from "@/lib/plan-access";
+import { buildNavigationEntries } from "@/lib/navigation-structure";
 import { getCurrentOrganizationContext, ROLE_LABELS } from "@/lib/organization-role";
 import { canAccessRealSurface, PRODUCT_SURFACES, type ProductSurfaceIcon } from "@/lib/product-surfaces";
 import { createClient } from "@/lib/supabase/server";
@@ -73,6 +75,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
   ]);
   const showOnboarding = isDirector && onboardingResult.data?.completed !== true;
   const visibleSurfaces = PRODUCT_SURFACES.filter((surface) => canAccessRealSurface(surface, { plan, role, onboardingIncomplete: showOnboarding }));
+  const navigationEntries = buildNavigationEntries(visibleSurfaces);
 
   async function signOut() {
     "use server";
@@ -91,11 +94,33 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
           {enterprise && <div className="mt-3 border-t border-[#d1c4b1] pt-3"><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#81796e]">Tu rol</p><p className="mt-1 text-sm font-semibold text-[#302d28]">{ROLE_LABELS[role]}</p>{isAgent && <p className="mt-1 text-xs leading-5 text-[#7b746a]">Vista enfocada en tu trabajo comercial.</p>}{isManager && <p className="mt-1 text-xs leading-5 text-[#7b746a]">Administración de tu equipo.</p>}{isDirector && <p className="mt-1 text-xs leading-5 text-[#7b746a]">Control total de la organización.</p>}</div>}
         </div>
         <nav className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto pr-1">
-          {visibleSurfaces.map((surface) => {
-            const Icon = ICONS[surface.icon];
-            const locked = Boolean(surface.feature && !planHasFeature(plan, surface.feature));
-            const badge = surface.badge === "notifications" ? unreadNotifications || 0 : 0;
-            return <NavItem key={surface.id} href={surface.realHref} icon={<Icon size={16} strokeWidth={1.6} />} locked={locked} badge={badge}>{surface.label}</NavItem>;
+          {navigationEntries.map((entry) => {
+            if (entry.kind === "item") {
+              const surface = entry.item;
+              const Icon = ICONS[surface.icon];
+              const locked = Boolean(surface.feature && !planHasFeature(plan, surface.feature));
+              const badge = surface.badge === "notifications" ? unreadNotifications || 0 : 0;
+              return <NavItem key={surface.id} href={surface.realHref} icon={<Icon size={16} strokeWidth={1.6} />} locked={locked} badge={badge}>{surface.label}</NavItem>;
+            }
+
+            const Icon = ICONS[entry.icon];
+            const groupBadge = entry.items.some((item) => item.badge === "notifications") ? unreadNotifications || 0 : 0;
+            return (
+              <details key={entry.id} className="group/nav rounded-lg open:bg-[#eaddcc]">
+                <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2.5 text-sm text-[#5f594f] transition hover:bg-[#f0e8dc] hover:text-[#292722] [&::-webkit-details-marker]:hidden">
+                  <span className="flex min-w-0 items-center gap-3"><Icon size={16} strokeWidth={1.6} className="text-[#8b7d69]" /><span>{entry.label}</span></span>
+                  <span className="flex items-center gap-2">{groupBadge > 0 && <span className="min-w-5 rounded-full bg-[#6f5c40] px-1.5 py-0.5 text-center text-[10px] font-bold text-[#fffaf2]">{groupBadge > 99 ? "99+" : groupBadge}</span>}<ChevronDown size={14} className="text-[#8b7d69] transition-transform group-open/nav:rotate-180" /></span>
+                </summary>
+                <div className="mb-1 ml-5 mt-1 border-l border-[#cfc1ad] pl-2">
+                  {entry.items.map((surface) => {
+                    const IconChild = ICONS[surface.icon];
+                    const locked = Boolean(surface.feature && !planHasFeature(plan, surface.feature));
+                    const badge = surface.badge === "notifications" ? unreadNotifications || 0 : 0;
+                    return <NavItem key={surface.id} href={surface.realHref} icon={<IconChild size={15} strokeWidth={1.5} />} locked={locked} badge={badge} nested>{surface.label}</NavItem>;
+                  })}
+                </div>
+              </details>
+            );
           })}
         </nav>
         <div className="mx-2 mt-4 border-t border-[#d1c4b1] pt-4"><form action={signOut}><button type="submit" className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-[#675e53] transition hover:bg-[#f0e8dc] hover:text-[#292722]"><LogOut size={16} strokeWidth={1.6} className="text-[#8b7d69] group-hover:text-[#6d5b43]" />Cerrar sesión</button></form><div className="mt-4 border-t border-[#d1c4b1] pt-4"><p className="text-[10px] uppercase tracking-[0.16em] text-[#8c8377]">RevScale Systems</p><p className="mt-1 text-xs text-[#716a61]">Inteligencia comercial inmobiliaria</p></div></div>
@@ -105,6 +130,6 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
   );
 }
 
-function NavItem({ href, children, icon, locked = false, badge = 0 }: { href: string; children: ReactNode; icon?: ReactNode; locked?: boolean; badge?: number }) {
-  return <Link href={href} className="group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-[#5f594f] transition hover:bg-[#f0e8dc] hover:text-[#292722]"><span className="flex min-w-0 items-center gap-3"><span className="text-[#8b7d69] transition group-hover:text-[#6d5b43]">{icon}</span><span>{children}</span></span><span className="flex items-center gap-2">{badge > 0 && <span className="min-w-5 rounded-full bg-[#6f5c40] px-1.5 py-0.5 text-center text-[10px] font-bold text-[#fffaf2]">{badge > 99 ? "99+" : badge}</span>}{locked && <span className="text-xs text-[#8c8377]">•</span>}</span></Link>;
+function NavItem({ href, children, icon, locked = false, badge = 0, nested = false }: { href: string; children: ReactNode; icon?: ReactNode; locked?: boolean; badge?: number; nested?: boolean }) {
+  return <Link href={href} className={`group flex items-center justify-between rounded-lg ${nested ? "px-2.5 py-2 text-[13px]" : "px-3 py-2.5 text-sm"} text-[#5f594f] transition hover:bg-[#f0e8dc] hover:text-[#292722]`}><span className="flex min-w-0 items-center gap-3"><span className="text-[#8b7d69] transition group-hover:text-[#6d5b43]">{icon}</span><span>{children}</span></span><span className="flex items-center gap-2">{badge > 0 && <span className="min-w-5 rounded-full bg-[#6f5c40] px-1.5 py-0.5 text-center text-[10px] font-bold text-[#fffaf2]">{badge > 99 ? "99+" : badge}</span>}{locked && <span className="text-xs text-[#8c8377]">•</span>}</span></Link>;
 }

@@ -13,6 +13,7 @@ export type PlanFeature =
   | "documents"
   | "esignature"
   | "legal_automations"
+  | "territory_acquisition"
   | "integrations"
   | "enterprise_operations"
   | "development_projects";
@@ -32,7 +33,8 @@ export function planHasFeature(plan: string | null | undefined, feature: PlanFea
     feature === "enterprise_operations" ||
     feature === "development_projects" ||
     feature === "esignature" ||
-    feature === "legal_automations"
+    feature === "legal_automations" ||
+    feature === "territory_acquisition"
   ) return normalized === "ENTERPRISE";
 
   if (

@@ -1,0 +1,39 @@
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { ArrowLeft, Building2, CalendarClock, MessageSquareText, Trophy } from "lucide-react";
+import { getCurrentOrganizationContext } from "@/lib/organization-role";
+import { planHasFeature } from "@/lib/plan-access";
+import { addAcquisitionActivity, convertProspectToProperty, updateProspectStage } from "../../actions";
+
+const STAGES = [["IDENTIFIED","Identificado"],["CONTACTED","Contactado"],["QUALIFIED","Calificado"],["VALUATION","Tasación"],["PROPOSAL","Propuesta"],["WON","Captado"],["LOST","Perdido"]] as const;
+
+export default async function ProspectDetail({ params }:{params:Promise<{id:string}>}){
+  const { id } = await params;
+  const context = await getCurrentOrganizationContext();
+  if(!context) redirect("/auth/login");
+  if(context.subscriptionStatus!=="ACTIVE" || !planHasFeature(context.plan,"territory_acquisition")) redirect("/protected/billing");
+  const [{data:prospect},{data:activities},{data:territory},{data:members}] = await Promise.all([
+    context.supabase.from("acquisition_prospects").select("*").eq("id",id).eq("organization_id",context.organizationId).maybeSingle(),
+    context.supabase.from("acquisition_activities").select("id,activity_type,note,outcome,next_action_at,created_by,created_at").eq("prospect_id",id).eq("organization_id",context.organizationId).order("created_at",{ascending:false}),
+    context.supabase.from("territories").select("id,name,city,department").eq("organization_id",context.organizationId),
+    context.supabase.from("organization_members").select("user_id,profiles:user_id(full_name)").eq("organization_id",context.organizationId).eq("status","ACTIVE"),
+  ]);
+  if(!prospect) notFound();
+  const territoryRow=(territory||[]).find((t)=>t.id===prospect.territory_id);
+  const nameFor=(uid:string|null)=>{const m=(members||[]).find((x)=>x.user_id===uid);const p=Array.isArray(m?.profiles)?m?.profiles[0]:m?.profiles;return p?.full_name||"Sin asignar"};
+  return <main className="min-h-screen bg-[#eee5d7] p-6 text-[#292722] md:p-8 lg:p-10"><div className="mx-auto max-w-6xl">
+    <Link href="/protected/territories" className="inline-flex items-center gap-2 text-sm text-[#6d6356] hover:text-[#292722]"><ArrowLeft size={15}/>Volver a territorios</Link>
+    <div className="mt-6 flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[.2em] text-[#8c7350]">{territoryRow?.name||"Captación"}</p><h1 className="mt-3 font-serif text-4xl md:text-5xl">{prospect.owner_name}</h1><p className="mt-3 text-[#665f56]">{prospect.address}{prospect.zone?` · ${prospect.zone}`:""}</p></div><div className="rounded-xl border border-[#cdbfa9] bg-[#f7f0e6] px-4 py-3 text-sm"><b>{prospect.temperature}</b> · {nameFor(prospect.assigned_to)}</div></div>
+    <section className="mt-8 grid gap-5 lg:grid-cols-[1fr_.72fr]">
+      <div className="space-y-5">
+        <article className="rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6"><h2 className="font-serif text-2xl">Estado comercial</h2><form action={updateProspectStage} className="mt-5 flex flex-wrap gap-3"><input type="hidden" name="prospect_id" value={prospect.id}/><select name="status" defaultValue={prospect.status} className="rounded-xl border border-[#d1c4b1] bg-[#fffaf2] px-4 py-3 text-sm">{STAGES.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select><input name="loss_reason" placeholder="Motivo si se pierde" className="min-w-64 flex-1 rounded-xl border border-[#d1c4b1] bg-[#fffaf2] px-4 py-3 text-sm"/><button className="rounded-xl bg-[#302d28] px-5 py-3 text-sm font-semibold text-[#fffaf2]">Actualizar etapa</button></form><div className="mt-5 grid gap-3 sm:grid-cols-3"><Info label="Tipo" value={prospect.property_type||"Sin definir"}/><Info label="Operación" value={prospect.intended_operation}/><Info label="Origen" value={prospect.source}/></div></article>
+        <article className="rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6"><div className="flex items-center gap-2"><MessageSquareText size={18} className="text-[#806d52]"/><h2 className="font-serif text-2xl">Registrar actividad</h2></div><form action={addAcquisitionActivity} className="mt-5 grid gap-3 md:grid-cols-2"><input type="hidden" name="prospect_id" value={prospect.id}/><select name="activity_type" defaultValue="CALL" className="rounded-xl border border-[#d1c4b1] bg-[#fffaf2] px-4 py-3 text-sm"><option value="CALL">Llamada</option><option value="WHATSAPP">WhatsApp</option><option value="EMAIL">Email</option><option value="VISIT">Visita</option><option value="VALUATION">Tasación</option><option value="PROPOSAL">Propuesta</option><option value="NOTE">Nota</option></select><input name="next_action_at" type="datetime-local" className="rounded-xl border border-[#d1c4b1] bg-[#fffaf2] px-4 py-3 text-sm"/><textarea name="note" required placeholder="Qué pasó y qué se acordó" className="rounded-xl border border-[#d1c4b1] bg-[#fffaf2] px-4 py-3 text-sm md:col-span-2"/><button className="rounded-xl bg-[#302d28] px-5 py-3 text-sm font-semibold text-[#fffaf2] md:col-span-2">Guardar actividad</button></form></article>
+        <article className="overflow-hidden rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6]"><div className="border-b border-[#ddd1c0] px-6 py-4"><h2 className="font-serif text-2xl">Historial</h2></div>{(activities||[]).map((a)=><div key={a.id} className="border-b border-[#e3d7c8] px-6 py-4 last:border-0"><div className="flex items-center justify-between gap-4"><b className="text-sm">{a.activity_type}</b><span className="text-xs text-[#81796e]">{new Date(a.created_at).toLocaleString("es-UY")}</span></div><p className="mt-2 text-sm leading-6 text-[#655e55]">{a.note}</p></div>)}{!(activities||[]).length&&<p className="p-6 text-sm text-[#81796e]">Todavía no hay actividades registradas.</p>}</article>
+      </div>
+      <aside className="space-y-5"><article className="rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6"><h2 className="font-serif text-2xl">Próximo paso</h2><div className="mt-4 flex items-center gap-3 text-sm text-[#665f56]"><CalendarClock size={18}/>{prospect.next_action_at?new Date(prospect.next_action_at).toLocaleString("es-UY"):"Sin seguimiento programado"}</div><div className="mt-5 border-t border-[#ddd1c0] pt-5"><p className="text-xs uppercase tracking-[.14em] text-[#81796e]">Contacto</p><p className="mt-2 text-sm">{prospect.owner_phone||"Sin teléfono"}</p><p className="mt-1 text-sm">{prospect.owner_email||"Sin email"}</p></div></article>
+      <article className="rounded-2xl border border-[#c9b68f] bg-[#eee4ce] p-6"><div className="flex items-center gap-2 text-[#80633f]"><Trophy size={18}/><span className="text-[10px] font-semibold uppercase tracking-[.15em]">Captación ganada</span></div><h2 className="mt-3 font-serif text-2xl">Pasar al inventario</h2><p className="mt-3 text-sm leading-6 text-[#675e52]">Cuando el mandato esté confirmado, crea la Propiedad real sin volver a cargar dirección, zona y datos básicos.</p>{prospect.converted_property_id?<Link href={`/protected/properties/${prospect.converted_property_id}`} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#302d28] px-4 py-3 text-sm font-semibold text-[#fffaf2]"><Building2 size={16}/>Ver propiedad</Link>:<form action={convertProspectToProperty} className="mt-5"><input type="hidden" name="prospect_id" value={prospect.id}/><button className="w-full rounded-xl bg-[#302d28] px-4 py-3 text-sm font-semibold text-[#fffaf2]">Crear propiedad y marcar captado</button></form>}</article>
+      </aside>
+    </section>
+  </div></main>
+}
+function Info({label,value}:{label:string;value:string}){return <div className="rounded-xl bg-[#eee5d7] p-4"><p className="text-[9px] uppercase tracking-[.14em] text-[#81796e]">{label}</p><p className="mt-2 text-sm font-semibold">{value}</p></div>}

@@ -1,3 +1,6 @@
+import { PLAN_CATALOG, formatLimit, type PaidPlanName } from "@/lib/plan-catalog"
+import { planHasFeature } from "@/lib/plan-access"
+
 export type DemoPlan = "starter" | "professional" | "enterprise"
 export type DemoModule =
   | "matching"
@@ -9,7 +12,7 @@ export type DemoModule =
 
 export type DemoPlanConfig = {
   label: string
-  paddlePlan: "STARTER" | "PROFESSIONAL" | "ENTERPRISE"
+  paddlePlan: PaidPlanName
   maxAgents: number
   leadLimit: string
   propertyLimit: string
@@ -18,52 +21,65 @@ export type DemoPlanConfig = {
   modules: Readonly<Record<DemoModule, boolean>>
 }
 
+const DEMO_TO_PAID_PLAN: Record<DemoPlan, PaidPlanName> = {
+  starter: "STARTER",
+  professional: "PROFESSIONAL",
+  enterprise: "ENTERPRISE",
+}
+
+const MODULE_FEATURE = {
+  matching: "matching",
+  whatsapp: "whatsapp_ai",
+  reports: "reports",
+  analytics: "analytics",
+  teams: "enterprise_operations",
+  integrations: "integrations",
+} as const
+
+const CAPABILITIES: Record<DemoPlan, readonly string[]> = {
+  starter: [
+    "Gestión comercial de leads",
+    "Pipelines separados de Venta y Alquiler",
+    "Propiedades e interacciones",
+    "Seguimientos, agenda y tareas",
+  ],
+  professional: [
+    "Matching inteligente",
+    "WhatsApp IA con derivación humana",
+    "Automatizaciones, comisiones y documentos",
+    "Web inmobiliaria, reportes y analítica avanzada",
+  ],
+  enterprise: [
+    "Multi-equipo, roles y asignación automática",
+    "Territorios de captación y proyectos en pozo",
+    "Firma avanzada y control legal",
+    "Dominio propio, white-label e integraciones",
+  ],
+}
+
+function createDemoPlanConfig(plan: DemoPlan): DemoPlanConfig {
+  const paidPlan = DEMO_TO_PAID_PLAN[plan]
+  const catalog = PLAN_CATALOG[paidPlan]
+  const modules = Object.fromEntries(
+    Object.entries(MODULE_FEATURE).map(([module, feature]) => [module, planHasFeature(paidPlan, feature)]),
+  ) as Record<DemoModule, boolean>
+
+  return {
+    label: catalog.title,
+    paddlePlan: paidPlan,
+    maxAgents: catalog.limits.agents,
+    leadLimit: catalog.limits.leads >= 1_000_000 ? "Leads ilimitados" : `${formatLimit(catalog.limits.leads)} leads`,
+    propertyLimit: catalog.limits.properties >= 1_000_000 ? "Propiedades ilimitadas" : `${formatLimit(catalog.limits.properties)} propiedades`,
+    positioning: `${catalog.stage}. ${catalog.description}`,
+    capabilities: CAPABILITIES[plan],
+    modules,
+  }
+}
+
 export const DEMO_PLAN_CONFIG: Record<DemoPlan, DemoPlanConfig> = {
-  starter: {
-    label: "Starter",
-    paddlePlan: "STARTER",
-    maxAgents: 3,
-    leadLimit: "500 leads",
-    propertyLimit: "100 propiedades",
-    positioning: "Operación comercial esencial para equipos pequeños.",
-    capabilities: [
-      "Gestión comercial de leads",
-      "Pipeline de ventas",
-      "Propiedades e interacciones",
-      "Seguimientos y tareas",
-    ],
-    modules: { matching: false, whatsapp: false, reports: false, analytics: false, teams: false, integrations: false },
-  },
-  professional: {
-    label: "Professional",
-    paddlePlan: "PROFESSIONAL",
-    maxAgents: 15,
-    leadLimit: "Leads ilimitados",
-    propertyLimit: "Inventario ampliado",
-    positioning: "Priorización, automatización y lectura comercial avanzada.",
-    capabilities: [
-      "Matching inteligente",
-      "WhatsApp IA con derivación humana",
-      "Reportes comerciales",
-      "Analítica avanzada",
-    ],
-    modules: { matching: true, whatsapp: true, reports: true, analytics: true, teams: false, integrations: false },
-  },
-  enterprise: {
-    label: "Enterprise",
-    paddlePlan: "ENTERPRISE",
-    maxAgents: 30,
-    leadLimit: "Leads ilimitados",
-    propertyLimit: "Inventario ampliado",
-    positioning: "Control de equipos, desarrollos, automatización e integraciones a escala.",
-    capabilities: [
-      "Multi-equipo, roles y asignación automática",
-      "Proyectos en pozo: torres, tipologías y unidades",
-      "Stock sincronizado con Propiedades y matching",
-      "Integraciones y automatizaciones avanzadas",
-    ],
-    modules: { matching: true, whatsapp: true, reports: true, analytics: true, teams: true, integrations: true },
-  },
+  starter: createDemoPlanConfig("starter"),
+  professional: createDemoPlanConfig("professional"),
+  enterprise: createDemoPlanConfig("enterprise"),
 }
 
 export function normalizeDemoPlan(value?: string | null): DemoPlan {

@@ -1,6 +1,6 @@
 import Link from "next/link"
-import { Building2 } from "lucide-react"
-import { DEMO_LEADS, formatUSD, type Temperature } from "@/lib/demo-data"
+import { Building2, UserRound } from "lucide-react"
+import { DEMO_LEADS, agentName, formatUSD, type Temperature } from "@/lib/demo-data"
 import { getPipelineStages, normalizePipelineOperation, type PipelineOperation } from "@/lib/pipeline-config"
 
 type DemoPipelineLead = {
@@ -12,6 +12,7 @@ type DemoPipelineLead = {
   score: number
   temperature: Temperature
   stageKey: string
+  agentId: string
 }
 
 const SALE_STAGE_KEY: Record<string, string> = {
@@ -24,11 +25,11 @@ const SALE_STAGE_KEY: Record<string, string> = {
 }
 
 const RENTAL_DEMO_LEADS: DemoPipelineLead[] = [
-  { id: "demo-alquiler-1", fullName: "Lucía Moreira", zone: "Pocitos", propertyType: "Apartamento", budgetUSD: 1_350, score: 91, temperature: "HOT", stageKey: "CONTRACT" },
-  { id: "demo-alquiler-2", fullName: "Nicolás Suárez", zone: "Cordón", propertyType: "Apartamento", budgetUSD: 980, score: 84, temperature: "HOT", stageKey: "DOCUMENTATION" },
-  { id: "demo-alquiler-3", fullName: "Valentina Ramos", zone: "Malvín", propertyType: "Casa", budgetUSD: 1_750, score: 76, temperature: "WARM", stageKey: "VISIT" },
-  { id: "demo-alquiler-4", fullName: "Federico Costa", zone: "Buceo", propertyType: "Apartamento", budgetUSD: 1_100, score: 69, temperature: "WARM", stageKey: "QUALIFIED" },
-  { id: "demo-alquiler-5", fullName: "Carolina Méndez", zone: "Punta Carretas", propertyType: "Apartamento", budgetUSD: 1_600, score: 88, temperature: "HOT", stageKey: "HANDOVER" },
+  { id: "demo-alquiler-1", fullName: "Lucía Moreira", zone: "Pocitos", propertyType: "Apartamento", budgetUSD: 1_350, score: 91, temperature: "HOT", stageKey: "CONTRACT", agentId: "mariana-silva" },
+  { id: "demo-alquiler-2", fullName: "Nicolás Suárez", zone: "Cordón", propertyType: "Apartamento", budgetUSD: 980, score: 84, temperature: "HOT", stageKey: "DOCUMENTATION", agentId: "diego-rodriguez" },
+  { id: "demo-alquiler-3", fullName: "Valentina Ramos", zone: "Malvín", propertyType: "Casa", budgetUSD: 1_750, score: 76, temperature: "WARM", stageKey: "VISIT", agentId: "laura-fernandez" },
+  { id: "demo-alquiler-4", fullName: "Federico Costa", zone: "Buceo", propertyType: "Apartamento", budgetUSD: 1_100, score: 69, temperature: "WARM", stageKey: "QUALIFIED", agentId: "mariana-silva" },
+  { id: "demo-alquiler-5", fullName: "Carolina Méndez", zone: "Punta Carretas", propertyType: "Apartamento", budgetUSD: 1_600, score: 88, temperature: "HOT", stageKey: "HANDOVER", agentId: "santiago-perez" },
 ]
 
 function priorityLabel(temperature: Temperature) {
@@ -63,6 +64,7 @@ export default async function DemoPipelinePage({
       score: lead.score,
       temperature: lead.temperature,
       stageKey: SALE_STAGE_KEY[lead.stage] || "NEW",
+      agentId: lead.assignedAgentId,
     }))
 
   const leads = operation === "ALQUILER" ? RENTAL_DEMO_LEADS : saleLeads
@@ -77,9 +79,9 @@ export default async function DemoPipelinePage({
       <div className="mx-auto max-w-[1800px]">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Pipeline comercial · Demo</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Inmobiliaria Horizonte · Pipeline comercial</p>
             <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight text-[#292722] md:text-5xl">Pipeline de {operationLabel.toLowerCase()}</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#625d55]">{description} La demo refleja el mismo modelo comercial del sistema real.</p>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#625d55]">{description} La demo refleja el mismo modelo comercial del sistema real y usa el mismo equipo en todas las pantallas.</p>
           </div>
           <div className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] px-5 py-3">
             <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[#81796e]">Valor en pipeline · ejemplo</p>
@@ -125,10 +127,8 @@ export default async function DemoPipelinePage({
                         <div className="mt-4 border-t border-[#e0d6c8] pt-3">
                           <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#81796e]">Presupuesto</p>
                           <p className="mt-1 font-serif text-lg text-[#403b34]">{operation === "ALQUILER" ? `USD ${lead.budgetUSD.toLocaleString("es-UY")}/mes` : formatUSD(lead.budgetUSD)}</p>
-                          <div className="mt-3 flex items-center justify-between gap-2 text-[10px] text-[#756e65]">
-                            <span className="flex items-center gap-1"><Building2 className="h-3 w-3" />{lead.propertyType}</span>
-                            <span>Afinidad {lead.score}</span>
-                          </div>
+                          <div className="mt-3 flex items-center justify-between gap-2 text-[10px] text-[#756e65]"><span className="flex items-center gap-1"><Building2 className="h-3 w-3" />{lead.propertyType}</span><span>Afinidad {lead.score}</span></div>
+                          <div className="mt-2 flex items-center gap-1 text-[10px] text-[#756e65]"><UserRound className="h-3 w-3" />{agentName(lead.agentId)}</div>
                         </div>
                       </div>
                     ))}

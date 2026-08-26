@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CalendarClock, MessageCircle, PauseCircle, PlayCircle, ShieldCheck } from "lucide-react";
-import DemoSidebar from "../demo-sidebar";
+import { DemoSidebar } from "../demo-sidebar";
 
 const activity = [
   { lead: "Valentina Suárez", status: "Lista", text: "Hola Valentina, revisé nuevamente tu búsqueda. Si cambió zona, presupuesto o dormitorios, decime y ajusto las opciones." },

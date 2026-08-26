@@ -1,11 +1,11 @@
-import { Building2, CalendarDays, CheckCircle2, Layers3, Sparkles } from "lucide-react"
+import { Building2, CalendarDays, CheckCircle2, Layers3, Pencil, Sparkles } from "lucide-react"
 import { PageHeader } from "../demo-ui"
 
 const units = [
-  ["A-203", "Torre A", "2 dorm. frente", "USD 218.000", "Disponible", "92%"],
-  ["A-305", "Torre A", "1 dorm. lateral", "USD 164.000", "Reservada", "—"],
-  ["B-602", "Torre B", "3 dorm. esquina", "USD 328.000", "Disponible", "88%"],
-  ["B-804", "Torre B", "2 dorm. frente", "USD 239.000", "Disponible", "84%"],
+  ["A-203", "Torre A", "2 dorm. frente", "USD 218.000", "Disponible", "6", "92%"],
+  ["A-305", "Torre A", "1 dorm. lateral", "USD 164.000", "Reservada", "—", "—"],
+  ["B-602", "Torre B", "3 dorm. esquina", "USD 328.000", "Disponible", "4", "88%"],
+  ["B-804", "Torre B", "2 dorm. frente", "USD 239.000", "Disponible", "3", "84%"],
 ] as const
 
 export default function DemoDevelopmentsPage() {
@@ -18,7 +18,7 @@ export default function DemoDevelopmentsPage() {
           <Metric label="Proyecto" value="Alba Pocitos" />
           <Metric label="Unidades" value="48" />
           <Metric label="Disponibles" value="19" />
-          <Metric label="Reservadas" value="11" />
+          <Metric label="Matches altos" value="8" />
         </section>
 
         <section className="mt-8 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
@@ -30,13 +30,13 @@ export default function DemoDevelopmentsPage() {
 
           <article className="rounded-2xl border border-[#c8b493] bg-[#e8dbc8] p-6 md:p-8">
             <div className="flex items-start gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#bfa989] bg-[#f5eadc] text-[#725d40]"><Sparkles size={18}/></span><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#806a4b]">Automatización comercial</p><h2 className="mt-2 font-serif text-2xl text-[#302d28]">Stock conectado al matching</h2></div></div>
-            <div className="mt-6 space-y-4 text-sm leading-6 text-[#5d554b]"><Step text="Se carga o actualiza una unidad dentro del proyecto."/><Step text="RevScale sincroniza automáticamente esa unidad con Propiedades."/><Step text="Si está Disponible, busca clientes compatibles y calcula afinidad."/><Step text="El agente recibe el aviso con los clientes de su propia cartera."/></div>
+            <div className="mt-6 space-y-4 text-sm leading-6 text-[#5d554b]"><Step text="Se carga o edita precio, tipología, piso, orientación o estado de una unidad."/><Step text="RevScale sincroniza automáticamente esa unidad con Propiedades."/><Step text="Si está Disponible, busca clientes compatibles y calcula afinidad."/><Step text="Si vuelve a estar Disponible, recalcula y actualiza el aviso del agente con sus clientes compatibles."/></div>
           </article>
         </section>
 
         <section className="mt-8 overflow-hidden rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6]">
-          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#d8ccbb] p-6"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8d7553]">Torre A + Torre B</p><h2 className="mt-2 font-serif text-2xl text-[#302d28]">Stock de unidades</h2></div><p className="text-xs text-[#756e64]">Actualización automática con inventario comercial</p></div>
-          <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-[#eee5d7] text-[10px] uppercase tracking-[0.14em] text-[#81796e]"><tr><th className="px-5 py-3">Unidad</th><th>Bloque</th><th>Tipología</th><th>Precio</th><th>Estado</th><th className="px-5">Mejor match</th></tr></thead><tbody>{units.map(([code,block,type,price,status,match])=><tr key={code} className="border-t border-[#ddd1c1] text-[#4f4941]"><td className="px-5 py-4 font-medium text-[#302d28]">{code}</td><td>{block}</td><td>{type}</td><td>{price}</td><td><span className="rounded-full border border-[#cdbfa9] bg-[#fffaf2] px-2.5 py-1 text-xs">{status}</span></td><td className="px-5 font-semibold text-[#725d40]">{match}</td></tr>)}</tbody></table></div>
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#d8ccbb] p-6"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8d7553]">Torre A + Torre B</p><h2 className="mt-2 font-serif text-2xl text-[#302d28]">Stock de unidades</h2></div><p className="text-xs text-[#756e64]">Disponibilidad, matching y edición desde el proyecto</p></div>
+          <div className="overflow-x-auto"><table className="w-full min-w-[1040px] text-left text-sm"><thead className="bg-[#eee5d7] text-[10px] uppercase tracking-[0.14em] text-[#81796e]"><tr><th className="px-5 py-3">Unidad</th><th>Bloque</th><th>Tipología</th><th>Precio</th><th>Estado</th><th>Clientes</th><th>Mejor match</th><th className="px-5">Acción</th></tr></thead><tbody>{units.map(([code,block,type,price,status,clients,match])=><tr key={code} className="border-t border-[#ddd1c1] text-[#4f4941]"><td className="px-5 py-4 font-medium text-[#302d28]">{code}</td><td>{block}</td><td>{type}</td><td>{price}</td><td><span className="rounded-full border border-[#cdbfa9] bg-[#fffaf2] px-2.5 py-1 text-xs">{status}</span></td><td className="font-semibold text-[#725d40]">{clients}</td><td className="font-semibold text-[#725d40]">{match}</td><td className="px-5"><span className="inline-flex items-center gap-1.5 rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-1.5 text-xs font-semibold text-[#5f513e]"><Pencil size={13}/>Editar unidad</span></td></tr>)}</tbody></table></div>
         </section>
       </div>
     </main>

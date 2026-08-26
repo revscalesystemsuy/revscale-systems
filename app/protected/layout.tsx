@@ -20,6 +20,7 @@ import {
   Users,
   UsersRound,
   Workflow,
+  Zap,
 } from "lucide-react";
 import { planHasFeature } from "@/lib/plan-access";
 import { getCurrentOrganizationContext, ROLE_LABELS } from "@/lib/organization-role";
@@ -34,6 +35,7 @@ const ICONS = {
   Bell,
   Users,
   Workflow,
+  Zap,
   Building2,
   MessagesSquare,
   Database,

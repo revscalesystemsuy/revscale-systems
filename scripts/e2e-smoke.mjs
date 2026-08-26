@@ -55,6 +55,7 @@ try {
   await expectPage("/demo/leads/martin-rodriguez", ["Origen y velocidad", "InfoCasas", "Primera respuesta humana"]);
   await expectPage("/demo/inbox", ["Inbox WhatsApp", "Datos de demostración", "IA atendiendo", "Espera humana"]);
   await expectPage("/demo/inbox?conversation=valentina-mendez", ["Handoff automático", "negociar una seña"]);
+  await expectPage("/demo/integrations?plan=enterprise", ["WhatsApp Business", "Preparado", "WABA/número real"]);
 
   await expectProtectedRedirect("/protected/billing");
   await expectProtectedRedirect("/protected/analytics");

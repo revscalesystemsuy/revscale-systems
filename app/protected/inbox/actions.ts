@@ -13,6 +13,11 @@ function inboxUrl(conversationId?: string | null, error?: string | null) {
   return `/protected/inbox${query ? `?${query}` : ""}`;
 }
 
+async function stableSendRequestId(conversationId: string, conversationVersion: string, body: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${conversationId}\n${conversationVersion}\n${body}`));
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 48);
+}
+
 export async function sendWhatsAppMessage(formData: FormData) {
   const context = await getCurrentOrganizationContext();
   if (!context || context.subscriptionStatus !== "ACTIVE" || !planHasFeature(context.plan, "whatsapp_ai")) redirect("/protected");
@@ -21,8 +26,17 @@ export async function sendWhatsAppMessage(formData: FormData) {
   const body = String(formData.get("body") || "").trim();
   if (!conversationId || !body) redirect(inboxUrl(conversationId, "Escribí un mensaje antes de enviar."));
 
+  const { data: conversation, error: conversationError } = await context.supabase
+    .from("whatsapp_conversations")
+    .select("id,last_message_at,updated_at")
+    .eq("id", conversationId)
+    .maybeSingle();
+
+  if (conversationError || !conversation) redirect(inboxUrl(conversationId, "No se pudo validar la conversación."));
+  const requestId = await stableSendRequestId(conversationId, conversation.last_message_at || conversation.updated_at || "new", body);
+
   const { data, error } = await context.supabase.functions.invoke("whatsapp-send", {
-    body: { conversation_id: conversationId, body },
+    body: { conversation_id: conversationId, body, request_id: requestId },
   });
 
   if (error || data?.error) {

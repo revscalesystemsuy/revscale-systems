@@ -1,10 +1,15 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ExternalLink, Globe2, PauseCircle, Radio, Send, ShieldCheck } from "lucide-react";
-import { requireManagementFeature } from "@/lib/organization-role";
+import { getCurrentOrganizationContext } from "@/lib/organization-role";
+import { planHasFeature } from "@/lib/plan-access";
 import { saveWebPublication } from "./actions";
 
 export default async function DistributionPage() {
-  const context = await requireManagementFeature("property_distribution");
+  const context = await getCurrentOrganizationContext();
+  if (!context) redirect("/auth/login");
+  if (!planHasFeature(context.plan, "property_distribution")) redirect("/protected/billing");
+  if (!["OWNER", "MANAGER"].includes(context.role)) redirect("/protected");
 
   const [{ data: properties, error: propertiesError }, { data: publications, error: publicationsError }, { data: organization }] = await Promise.all([
     context.supabase

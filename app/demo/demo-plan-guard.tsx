@@ -11,6 +11,7 @@ const ROUTE_PLANS: Array<{ prefix: string; plans: readonly DemoPlan[] }> = [
   { prefix: "/demo/reports", plans: ["professional", "enterprise"] },
   { prefix: "/demo/analytics", plans: ["professional", "enterprise"] },
   { prefix: "/demo/teams", plans: ["enterprise"] },
+  { prefix: "/demo/territories", plans: ["enterprise"] },
   { prefix: "/demo/integrations", plans: ["enterprise"] },
 ]
 

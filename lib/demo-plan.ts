@@ -1,5 +1,5 @@
 import { PLAN_CATALOG, formatLimit, type PaidPlanName } from "@/lib/plan-catalog"
-import { planHasFeature } from "@/lib/plan-access"
+import { entitlementPlanHasFeature } from "@/lib/plan-entitlements"
 
 export type DemoPlan = "starter" | "professional" | "enterprise"
 export type DemoModule =
@@ -61,7 +61,7 @@ function createDemoPlanConfig(plan: DemoPlan): DemoPlanConfig {
   const paidPlan = DEMO_TO_PAID_PLAN[plan]
   const catalog = PLAN_CATALOG[paidPlan]
   const modules = Object.fromEntries(
-    Object.entries(MODULE_FEATURE).map(([module, feature]) => [module, planHasFeature(paidPlan, feature)]),
+    Object.entries(MODULE_FEATURE).map(([module, feature]) => [module, entitlementPlanHasFeature(paidPlan, feature)]),
   ) as Record<DemoModule, boolean>
 
   return {

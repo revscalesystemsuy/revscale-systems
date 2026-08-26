@@ -15,9 +15,19 @@ async function resolveCustomDomain(hostname: string) {
 }
 
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  if (
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/sw.js" ||
+    pathname === "/offline" ||
+    pathname.startsWith("/pwa/")
+  ) {
+    return NextResponse.next();
+  }
+
   const hostname = (request.headers.get("host") || request.nextUrl.hostname).split(":")[0].toLowerCase();
   const siteSlug = await resolveCustomDomain(hostname);
-  if (siteSlug && request.nextUrl.pathname === "/") {
+  if (siteSlug && pathname === "/") {
     const url = request.nextUrl.clone();
     url.pathname = `/inmobiliaria/${siteSlug}`;
     return NextResponse.rewrite(url);

@@ -4,15 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  Bell, Building2, House, ListChecks, Menu, Settings, Target, Users, Workflow, X,
+  Bell, Building2, ChevronDown, House, ListChecks, Menu, Settings, Target, Users, Workflow, X,
   ClipboardList, Zap, MessagesSquare, Database, UsersRound, BarChart3,
   ChartNoAxesCombined, MessageCircle, SlidersHorizontal, CreditCard, MapPinned,
 } from "lucide-react";
+import { buildNavigationEntries } from "@/lib/navigation-structure";
 import type { ProductSurfaceIcon } from "@/lib/product-surfaces";
 
 const ICONS = { House, ListChecks, Target, ClipboardList, Bell, Users, Workflow, Zap, Building2, MessagesSquare, Database, UsersRound, BarChart3, ChartNoAxesCombined, MessageCircle, SlidersHorizontal, CreditCard, MapPinned, Settings } satisfies Record<ProductSurfaceIcon, typeof House>;
 
-type Surface = { id: string; label: string; icon: ProductSurfaceIcon; realHref: string; badge?: string };
+type Surface = { id: string; label: string; icon: ProductSurfaceIcon; realHref: string; demoHref: string; realAccess: "all" | "owner" | "owner_or_manager" | "owner_or_enterprise_manager"; realPlans: ("TRIAL" | "STARTER" | "PROFESSIONAL" | "ENTERPRISE")[]; demoPlans: ("starter" | "professional" | "enterprise")[]; badge?: "notifications"; feature?: string; condition?: "onboarding_incomplete" };
 
 const QUICK_IDS = ["today", "leads", "pipeline", "properties", "notifications"];
 
@@ -20,6 +21,7 @@ export function MobileProtectedNav({ surfaces, unreadNotifications = 0, plan }: 
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const quick = QUICK_IDS.map((id) => surfaces.find((surface) => surface.id === id)).filter(Boolean) as Surface[];
+  const entries = buildNavigationEntries(surfaces as never);
   const active = (href: string) => href === "/protected" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 
   return <>
@@ -31,7 +33,20 @@ export function MobileProtectedNav({ surfaces, unreadNotifications = 0, plan }: 
     {open && <button className="fixed inset-0 z-40 bg-[#2e2a24]/35 lg:hidden" onClick={() => setOpen(false)} aria-label="Cerrar navegación"/>}
     <aside className={`fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-80 flex-col border-r border-[#d7cbb9] bg-[#e8dece] px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-[calc(1.25rem+env(safe-area-inset-top))] transition-transform lg:hidden ${open ? "translate-x-0" : "-translate-x-full"}`}>
       <div className="flex items-center justify-between"><div><p className="font-serif text-xl">RevScale</p><p className="mt-1 text-[9px] font-semibold uppercase tracking-[.2em] text-[#8a714d]">{plan}</p></div><button onClick={() => setOpen(false)} className="rounded-lg p-2" aria-label="Cerrar menú"><X size={20}/></button></div>
-      <nav className="mt-6 flex-1 space-y-1 overflow-y-auto">{surfaces.map((surface) => { const Icon = ICONS[surface.icon]; return <Link key={surface.id} href={surface.realHref} onClick={() => setOpen(false)} className={`flex items-center justify-between rounded-xl px-3 py-3 text-sm ${active(surface.realHref) ? "bg-[#d9c9b3] text-[#302b24]" : "text-[#625b52] hover:bg-[#dfd3c2]"}`}><span className="flex items-center gap-3"><Icon size={17} strokeWidth={1.6}/>{surface.label}</span>{surface.badge === "notifications" && unreadNotifications > 0 && <span className="rounded-full bg-[#6f5c40] px-2 py-0.5 text-[10px] font-bold text-[#fffaf2]">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>}</Link>})}</nav>
+      <nav className="mt-6 flex-1 space-y-1 overflow-y-auto">
+        {entries.map((entry) => {
+          if (entry.kind === "item") {
+            const surface = entry.item as Surface;
+            const Icon = ICONS[surface.icon];
+            return <Link key={surface.id} href={surface.realHref} onClick={() => setOpen(false)} className={`flex items-center justify-between rounded-xl px-3 py-3 text-sm ${active(surface.realHref) ? "bg-[#d9c9b3] text-[#302b24]" : "text-[#625b52] hover:bg-[#dfd3c2]"}`}><span className="flex items-center gap-3"><Icon size={17} strokeWidth={1.6}/>{surface.label}</span>{surface.badge === "notifications" && unreadNotifications > 0 && <span className="rounded-full bg-[#6f5c40] px-2 py-0.5 text-[10px] font-bold text-[#fffaf2]">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>}</Link>;
+          }
+
+          const Icon = ICONS[entry.icon];
+          const hasActiveChild = entry.items.some((item) => active(item.realHref));
+          const groupBadge = entry.items.some((item) => item.badge === "notifications") ? unreadNotifications : 0;
+          return <details key={entry.id} open={hasActiveChild ? true : undefined} className="group/nav rounded-xl open:bg-[#e1d5c5]"><summary className={`flex cursor-pointer list-none items-center justify-between rounded-xl px-3 py-3 text-sm [&::-webkit-details-marker]:hidden ${hasActiveChild ? "text-[#302b24]" : "text-[#625b52] hover:bg-[#dfd3c2]"}`}><span className="flex items-center gap-3"><Icon size={17} strokeWidth={1.6}/>{entry.label}</span><span className="flex items-center gap-2">{groupBadge > 0 && <span className="rounded-full bg-[#6f5c40] px-2 py-0.5 text-[10px] font-bold text-[#fffaf2]">{groupBadge > 99 ? "99+" : groupBadge}</span>}<ChevronDown size={15} className="transition-transform group-open/nav:rotate-180"/></span></summary><div className="mb-2 ml-5 border-l border-[#c9baa5] pl-2">{entry.items.map((item) => { const surface = item as Surface; const ChildIcon = ICONS[surface.icon]; return <Link key={surface.id} href={surface.realHref} onClick={() => setOpen(false)} className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-[13px] ${active(surface.realHref) ? "bg-[#d6c6b0] text-[#302b24]" : "text-[#625b52] hover:bg-[#dfd3c2]"}`}><span className="flex items-center gap-3"><ChildIcon size={15} strokeWidth={1.5}/>{surface.label}</span>{surface.badge === "notifications" && unreadNotifications > 0 && <span className="rounded-full bg-[#6f5c40] px-2 py-0.5 text-[10px] font-bold text-[#fffaf2]">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>}</Link> })}</div></details>;
+        })}
+      </nav>
     </aside>
 
     <nav className="revscale-mobile-bottom fixed inset-x-0 bottom-0 z-30 grid border-t border-[#d2c5b3] bg-[#f7f0e6]/95 px-2 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur lg:hidden" style={{gridTemplateColumns:`repeat(${Math.max(quick.length,1)}, minmax(0,1fr))`}}>

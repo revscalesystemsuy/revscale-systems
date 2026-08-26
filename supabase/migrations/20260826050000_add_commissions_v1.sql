@@ -14,8 +14,7 @@ create table if not exists public.commission_rules (
   constraint commission_rules_agent_split_rate_check check (agent_split_rate >= 0 and agent_split_rate <= 100)
 );
 
-create unique index if not exists commission_rules_org_agent_operation_uidx
-  on public.commission_rules(organization_id, coalesce(agent_id,'00000000-0000-0000-0000-000000000000'::uuid), operation);
+create unique index if not exists commission_rules_org_agent_operation_uidx on public.commission_rules(organization_id, coalesce(agent_id,'00000000-0000-0000-0000-000000000000'::uuid), operation);
 create index if not exists commission_rules_org_active_idx on public.commission_rules(organization_id,is_active);
 create index if not exists commission_rules_agent_idx on public.commission_rules(agent_id) where agent_id is not null;
 
@@ -62,7 +61,6 @@ drop policy if exists commission_rules_select on public.commission_rules;
 create policy commission_rules_select on public.commission_rules for select to authenticated using (
   exists(select 1 from public.organization_members om where om.organization_id=commission_rules.organization_id and om.user_id=(select auth.uid()) and om.status='ACTIVE' and om.role in ('OWNER','MANAGER'))
 );
-
 drop policy if exists commission_rules_manage on public.commission_rules;
 drop policy if exists commission_rules_insert on public.commission_rules;
 create policy commission_rules_insert on public.commission_rules for insert to authenticated with check (
@@ -109,53 +107,34 @@ begin
   new.updated_at:=now();
   return new;
 end; $$;
+revoke all on function private.recalculate_commission_values() from public, anon, authenticated;
 
 drop trigger if exists trg_recalculate_commission_values on public.commissions;
-create trigger trg_recalculate_commission_values
-before insert or update of deal_amount,brokerage_rate,agent_split_rate,payment_status on public.commissions
-for each row execute function private.recalculate_commission_values();
+create trigger trg_recalculate_commission_values before insert or update of deal_amount,brokerage_rate,agent_split_rate,payment_status on public.commissions for each row execute function private.recalculate_commission_values();
 
 create or replace function private.create_commission_on_won()
 returns trigger language plpgsql security definer set search_path='' as $$
-declare
-  r record;
-  v_brokerage numeric:=3;
-  v_split numeric:=50;
+declare r record; v_brokerage numeric:=3; v_split numeric:=50;
 begin
   if new.pipeline_stage='WON' and (tg_op='INSERT' or old.pipeline_stage is distinct from new.pipeline_stage) then
     select cr.brokerage_rate,cr.agent_split_rate into r
     from public.commission_rules cr
-    where cr.organization_id=new.organization_id
-      and cr.is_active
-      and cr.operation in (coalesce(new.operation,'COMPRA'),'ALL')
-      and (cr.agent_id=new.assigned_to or cr.agent_id is null)
-    order by (cr.agent_id is not null) desc,(cr.operation<>'ALL') desc
-    limit 1;
-    if found then
-      v_brokerage:=r.brokerage_rate;
-      v_split:=r.agent_split_rate;
-    end if;
-
-    insert into public.commissions(
-      organization_id,lead_id,agent_id,operation,currency,deal_amount,deal_amount_source,brokerage_rate,agent_split_rate,created_by
-    ) values(
-      new.organization_id,new.id,new.assigned_to,
-      case when upper(coalesce(new.operation,''))='ALQUILER' then 'ALQUILER' else 'COMPRA' end,
-      coalesce(new.currency,'USD'),new.budget_max,'ESTIMATED',v_brokerage,v_split,new.assigned_to
-    ) on conflict (organization_id,lead_id) do nothing;
+    where cr.organization_id=new.organization_id and cr.is_active and cr.operation in (coalesce(new.operation,'COMPRA'),'ALL') and (cr.agent_id=new.assigned_to or cr.agent_id is null)
+    order by (cr.agent_id is not null) desc,(cr.operation<>'ALL') desc limit 1;
+    if found then v_brokerage:=r.brokerage_rate; v_split:=r.agent_split_rate; end if;
+    insert into public.commissions(organization_id,lead_id,agent_id,operation,currency,deal_amount,deal_amount_source,brokerage_rate,agent_split_rate,created_by)
+    values(new.organization_id,new.id,new.assigned_to,case when upper(coalesce(new.operation,''))='ALQUILER' then 'ALQUILER' else 'COMPRA' end,coalesce(new.currency,'USD'),new.budget_max,'ESTIMATED',v_brokerage,v_split,new.assigned_to)
+    on conflict (organization_id,lead_id) do nothing;
   end if;
   return new;
 end; $$;
+revoke all on function private.create_commission_on_won() from public, anon, authenticated;
 
 drop trigger if exists trg_create_commission_on_won on public.leads;
-create trigger trg_create_commission_on_won
-after insert or update of pipeline_stage on public.leads
-for each row execute function private.create_commission_on_won();
+create trigger trg_create_commission_on_won after insert or update of pipeline_stage on public.leads for each row execute function private.create_commission_on_won();
 
 insert into public.commissions(organization_id,lead_id,agent_id,operation,currency,deal_amount,deal_amount_source,brokerage_rate,agent_split_rate,created_by)
-select l.organization_id,l.id,l.assigned_to,
-  case when upper(coalesce(l.operation,''))='ALQUILER' then 'ALQUILER' else 'COMPRA' end,
-  coalesce(l.currency,'USD'),l.budget_max,'ESTIMATED',3,50,l.assigned_to
+select l.organization_id,l.id,l.assigned_to,case when upper(coalesce(l.operation,''))='ALQUILER' then 'ALQUILER' else 'COMPRA' end,coalesce(l.currency,'USD'),l.budget_max,'ESTIMATED',3,50,l.assigned_to
 from public.leads l
 join public.subscriptions s on s.organization_id=l.organization_id and upper(coalesce(s.status,''))='ACTIVE'
 where l.pipeline_stage='WON' and upper(coalesce(s.plan,'')) in ('PROFESSIONAL','PRO','ENTERPRISE')

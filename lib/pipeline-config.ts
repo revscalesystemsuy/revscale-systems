@@ -44,6 +44,14 @@ export function getPipelineStageKeys(operation?: string | null) {
   return new Set(getPipelineStages(operation).map((stage) => stage.key));
 }
 
+export function getPipelineStageDefinition(operation: string | null | undefined, stageKey: string) {
+  return getPipelineStages(operation).find((stage) => stage.key === stageKey);
+}
+
+export function getPipelineStageProbability(operation: string | null | undefined, stageKey: string) {
+  return getPipelineStageDefinition(operation, stageKey)?.probability ?? 0.1;
+}
+
 export const ALL_PIPELINE_STAGES = Array.from(
   new Map([...SALE_PIPELINE_STAGES, ...RENTAL_PIPELINE_STAGES].map((stage) => [stage.key, stage])).values(),
 );

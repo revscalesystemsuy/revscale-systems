@@ -20,6 +20,7 @@ export type ProductSurfaceIcon =
   | "MessageCircle"
   | "SlidersHorizontal"
   | "CreditCard"
+  | "MapPinned"
   | "Settings"
 
 export type ProductSurfaceAccess = "all" | "owner" | "owner_or_manager" | "owner_or_enterprise_manager"

@@ -10,6 +10,8 @@ export type PlanFeature =
   | "automations"
   | "commissions"
   | "property_distribution"
+  | "documents"
+  | "esignature"
   | "integrations"
   | "enterprise_operations"
   | "development_projects";
@@ -29,7 +31,12 @@ export function planHasFeature(
 ) {
   const normalized = normalizePlan(plan);
 
-  if (feature === "integrations" || feature === "enterprise_operations" || feature === "development_projects") {
+  if (
+    feature === "integrations" ||
+    feature === "enterprise_operations" ||
+    feature === "development_projects" ||
+    feature === "esignature"
+  ) {
     return normalized === "ENTERPRISE";
   }
 
@@ -41,7 +48,8 @@ export function planHasFeature(
     feature === "reports" ||
     feature === "automations" ||
     feature === "commissions" ||
-    feature === "property_distribution"
+    feature === "property_distribution" ||
+    feature === "documents"
   ) {
     return normalized === "PROFESSIONAL" || normalized === "ENTERPRISE";
   }

@@ -72,12 +72,20 @@ if (demoHrefs.size !== surfaces.length) errors.push('Duplicate demoHref values d
 const realHrefs = new Set(surfaces.map((surface) => surface.realHref))
 if (realHrefs.size !== surfaces.length) errors.push('Duplicate realHref values detected')
 
+const entitlementSource = fs.readFileSync(path.join(root, 'lib/plan-entitlements.ts'), 'utf8')
+if (!entitlementSource.includes('plan-entitlements.json')) {
+  errors.push('plan-entitlements.ts must consume plan-entitlements.json')
+}
 const planAccessSource = fs.readFileSync(path.join(root, 'lib/plan-access.ts'), 'utf8')
-if (!planAccessSource.includes('plan-entitlements.json')) {
-  errors.push('plan-access.ts must consume plan-entitlements.json')
+if (!planAccessSource.includes('plan-entitlements')) {
+  errors.push('plan-access.ts must consume the pure entitlement helper')
 }
 if (/feature === |feature ===/.test(planAccessSource)) {
   errors.push('plan-access.ts must not hardcode feature entitlement branches')
+}
+const demoPlanSource = fs.readFileSync(path.join(root, 'lib/demo-plan.ts'), 'utf8')
+if (!demoPlanSource.includes('plan-catalog') || !demoPlanSource.includes('plan-entitlements')) {
+  errors.push('demo-plan.ts must derive from both plan catalog and entitlements')
 }
 
 for (const file of ['app/pricing/page.tsx', 'app/demos/page.tsx', 'app/protected/billing/page.tsx', 'app/request/page.tsx', 'app/request/checkout/page.tsx']) {

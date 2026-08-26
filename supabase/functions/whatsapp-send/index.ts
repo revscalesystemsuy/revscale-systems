@@ -106,5 +106,5 @@ Deno.serve(async (req: Request) => {
     db.from("leads").update({ requires_human: false, next_action: "Continuar seguimiento por WhatsApp", updated_at: now }).eq("id", conversation.lead_id).eq("organization_id", conversation.organization_id),
   ]);
 
-  return json({ ok: true, message_id: messageInsert.data.id, external_message_id: externalMessageId });
+  return json({ ok: true, message_id: messageInsert.data.id, external_message_id: externalMessageId, lead_id: conversation.lead_id });
 });

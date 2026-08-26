@@ -4,14 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  Bell, Building2, ChevronDown, House, ListChecks, Menu, Settings, Target, Users, Workflow, X,
+  Bell, Building2, CalendarClock, ChevronDown, House, ListChecks, Menu, Settings, Target, Users, Workflow, X,
   ClipboardList, Zap, MessagesSquare, Database, UsersRound, BarChart3,
   ChartNoAxesCombined, MessageCircle, SlidersHorizontal, CreditCard, MapPinned,
 } from "lucide-react";
 import { buildNavigationEntries } from "@/lib/navigation-structure";
 import type { ProductSurfaceIcon } from "@/lib/product-surfaces";
 
-const ICONS = { House, ListChecks, Target, ClipboardList, Bell, Users, Workflow, Zap, Building2, MessagesSquare, Database, UsersRound, BarChart3, ChartNoAxesCombined, MessageCircle, SlidersHorizontal, CreditCard, MapPinned, Settings } satisfies Record<ProductSurfaceIcon, typeof House>;
+const ICONS = { House, ListChecks, Target, ClipboardList, Bell, Users, Workflow, Zap, Building2, MessagesSquare, Database, UsersRound, BarChart3, ChartNoAxesCombined, MessageCircle, SlidersHorizontal, CreditCard, MapPinned, CalendarClock, Settings } satisfies Record<ProductSurfaceIcon, typeof House>;
 
 type Surface = { id: string; label: string; icon: ProductSurfaceIcon; realHref: string; demoHref: string; realAccess: "all" | "owner" | "owner_or_manager" | "owner_or_enterprise_manager"; realPlans: ("TRIAL" | "STARTER" | "PROFESSIONAL" | "ENTERPRISE")[]; demoPlans: ("starter" | "professional" | "enterprise")[]; badge?: "notifications"; feature?: string; condition?: "onboarding_incomplete" };
 

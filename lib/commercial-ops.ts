@@ -5,6 +5,7 @@ import {
 } from "@/lib/pipeline-config";
 
 export const BUSINESS_TIME_ZONE = "America/Montevideo";
+export const OPEN_PIPELINE_STAGES = Array.from(OPEN_PIPELINE_STAGE_SET);
 export { OPEN_PIPELINE_STAGE_SET, PIPELINE_STAGE_LABELS };
 export const STALE_STAGE_DAYS: Record<string, number> = PIPELINE_STAGE_STALE_DAYS;
 

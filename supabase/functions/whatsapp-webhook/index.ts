@@ -214,17 +214,7 @@ async function processStatus(db: ReturnType<typeof admin>, connection: AnyRow, s
 async function ensureAiInteraction(db: ReturnType<typeof admin>, message: AnyRow, lead: AnyRow, qualification: AnyRow, score: number) {
   if (message.interaction_id) return message.interaction_id;
   const interactionTime = message.sent_at || message.created_at || new Date().toISOString();
-  const existing = await db.from("interactions")
-    .select("id")
-    .eq("organization_id", lead.organization_id)
-    .eq("lead_id", lead.id)
-    .eq("channel", "WHATSAPP")
-    .eq("direction", "OUTBOUND")
-    .eq("actor", "AI")
-    .eq("message", message.body)
-    .eq("created_at", interactionTime)
-    .limit(1)
-    .maybeSingle();
+  const existing = await db.from("interactions").select("id").eq("organization_id", lead.organization_id).eq("lead_id", lead.id).eq("channel", "WHATSAPP").eq("direction", "OUTBOUND").eq("actor", "AI").eq("message", message.body).eq("created_at", interactionTime).limit(1).maybeSingle();
   if (existing.error) throw existing.error;
 
   let interactionId = existing.data?.id || null;
@@ -256,9 +246,7 @@ async function sendAiReply(db: ReturnType<typeof admin>, connection: AnyRow, con
     await ensureAiInteraction(db, outbound, lead, qualification, score);
     return outbound;
   }
-  if (outbound.status === "QUEUED" && reservation.error?.code === "23505") {
-    return outbound;
-  }
+  if (outbound.status === "QUEUED" && reservation.error?.code === "23505") return outbound;
   if (outbound.status === "FAILED") {
     const reset = await db.from("whatsapp_messages").update({ status: "QUEUED", failed_at: null, error_code: null, error_message: null }).eq("id", outbound.id).eq("status", "FAILED").select("id,body,status,interaction_id,external_message_id,sent_at,created_at,error_code,error_message").maybeSingle();
     if (reset.error || !reset.data) return outbound;
@@ -273,7 +261,7 @@ async function sendAiReply(db: ReturnType<typeof admin>, connection: AnyRow, con
     const providerMessage = String((error as Error & { providerMessage?: string }).providerMessage || error).slice(0, 500);
     const explicitProviderFailure = providerCode !== "PROVIDER_SEND_FAILED";
     await db.from("whatsapp_messages").update(explicitProviderFailure ? { status: "FAILED", failed_at: new Date().toISOString(), error_code: providerCode, error_message: providerMessage } : { error_code: "PROVIDER_STATE_UNKNOWN", error_message: providerMessage }).eq("id", outbound.id);
-    if (!explicitProviderFailure) return outbound;
+    if (!explicitProviderFailure) return { ...outbound, error_code: "PROVIDER_STATE_UNKNOWN", error_message: providerMessage };
     throw error;
   }
 

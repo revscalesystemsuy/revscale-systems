@@ -11,9 +11,7 @@ function createPublicServerClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!url || !key) {
-    throw new Error("Supabase public configuration is missing");
-  }
+  if (!url || !key) throw new Error("Supabase public configuration is missing");
 
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -30,9 +28,7 @@ export async function POST(request: Request) {
     const organizationId = cleanString(payload.organization_id, 100);
     const token = cleanString(payload.token, 200);
 
-    if (!organizationId || !token) {
-      return jsonError("Faltan credenciales de integración.", 400);
-    }
+    if (!organizationId || !token) return jsonError("Faltan credenciales de integración.", 400);
 
     const leadPayload = {
       full_name: cleanString(payload.full_name, 160) || null,
@@ -44,6 +40,17 @@ export async function POST(request: Request) {
       currency: cleanString(payload.currency || "USD", 10).toUpperCase(),
       budget_max: cleanNumber(payload.budget_max),
       bedrooms_min: cleanInteger(payload.bedrooms_min),
+      source_channel: cleanString(payload.source_channel || "WEB", 80).toUpperCase(),
+      source_provider: cleanString(payload.source_provider, 120) || null,
+      source_campaign: cleanString(payload.source_campaign, 180) || null,
+      source_ad: cleanString(payload.source_ad, 180) || null,
+      source_listing: cleanString(payload.source_listing, 180) || null,
+      source_property_id: cleanString(payload.source_property_id || payload.property_id, 100) || null,
+      external_lead_id: cleanString(payload.external_lead_id, 200) || null,
+      utm_source: cleanString(payload.utm_source, 180) || null,
+      utm_medium: cleanString(payload.utm_medium, 180) || null,
+      utm_campaign: cleanString(payload.utm_campaign, 180) || null,
+      utm_content: cleanString(payload.utm_content, 180) || null,
     };
 
     if (!leadPayload.full_name && !leadPayload.phone && !leadPayload.email) {

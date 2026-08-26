@@ -14,7 +14,7 @@ export default function DemoLayout({ children }: { children: ReactNode }) {
         <DemoSidebar />
         <DemoPlanGuard />
       </Suspense>
-      <main className="min-w-0 flex-1 pt-14 lg:pt-0">{children}</main>
+      <main className="min-w-0 flex-1 pb-[calc(4.75rem+env(safe-area-inset-bottom))] pt-[calc(3.75rem+env(safe-area-inset-top))] lg:pb-0 lg:pt-0">{children}</main>
     </div>
   )
 }

@@ -1,3 +1,65 @@
+create or replace function private.validate_development_parentage()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not exists (
+    select 1
+    from public.development_projects p
+    where p.id = new.project_id
+      and p.organization_id = new.organization_id
+  ) then
+    raise exception 'El proyecto no pertenece a esta organización';
+  end if;
+
+  if tg_table_name = 'development_units' then
+    if not exists (
+      select 1
+      from public.development_typologies t
+      where t.id = new.typology_id
+        and t.project_id = new.project_id
+        and t.organization_id = new.organization_id
+    ) then
+      raise exception 'La tipología no pertenece a este proyecto';
+    end if;
+
+    if new.block_id is not null and not exists (
+      select 1
+      from public.development_blocks b
+      where b.id = new.block_id
+        and b.project_id = new.project_id
+        and b.organization_id = new.organization_id
+    ) then
+      raise exception 'El bloque no pertenece a este proyecto';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke all on function private.validate_development_parentage() from public, anon, authenticated;
+
+drop trigger if exists trg_00_validate_development_block_parentage on public.development_blocks;
+create trigger trg_00_validate_development_block_parentage
+before insert or update of organization_id, project_id
+on public.development_blocks
+for each row execute function private.validate_development_parentage();
+
+drop trigger if exists trg_00_validate_development_typology_parentage on public.development_typologies;
+create trigger trg_00_validate_development_typology_parentage
+before insert or update of organization_id, project_id
+on public.development_typologies
+for each row execute function private.validate_development_parentage();
+
+drop trigger if exists trg_00_validate_development_unit_parentage on public.development_units;
+create trigger trg_00_validate_development_unit_parentage
+before insert or update of organization_id, project_id, block_id, typology_id
+on public.development_units
+for each row execute function private.validate_development_parentage();
+
 create or replace function private.delete_development_unit_property()
 returns trigger
 language plpgsql

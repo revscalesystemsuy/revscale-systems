@@ -17,6 +17,18 @@ function slugify(value: string) {
     .slice(0, 70);
 }
 
+function readHttpUrl(value: FormDataEntryValue | null) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error();
+    return parsed.toString();
+  } catch {
+    throw new Error("La foto principal debe usar una URL http o https válida.");
+  }
+}
+
 async function requireDistributionManager() {
   const context = await getCurrentOrganizationContext();
   if (!context) redirect("/auth/login");
@@ -55,7 +67,7 @@ export async function saveWebPublication(formData: FormData) {
 
   const title = String(formData.get("title") || property.title || "").trim();
   const description = String(formData.get("description") || property.description || "").trim();
-  const coverImageUrl = String(formData.get("cover_image_url") || "").trim() || null;
+  const coverImageUrl = readHttpUrl(formData.get("cover_image_url"));
   const contactName = String(formData.get("contact_name") || "").trim() || null;
   const contactPhone = String(formData.get("contact_phone") || "").trim() || null;
   const addressLabel = String(formData.get("address_label") || property.address || "").trim() || null;

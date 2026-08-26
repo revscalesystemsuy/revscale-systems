@@ -8,10 +8,10 @@ import { planHasFeature } from "@/lib/plan-access";
 const OPERATIONS = new Set(["ALL", "COMPRA", "ALQUILER"]);
 const PAYMENT_STATUSES = new Set(["PENDING", "PARTIAL", "PAID", "CANCELLED"]);
 
-async function requireCommissionDirector() {
+async function requireCommissionManager() {
   const context = await getCurrentOrganizationContext();
   if (!context) redirect("/auth/login");
-  if (context.role !== "OWNER") throw new Error("Solo Dirección puede administrar comisiones.");
+  if (!["OWNER", "MANAGER"].includes(context.role)) throw new Error("Solo Dirección o Gerencia puede administrar comisiones.");
   if (!planHasFeature(context.plan, "commissions")) throw new Error("Comisiones requiere Professional o Enterprise.");
   return context;
 }
@@ -31,7 +31,7 @@ function readMoney(value: FormDataEntryValue | null, label: string) {
 }
 
 export async function upsertCommissionRule(formData: FormData) {
-  const context = await requireCommissionDirector();
+  const context = await requireCommissionManager();
   const operation = String(formData.get("operation") || "ALL").toUpperCase();
   const agentId = String(formData.get("agent_id") || "").trim() || null;
   const brokerageRate = readPercent(formData.get("brokerage_rate"), "Honorarios");
@@ -67,7 +67,7 @@ export async function upsertCommissionRule(formData: FormData) {
 }
 
 export async function updateCommission(formData: FormData) {
-  const context = await requireCommissionDirector();
+  const context = await requireCommissionManager();
   const commissionId = String(formData.get("commission_id") || "").trim();
   if (!commissionId) throw new Error("Comisión inválida.");
 

@@ -157,7 +157,8 @@ Deno.serve(async (req: Request) => {
     idempotency_key: idempotencyKey,
   }).select("id,organization_id,conversation_id,lead_id,body,status,idempotency_key,interaction_id,external_message_id,sent_at,created_at,error_code,error_message").maybeSingle();
 
-  if (reservation.error?.code === "23505") {
+  const recoveredExisting = reservation.error?.code === "23505";
+  if (recoveredExisting) {
     const existing = await db.from("whatsapp_messages")
       .select("id,organization_id,conversation_id,lead_id,body,status,idempotency_key,interaction_id,external_message_id,sent_at,created_at,error_code,error_message")
       .eq("organization_id", conversation.organization_id)
@@ -182,12 +183,36 @@ Deno.serve(async (req: Request) => {
     return json({ ok: true, duplicate: true, status: message.status, message_id: message.id, external_message_id: message.external_message_id, lead_id: conversation.lead_id });
   }
 
-  if (message.status === "QUEUED" && reservation.error?.code === "23505") {
-    return json({ ok: true, duplicate: true, status: "QUEUED", message_id: message.id, lead_id: conversation.lead_id });
+  if (message.status === "QUEUED" && recoveredExisting) {
+    if (message.error_code === "PROVIDER_STATE_UNKNOWN") {
+      return json({ error: "El estado del envío anterior sigue incierto. No lo reenviamos automáticamente para evitar duplicados." }, 409);
+    }
+    return json({ ok: true, duplicate: true, pending: true, status: "QUEUED", message_id: message.id, lead_id: conversation.lead_id });
   }
 
   if (message.status === "FAILED") {
-    return json({ error: message.error_message || "The previous attempt failed. Refresh and send again.", provider_error: message.error_message || null }, 502);
+    const reset = await db.from("whatsapp_messages").update({
+      status: "QUEUED",
+      failed_at: null,
+      error_code: null,
+      error_message: null,
+    }).eq("id", message.id).eq("status", "FAILED")
+      .select("id,organization_id,conversation_id,lead_id,body,status,idempotency_key,interaction_id,external_message_id,sent_at,created_at,error_code,error_message")
+      .maybeSingle();
+    if (reset.error) return json({ error: "Could not reserve the failed message for retry" }, 500);
+    if (!reset.data) {
+      const current = await db.from("whatsapp_messages")
+        .select("id,status,error_code,external_message_id,interaction_id,sent_at,created_at,body")
+        .eq("id", message.id)
+        .maybeSingle();
+      if (current.error || !current.data) return json({ error: "Could not recover the retry state" }, 500);
+      if (["SENT","DELIVERED","READ"].includes(current.data.status)) {
+        await finishHumanWorkflow(db, conversation, lead, current.data, actor);
+        return json({ ok: true, duplicate: true, status: current.data.status, message_id: current.data.id, external_message_id: current.data.external_message_id, lead_id: conversation.lead_id });
+      }
+      return json({ ok: true, duplicate: true, pending: true, status: current.data.status, message_id: current.data.id, lead_id: conversation.lead_id });
+    }
+    message = reset.data;
   }
 
   const pause = await db.from("whatsapp_conversations").update({

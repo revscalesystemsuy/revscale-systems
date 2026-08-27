@@ -39,7 +39,7 @@ export default async function WhatsAppAiSettingsPage({ searchParams }: { searchP
   const canActivate = connected && webhookVerified;
   const isLive = current.mode === "LIVE" && current.autoReply;
   const metaAppId = process.env.META_APP_ID || "1550241886783400";
-  const embeddedSignupConfigId = process.env.META_EMBEDDED_SIGNUP_CONFIG_ID || "";
+  const embeddedSignupConfigId = process.env.META_EMBEDDED_SIGNUP_CONFIG_ID || "1585824569695568";
 
   return (
     <main className="min-h-screen p-6 md:p-8 lg:p-10">

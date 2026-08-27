@@ -7,6 +7,7 @@ import { planHasFeature } from "@/lib/plan-access";
 
 const STATUSES = new Set(["DRAFT", "PUBLISHED", "PAUSED"]);
 const LOCATION_TYPES = new Set(["city", "neighborhood"]);
+const CONDITIONS = new Set(["new", "used", "not_specified"]);
 
 function slugify(value: string) {
   return value
@@ -37,7 +38,15 @@ function readGalleryUrls(value: FormDataEntryValue | null) {
     const parsed = readHttpUrl(item);
     if (parsed && !result.includes(parsed)) result.push(parsed);
   }
-  return result.slice(0, 9);
+  return result.slice(0, 29);
+}
+
+function readNonNegativeNumber(value: FormDataEntryValue | null, label: string) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`${label} inválido.`);
+  return parsed;
 }
 
 async function requireDistributionManager() {
@@ -182,6 +191,10 @@ export async function saveMercadoLibrePublication(formData: FormData) {
   const listingTypeId = String(formData.get("ml_listing_type_id") || "silver").trim();
   const locationId = String(formData.get("ml_location_id") || "").trim();
   const locationType = String(formData.get("ml_location_type") || "city").trim().toLowerCase();
+  const condition = String(formData.get("ml_condition") || "not_specified").trim().toLowerCase();
+  const maintenanceFee = readNonNegativeNumber(formData.get("ml_maintenance_fee"), "Gastos comunes");
+  const parkingLots = readNonNegativeNumber(formData.get("ml_parking_lots"), "Cocheras");
+  const coveredArea = readNonNegativeNumber(formData.get("ml_covered_area"), "Superficie cubierta");
   const addressLabel = String(formData.get("ml_address_label") || property.address || "").trim() || null;
   const contactName = String(formData.get("ml_contact_name") || "").trim() || null;
   const contactPhone = String(formData.get("ml_contact_phone") || "").trim() || null;
@@ -191,6 +204,8 @@ export async function saveMercadoLibrePublication(formData: FormData) {
   }
   if (!categoryId) throw new Error("Ingresá la categoría oficial de Mercado Libre para este inmueble.");
   if (!locationId || !LOCATION_TYPES.has(locationType)) throw new Error("Ingresá una ciudad o barrio válido de Mercado Libre.");
+  if (!CONDITIONS.has(condition)) throw new Error("Condición de inmueble inválida.");
+  if (maintenanceFee == null) throw new Error("Ingresá los gastos comunes. Si no corresponden, usá 0.");
 
   const now = new Date().toISOString();
   const providerPayload = {
@@ -198,6 +213,10 @@ export async function saveMercadoLibrePublication(formData: FormData) {
     listing_type_id: listingTypeId || "silver",
     location_id: locationId,
     location_type: locationType,
+    condition,
+    maintenance_fee: maintenanceFee,
+    parking_lots: parkingLots,
+    covered_area: coveredArea,
   };
 
   const publicationPayload = {
@@ -247,6 +266,7 @@ export async function saveMercadoLibrePublication(formData: FormData) {
   if (result.error) throw new Error(result.error.message);
 
   revalidatePath("/protected/distribution");
+  revalidatePath("/protected/distribution/mercadolibre");
 }
 
 export async function syncMercadoLibrePublication(formData: FormData) {
@@ -263,5 +283,6 @@ export async function syncMercadoLibrePublication(formData: FormData) {
   if (data?.error) throw new Error(String(data.error));
 
   revalidatePath("/protected/distribution");
+  revalidatePath("/protected/distribution/mercadolibre");
   revalidatePath("/protected/settings/integrations");
 }

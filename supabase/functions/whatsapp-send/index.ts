@@ -3,13 +3,19 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-const accessToken = Deno.env.get("META_WHATSAPP_ACCESS_TOKEN") || "";
+const fallbackAccessToken = Deno.env.get("META_WHATSAPP_ACCESS_TOKEN") || "";
 const graphVersion = Deno.env.get("META_GRAPH_API_VERSION") || "v23.0";
 
 type AnyRow = Record<string, any>;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+}
+
+async function resolveProviderToken(db: ReturnType<typeof createClient>, organizationId: string) {
+  const scoped = await db.rpc("get_whatsapp_provider_token", { p_organization_id: organizationId });
+  if (!scoped.error && scoped.data) return String(scoped.data);
+  return fallbackAccessToken;
 }
 
 async function ensureHumanInteraction(
@@ -136,7 +142,8 @@ Deno.serve(async (req: Request) => {
   }
 
   if (!connection || connection.status !== "CONNECTED" || !connection.phone_number_id || !conversation.wa_contact_id) return json({ error: "WhatsApp connection is not active" }, 409);
-  if (!accessToken) return json({ error: "WhatsApp provider credentials are not configured" }, 503);
+  const providerToken = await resolveProviderToken(db, conversation.organization_id);
+  if (!providerToken) return json({ error: "WhatsApp provider credentials are not configured" }, 503);
 
   const role = String(membership.role || "AGENT").toUpperCase();
   const actor = ["OWNER","MANAGER","AGENT"].includes(role) ? role : "AGENT";
@@ -191,20 +198,11 @@ Deno.serve(async (req: Request) => {
   }
 
   if (message.status === "FAILED") {
-    const reset = await db.from("whatsapp_messages").update({
-      status: "QUEUED",
-      failed_at: null,
-      error_code: null,
-      error_message: null,
-    }).eq("id", message.id).eq("status", "FAILED")
-      .select("id,organization_id,conversation_id,lead_id,body,status,idempotency_key,interaction_id,external_message_id,sent_at,created_at,error_code,error_message")
-      .maybeSingle();
+    const reset = await db.from("whatsapp_messages").update({ status: "QUEUED", failed_at: null, error_code: null, error_message: null }).eq("id", message.id).eq("status", "FAILED")
+      .select("id,organization_id,conversation_id,lead_id,body,status,idempotency_key,interaction_id,external_message_id,sent_at,created_at,error_code,error_message").maybeSingle();
     if (reset.error) return json({ error: "Could not reserve the failed message for retry" }, 500);
     if (!reset.data) {
-      const current = await db.from("whatsapp_messages")
-        .select("id,status,error_code,external_message_id,interaction_id,sent_at,created_at,body")
-        .eq("id", message.id)
-        .maybeSingle();
+      const current = await db.from("whatsapp_messages").select("id,status,error_code,external_message_id,interaction_id,sent_at,created_at,body").eq("id", message.id).maybeSingle();
       if (current.error || !current.data) return json({ error: "Could not recover the retry state" }, 500);
       if (["SENT","DELIVERED","READ"].includes(current.data.status)) {
         await finishHumanWorkflow(db, conversation, lead, current.data, actor);
@@ -215,64 +213,39 @@ Deno.serve(async (req: Request) => {
     message = reset.data;
   }
 
-  const pause = await db.from("whatsapp_conversations").update({
-    automation_paused: true,
-    next_action: "Envío humano en curso",
-    updated_at: now,
-  }).eq("id", conversation.id);
+  const pause = await db.from("whatsapp_conversations").update({ automation_paused: true, next_action: "Envío humano en curso", updated_at: now }).eq("id", conversation.id);
   if (pause.error) return json({ error: "Could not pause automation before sending" }, 500);
 
   let metaResponse: Response;
   try {
     metaResponse = await fetch(`https://graph.facebook.com/${graphVersion}/${encodeURIComponent(connection.phone_number_id)}/messages`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${providerToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: conversation.wa_contact_id, type: "text", text: { preview_url: false, body: message.body } }),
     });
   } catch (error) {
-    await db.from("whatsapp_messages").update({
-      error_code: "PROVIDER_STATE_UNKNOWN",
-      error_message: String(error).slice(0, 500),
-    }).eq("id", message.id);
+    await db.from("whatsapp_messages").update({ error_code: "PROVIDER_STATE_UNKNOWN", error_message: String(error).slice(0, 500) }).eq("id", message.id);
     return json({ error: "No se pudo confirmar el estado del envío. No se reintentará automáticamente para evitar duplicados." }, 502);
   }
 
   const metaPayload = await metaResponse.json().catch(() => ({}));
   if (!metaResponse.ok) {
     const providerError = String(metaPayload?.error?.message || "Meta rejected the message").slice(0, 500);
-    await db.from("whatsapp_messages").update({
-      status: "FAILED",
-      failed_at: new Date().toISOString(),
-      error_code: String(metaPayload?.error?.code || metaResponse.status),
-      error_message: providerError,
-    }).eq("id", message.id);
+    await db.from("whatsapp_messages").update({ status: "FAILED", failed_at: new Date().toISOString(), error_code: String(metaPayload?.error?.code || metaResponse.status), error_message: providerError }).eq("id", message.id);
     return json({ error: "Meta rejected the message", provider_error: providerError }, 502);
   }
 
   const externalMessageId = String(metaPayload?.messages?.[0]?.id || "") || null;
   if (!externalMessageId) {
-    await db.from("whatsapp_messages").update({
-      error_code: "PROVIDER_STATE_UNKNOWN",
-      error_message: "Meta returned success without a message id",
-    }).eq("id", message.id);
+    await db.from("whatsapp_messages").update({ error_code: "PROVIDER_STATE_UNKNOWN", error_message: "Meta returned success without a message id" }).eq("id", message.id);
     return json({ error: "Meta aceptó la solicitud pero no devolvió un identificador. No se reintentará automáticamente." }, 502);
   }
 
   const sentAt = new Date().toISOString();
-  const sentUpdate = await db.from("whatsapp_messages").update({
-    external_message_id: externalMessageId,
-    status: "SENT",
-    sent_at: sentAt,
-    failed_at: null,
-    error_code: null,
-    error_message: null,
-  }).eq("id", message.id)
-    .select("id,organization_id,conversation_id,lead_id,body,status,idempotency_key,interaction_id,external_message_id,sent_at,created_at,error_code,error_message")
-    .single();
+  const sentUpdate = await db.from("whatsapp_messages").update({ external_message_id: externalMessageId, status: "SENT", sent_at: sentAt, failed_at: null, error_code: null, error_message: null }).eq("id", message.id)
+    .select("id,organization_id,conversation_id,lead_id,body,status,idempotency_key,interaction_id,external_message_id,sent_at,created_at,error_code,error_message").single();
 
-  if (sentUpdate.error) {
-    return json({ error: "Message was accepted by Meta but local delivery state could not be persisted. The same request will not be sent twice." }, 500);
-  }
+  if (sentUpdate.error) return json({ error: "Message was accepted by Meta but local delivery state could not be persisted. The same request will not be sent twice." }, 500);
   message = sentUpdate.data;
 
   try {

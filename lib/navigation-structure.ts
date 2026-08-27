@@ -62,7 +62,7 @@ const NAVIGATION_STRUCTURE: NavigationStructureItem[] = [
     id: "direction-analysis",
     label: "Dirección y análisis",
     icon: "BarChart3",
-    items: ["executive", "performance", "monthly", "marketing-roi", "reports", "analytics"],
+    items: ["manager", "executive", "performance", "monthly", "marketing-roi", "reports", "analytics"],
   },
   {
     kind: "group",

@@ -4,11 +4,20 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { CheckCircle2, ExternalLink, LoaderCircle, MessageCircle } from "lucide-react";
 import { completeWhatsAppEmbeddedSignup } from "./actions";
 
+type FacebookLoginResponse = {
+  authResponse?: { code?: string };
+  status?: string;
+  error?: string;
+  error_reason?: string;
+  error_code?: number | string;
+  error_message?: string;
+};
+
 declare global {
   interface Window {
     FB?: {
       init: (options: Record<string, unknown>) => void;
-      login: (callback: (response: { authResponse?: { code?: string } }) => void, options: Record<string, unknown>) => void;
+      login: (callback: (response: FacebookLoginResponse) => void, options: Record<string, unknown>) => void;
     };
     fbAsyncInit?: () => void;
   }
@@ -24,6 +33,15 @@ type SessionInfo = {
     current_step?: string;
   };
 };
+
+function loginFailureMessage(response: FacebookLoginResponse) {
+  const providerMessage = String(response.error_message || response.error_reason || response.error || "").trim();
+  const code = response.error_code ? ` (Meta ${response.error_code})` : "";
+  if (providerMessage) return `Meta no completó la autorización${code}: ${providerMessage}`;
+  if (response.status === "not_authorized") return "La cuenta de Facebook no autorizó RevScale para administrar WhatsApp.";
+  if (response.status === "unknown") return "Meta no pudo completar el inicio de sesión. Revisá la cuenta y los permisos de la app.";
+  return "No se completó la autorización de Meta. Si cerraste la ventana, volvé a intentarlo.";
+}
 
 export function MetaEmbeddedSignup({ appId, configId, connectedPhone }: { appId: string; configId: string; connectedPhone?: string | null }) {
   const [isPending, startTransition] = useTransition();
@@ -113,7 +131,7 @@ export function MetaEmbeddedSignup({ appId, configId, connectedPhone }: { appId:
       (response) => {
         const code = String(response?.authResponse?.code || "");
         if (!code) {
-          setStatus("No se completó la autorización de Meta.");
+          setStatus(loginFailureMessage(response || {}));
           return;
         }
         codeRef.current = code;
@@ -123,7 +141,11 @@ export function MetaEmbeddedSignup({ appId, configId, connectedPhone }: { appId:
         config_id: configId,
         response_type: "code",
         override_default_response_type: true,
-        extras: { setup: {}, featureType: "", sessionInfoVersion: "3" },
+        extras: {
+          sessionInfoVersion: "3",
+          version: "v4",
+          features: [],
+        },
       }
     );
   };

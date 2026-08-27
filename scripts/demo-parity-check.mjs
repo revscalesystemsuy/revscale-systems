@@ -93,6 +93,29 @@ for (const file of ['app/pricing/page.tsx', 'app/demos/page.tsx', 'app/protected
   if (!source.includes('plan-catalog')) errors.push(`${file}: must consume the central plan catalog`)
 }
 
+const demoLayoutSource = fs.readFileSync(path.join(root, 'app/demo/layout.tsx'), 'utf8')
+if (!demoLayoutSource.includes('<DemoSidebar')) {
+  errors.push('app/demo/layout.tsx: must render the shared DemoSidebar')
+}
+
+function collectDemoPages(dir) {
+  const pages = []
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const absolute = path.join(dir, entry.name)
+    if (entry.isDirectory()) pages.push(...collectDemoPages(absolute))
+    if (entry.isFile() && entry.name === 'page.tsx') pages.push(absolute)
+  }
+  return pages
+}
+
+for (const file of collectDemoPages(path.join(root, 'app/demo'))) {
+  const source = fs.readFileSync(file, 'utf8')
+  if (source.includes('DemoSidebar')) {
+    const relative = path.relative(root, file).split(path.sep).join('/')
+    errors.push(`${relative}: must not render DemoSidebar; app/demo/layout.tsx owns the shared sidebar`)
+  }
+}
+
 if (errors.length) {
   console.error('Product parity contract failed:\n- ' + errors.join('\n- '))
   process.exit(1)

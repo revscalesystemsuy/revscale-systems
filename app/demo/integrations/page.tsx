@@ -1,18 +1,17 @@
 import Link from "next/link"
-import { Globe2, MessageCircle, PlugZap, Webhook } from "lucide-react"
+import { Globe2, MessageCircle, PlugZap, Radio, ShieldCheck, Webhook } from "lucide-react"
 import { PageHeader } from "../demo-ui"
 
 const INTEGRATIONS = [
   { name: "Web leads", detail: "Captura automática desde formularios y landing pages", status: "Activo", icon: Globe2 },
   { name: "Webhooks", detail: "Salida de eventos comerciales hacia sistemas externos", status: "Activo", icon: Webhook },
-  { name: "Portal inmobiliario", detail: "Sincronización de inventario y oportunidades", status: "Disponible", icon: PlugZap },
 ]
 
 export default function DemoIntegrationsPage() {
   return (
     <main className="min-h-screen p-6 md:p-8 lg:p-10">
       <div className="mx-auto max-w-6xl">
-        <PageHeader eyebrow="Enterprise · Demo ficticia" title="Integraciones" subtitle="Capa de conectividad para operaciones más complejas. La demo enseña el producto, pero no representa credenciales ni conexiones externas reales." />
+        <PageHeader eyebrow="Enterprise · Demo ficticia" title="Integraciones" subtitle="Capa de conectividad para operaciones más complejas. La demo replica el flujo del producto sin usar credenciales externas reales." />
 
         <section className="mb-5 rounded-2xl border border-[#cbb99f] bg-[#efe3d3] p-6">
           <div className="flex flex-wrap items-start justify-between gap-5">
@@ -27,6 +26,23 @@ export default function DemoIntegrationsPage() {
           </div>
         </section>
 
+        <section className="mb-5 grid gap-5 md:grid-cols-2">
+          <article className="rounded-2xl border border-[#b6bea6] bg-[#e8ebdf] p-6">
+            <div className="flex items-start justify-between gap-4"><span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#c4ccb8] bg-[#fffaf2] text-[#667154]"><Radio size={18}/></span><span className="rounded-full border border-[#a9b39b] bg-[#f4f6ef] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#4f5d43]">LIVE disponible</span></div>
+            <h2 className="mt-5 font-serif text-2xl text-[#37332d]">Mercado Libre Inmuebles</h2>
+            <p className="mt-2 text-sm leading-6 text-[#5e6655]">La cuenta real usa OAuth por inmobiliaria. Los tokens quedan cifrados en backend y RevScale permite validar, publicar, sincronizar, pausar y reactivar cada aviso sin crear duplicados.</p>
+            <div className="mt-5 space-y-2 rounded-xl border border-[#c8ceb9] bg-[#fffaf2] p-4 text-sm text-[#625d55]"><Feature text="Conexión solo por Dirección."/><Feature text="Validación oficial antes de publicar."/><Feature text="ID externo, URL, errores y última sync guardados."/><Feature text="Refresh token automático desde backend."/></div>
+            <Link href="/demo/distribution/mercadolibre?plan=enterprise" className="mt-5 block rounded-lg bg-[#302d28] px-4 py-2.5 text-center text-sm font-semibold !text-[#fffaf2]">Ver flujo de publicación</Link>
+          </article>
+
+          <article className="rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6">
+            <div className="flex items-start justify-between gap-4"><span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#d2c5b3] bg-[#eee4d5] text-[#786447]"><PlugZap size={18}/></span><span className="rounded-full border border-[#cbb99f] bg-[#efe3d3] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#755c3f]">Convenio requerido</span></div>
+            <h2 className="mt-5 font-serif text-2xl text-[#37332d]">InfoCasas</h2>
+            <p className="mt-2 text-sm leading-6 text-[#6f685f]">La arquitectura del producto ya contempla el proveedor, pero la activación LIVE se habilita únicamente con credenciales y especificación técnica oficial de la cuenta inmobiliaria.</p>
+            <div className="mt-5 flex items-start gap-2 rounded-xl border border-[#ddd1c0] bg-[#fffaf2] p-4 text-xs leading-5 text-[#665f56]"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0"/> RevScale no presenta como conectada una integración que dependa de un convenio externo todavía inexistente.</div>
+          </article>
+        </section>
+
         <section className="grid gap-5 md:grid-cols-2">
           {INTEGRATIONS.map(({ name, detail, status, icon: Icon }) => (
             <article key={name} className="rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6">
@@ -39,3 +55,5 @@ export default function DemoIntegrationsPage() {
     </main>
   )
 }
+
+function Feature({ text }: { text: string }) { return <div className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#657052]"/><span>{text}</span></div> }

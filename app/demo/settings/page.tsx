@@ -23,6 +23,7 @@ export default async function DemoSettingsPage({ searchParams }: { searchParams:
     { name: "WhatsApp Business", enabled: config.modules.whatsapp, status: config.modules.whatsapp ? "Disponible" : "No incluido" },
     { name: "Matching inteligente", enabled: config.modules.matching, status: config.modules.matching ? "Activo" : "No incluido" },
     { name: "Reportes y analítica", enabled: config.modules.analytics, status: config.modules.analytics ? "Activo" : "No incluido" },
+    { name: "Auto-reasignación por SLA", enabled: plan === "enterprise", status: plan === "enterprise" ? "Disponible" : "Enterprise" },
     { name: "Integraciones avanzadas", enabled: config.modules.integrations, status: config.modules.integrations ? "Disponible" : "Enterprise" },
   ]
 
@@ -62,6 +63,17 @@ export default async function DemoSettingsPage({ searchParams }: { searchParams:
               ))}
             </div>
           </Card>
+
+          {plan === "enterprise" && (
+            <Card title={<SectionTitle icon={ShieldCheck}>SLA y rescate automático</SectionTitle>} className="md:col-span-2">
+              <div className="grid gap-3 sm:grid-cols-4">
+                {[["Respuesta humana", "15 min"], ["Aviso preventivo", "5 min antes"], ["Escalamiento", "15 min después"], ["Reasignación", "20 min después"]].map(([label, value]) => (
+                  <div key={label} className="rounded-xl border border-[#d6cbbb] bg-[#efe6d9] p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#81796e]">{label}</p><p className="mt-2 font-serif text-xl text-[#37332d]">{value}</p></div>
+                ))}
+              </div>
+              <p className="mt-4 text-sm leading-6 text-[#625d55]">Si un lead sigue sin respuesta humana después del escalamiento, RevScale puede moverlo una sola vez a otro agente activo del mismo equipo con menor carga abierta. Si no hay reemplazo seguro, conserva la asignación y avisa a Dirección/Gerencia.</p>
+            </Card>
+          )}
 
           <Card title={<SectionTitle icon={PlugZap}>Módulos e integraciones</SectionTitle>} className="md:col-span-2">
             <div className="space-y-3">

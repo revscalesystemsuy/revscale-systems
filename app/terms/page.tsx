@@ -20,7 +20,7 @@ export default function TermsPage() {
 
         <div className="mt-8 space-y-8 text-[15px] leading-7 text-[#554f47]">
           <Section title="1. Servicio">
-            <p>RevScale Systems ("RevScale") ofrece una plataforma de operación comercial orientada principalmente a organizaciones inmobiliarias. Las funciones pueden incluir gestión de leads, propiedades, conversaciones, tareas, seguimiento comercial, automatizaciones, analítica, integraciones y asistencia basada en inteligencia artificial.</p>
+            <p>RevScale Systems (“RevScale”) ofrece una plataforma de operación comercial orientada principalmente a organizaciones inmobiliarias. Las funciones pueden incluir gestión de leads, propiedades, conversaciones, tareas, seguimiento comercial, automatizaciones, analítica, integraciones y asistencia basada en inteligencia artificial.</p>
           </Section>
 
           <Section title="2. Aceptación y cuentas">

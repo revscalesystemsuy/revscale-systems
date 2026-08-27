@@ -2,7 +2,18 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { hasEnvVars } from "../utils";
 
-const PUBLIC_PATH_PREFIXES = ["/auth", "/demo", "/demos", "/pricing", "/request", "/inmobiliaria", "/p"];
+const PUBLIC_PATH_PREFIXES = [
+  "/auth",
+  "/demo",
+  "/demos",
+  "/pricing",
+  "/request",
+  "/inmobiliaria",
+  "/p",
+  "/privacy",
+  "/terms",
+  "/data-deletion",
+];
 const PUBLIC_EXACT_PATHS = new Set(["/robots.txt", "/sitemap.xml"]);
 
 function isPublicPath(pathname: string) {

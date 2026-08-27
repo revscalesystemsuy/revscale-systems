@@ -3,18 +3,24 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const verifyToken = Deno.env.get("META_WHATSAPP_VERIFY_TOKEN") || "";
 const appSecret = Deno.env.get("META_APP_SECRET") || "";
-const accessToken = Deno.env.get("META_WHATSAPP_ACCESS_TOKEN") || "";
+const fallbackAccessToken = Deno.env.get("META_WHATSAPP_ACCESS_TOKEN") || "";
 const openAiKey = Deno.env.get("OPENAI_API_KEY") || "";
-const openAiModel = Deno.env.get("OPENAI_WHATSAPP_MODEL") || "gpt-5-mini";
+const openAiModel = Deno.env.get("OPENAI_WHATSAPP_MODEL") || "gpt-4.1-mini";
+const openAiFallbackModel = Deno.env.get("OPENAI_WHATSAPP_FALLBACK_MODEL") || "gpt-4o-mini";
 const graphVersion = Deno.env.get("META_GRAPH_API_VERSION") || "v23.0";
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
 type AnyRow = Record<string, any>;
+type ProviderError = Error & { status?: number; retryable?: boolean; providerCode?: string; providerMessage?: string };
 
 function admin() {
   if (!supabaseUrl || !serviceRoleKey) throw new Error("Supabase backend credentials unavailable");
   return createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function hex(bytes: ArrayBuffer) {
@@ -107,16 +113,22 @@ function temperature(score: number) {
   return score >= 75 ? "HOT" : score >= 45 ? "WARM" : "COLD";
 }
 
-async function sendText(phoneNumberId: string, to: string, body: string) {
-  if (!accessToken) throw new Error("META_WHATSAPP_ACCESS_TOKEN not configured");
+async function resolveProviderToken(db: ReturnType<typeof admin>, organizationId: string) {
+  const scoped = await db.rpc("get_whatsapp_provider_token", { p_organization_id: organizationId });
+  if (!scoped.error && scoped.data) return String(scoped.data);
+  return fallbackAccessToken;
+}
+
+async function sendText(providerToken: string, phoneNumberId: string, to: string, body: string) {
+  if (!providerToken) throw new Error("META_WHATSAPP_ACCESS_TOKEN not configured");
   const response = await fetch(`https://graph.facebook.com/${graphVersion}/${encodeURIComponent(phoneNumberId)}/messages`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${providerToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to, type: "text", text: { preview_url: false, body } }),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(`Meta send failed (${response.status}): ${payload?.error?.message || "unknown error"}`) as Error & { providerCode?: string; providerMessage?: string };
+    const error = new Error(`Meta send failed (${response.status}): ${payload?.error?.message || "unknown error"}`) as ProviderError;
     error.providerCode = String(payload?.error?.code || response.status);
     error.providerMessage = String(payload?.error?.message || "Meta rejected the message").slice(0, 500);
     throw error;
@@ -126,22 +138,68 @@ async function sendText(phoneNumberId: string, to: string, body: string) {
   return messageId;
 }
 
-async function qualifyLead(input: { text: string; lead: AnyRow; properties: AnyRow[]; settings: AnyRow }) {
-  if (!openAiKey) return null;
+function qualificationPrompt(input: { text: string; lead: AnyRow; properties: AnyRow[]; settings: AnyRow }) {
   const propertyContext = input.properties.map((p) => ({ id: p.id, title: p.title, operation: p.operation, property_type: p.property_type, zone: p.zone, price: p.price, currency: p.currency, bedrooms: p.bedrooms, status: p.status }));
-  const prompt = `Sos el agente de calificación comercial de RevScale para una inmobiliaria. Obtené progresivamente datos útiles y acercá el lead a una visita o próxima acción. No inventes propiedades ni datos. Solo podés mencionar propiedades incluidas en PROPERTY_CONTEXT. Nunca prometas precio final, financiación aprobada, disponibilidad contractual, reserva, condiciones legales ni documentación. Si hay negociación, pregunta legal, reclamo, pedido de humano, baja confianza o situación sensible, requires_human=true y no intentes resolverla.\n\nDatos actuales: ${JSON.stringify(input.lead)}\nPROPERTY_CONTEXT: ${JSON.stringify(propertyContext)}\nMensaje nuevo: ${JSON.stringify(input.text)}\nEstilo: asistente=${input.settings.assistant_name || "RevScale"}, tono=${input.settings.tone || "PROFESSIONAL_FRIENDLY"}, trato=${input.settings.address_style || "VOS"}, longitud=${input.settings.response_length || "SHORT"}.\n\nRespondé SOLO JSON válido con: reply, intent, confidence, requires_human, handoff_reason, operation (COMPRA|ALQUILER|null), primary_zone, budget_max, currency (USD|UYU|null), property_type, bedrooms_min, purchase_timeline, financing_needed, visit_intent, next_action, context_property_id. Usá null cuando el dato no fue confirmado.`;
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${openAiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: openAiModel, input: prompt, max_output_tokens: 900 }),
-  });
+  return `Sos el agente de calificación comercial de RevScale para una inmobiliaria. Obtené progresivamente datos útiles y acercá el lead a una visita o próxima acción. No inventes propiedades ni datos. Solo podés mencionar propiedades incluidas en PROPERTY_CONTEXT. Nunca prometas precio final, financiación aprobada, disponibilidad contractual, reserva, condiciones legales ni documentación. Si hay negociación, pregunta legal, reclamo, pedido de humano, baja confianza o situación sensible, requires_human=true y no intentes resolverla.\n\nDatos actuales: ${JSON.stringify(input.lead)}\nPROPERTY_CONTEXT: ${JSON.stringify(propertyContext)}\nMensaje nuevo: ${JSON.stringify(input.text)}\nEstilo: asistente=${input.settings.assistant_name || "RevScale"}, tono=${input.settings.tone || "PROFESSIONAL_FRIENDLY"}, trato=${input.settings.address_style || "VOS"}, longitud=${input.settings.response_length || "SHORT"}.\n\nRespondé SOLO JSON válido con: reply, intent, confidence, requires_human, handoff_reason, operation (COMPRA|ALQUILER|null), primary_zone, budget_max, currency (USD|UYU|null), property_type, bedrooms_min, purchase_timeline, financing_needed, visit_intent, next_action, context_property_id. Usá null cuando el dato no fue confirmado.`;
+}
+
+async function requestQualification(model: string, prompt: string) {
+  let response: Response;
+  try {
+    response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${openAiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model, input: prompt, max_output_tokens: 900 }),
+    });
+  } catch (cause) {
+    const error = new Error(`OpenAI network failure: ${String(cause).slice(0, 180)}`) as ProviderError;
+    error.retryable = true;
+    throw error;
+  }
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`OpenAI qualification failed (${response.status})`);
+  if (!response.ok) {
+    const error = new Error(`OpenAI qualification failed (${response.status}): ${String(data?.error?.message || data?.error?.code || "provider error").slice(0, 240)}`) as ProviderError;
+    error.status = response.status;
+    error.retryable = [408,409,429,500,502,503,504].includes(response.status);
+    throw error;
+  }
   let output = String(data?.output_text || "").trim();
   if (!output && Array.isArray(data?.output)) {
     output = data.output.flatMap((item: AnyRow) => Array.isArray(item?.content) ? item.content : []).map((item: AnyRow) => String(item?.text || "")).join("").trim();
   }
-  return JSON.parse(output.replace(/^```json\s*/i, "").replace(/```$/i, "").trim());
+  try {
+    return JSON.parse(output.replace(/^```json\s*/i, "").replace(/```$/i, "").trim());
+  } catch {
+    const error = new Error(`OpenAI returned invalid qualification JSON with model ${model}`) as ProviderError;
+    error.retryable = false;
+    throw error;
+  }
+}
+
+async function qualifyLead(input: { text: string; lead: AnyRow; properties: AnyRow[]; settings: AnyRow }) {
+  if (!openAiKey) return null;
+  const prompt = qualificationPrompt(input);
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return { raw: await requestQualification(openAiModel, prompt), model: openAiModel };
+    } catch (error) {
+      lastError = error;
+      if (!(error as ProviderError).retryable || attempt === 1) break;
+      await sleep(450 * (attempt + 1));
+    }
+  }
+
+  if (openAiFallbackModel && openAiFallbackModel !== openAiModel) {
+    try {
+      return { raw: await requestQualification(openAiFallbackModel, prompt), model: openAiFallbackModel };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("OpenAI qualification failed");
 }
 
 async function claimWebhookEvent(db: ReturnType<typeof admin>, row: AnyRow) {
@@ -149,20 +207,11 @@ async function claimWebhookEvent(db: ReturnType<typeof admin>, row: AnyRow) {
   if (!inserted.error && inserted.data) return inserted.data;
   if (inserted.error?.code !== "23505") throw inserted.error;
 
-  const existing = await db.from("whatsapp_webhook_events")
-    .select("id,processing_status")
-    .eq("event_key", row.event_key)
-    .maybeSingle();
+  const existing = await db.from("whatsapp_webhook_events").select("id,processing_status").eq("event_key", row.event_key).maybeSingle();
   if (existing.error || !existing.data) throw existing.error || new Error("Webhook event could not be recovered");
   if (existing.data.processing_status !== "ERROR") return null;
 
-  const retried = await db.from("whatsapp_webhook_events").update({
-    processing_status: "RECEIVED",
-    error_message: null,
-    processed_at: null,
-    payload: row.payload,
-    received_at: new Date().toISOString(),
-  }).eq("id", existing.data.id).eq("processing_status", "ERROR").select("id,processing_status").maybeSingle();
+  const retried = await db.from("whatsapp_webhook_events").update({ processing_status: "RECEIVED", error_message: null, processed_at: null, payload: row.payload, received_at: new Date().toISOString() }).eq("id", existing.data.id).eq("processing_status", "ERROR").select("id,processing_status").maybeSingle();
   if (retried.error) throw retried.error;
   return retried.data || null;
 }
@@ -186,6 +235,17 @@ async function markHumanRequired(db: ReturnType<typeof admin>, connection: AnyRo
   await db.from("whatsapp_conversations").update({ status: "HUMAN_REQUIRED", automation_paused: true, handoff_reason: reason.slice(0, 300), handoff_requested_at: now, handoff_requested_by: requestedBy, next_action: nextAction || "Atender conversación manualmente", priority: Math.max(score, 80), updated_at: now }).eq("id", conversation.id);
   await db.from("leads").update({ requires_human: true, next_action: nextAction || "Atender conversación de WhatsApp", updated_at: now }).eq("id", lead.id).eq("organization_id", connection.organization_id);
   await notifyHandoff(db, connection, lead, conversation.id, reason);
+}
+
+async function markTechnicalDegradation(db: ReturnType<typeof admin>, connection: AnyRow, lead: AnyRow, conversation: AnyRow, error: unknown) {
+  const now = new Date().toISOString();
+  const detail = String(error instanceof Error ? error.message : error).replace(/Bearer\s+[^\s]+/gi, "Bearer [redacted]").slice(0, 420);
+  await Promise.all([
+    db.from("whatsapp_connections").update({ last_error: `AI temporal: ${detail}`, updated_at: now }).eq("id", connection.id),
+    db.from("whatsapp_conversations").update({ status: "OPEN", automation_paused: false, handoff_reason: null, next_action: "Reintentar calificación automática", priority: Number(lead.lead_score || 20), updated_at: now }).eq("id", conversation.id),
+    db.from("leads").update({ requires_human: false, next_action: "Reintentar calificación automática por WhatsApp", updated_at: now }).eq("id", lead.id).eq("organization_id", connection.organization_id),
+  ]);
+  return detail;
 }
 
 async function processStatus(db: ReturnType<typeof admin>, connection: AnyRow, status: AnyRow) {
@@ -228,9 +288,9 @@ async function ensureAiInteraction(db: ReturnType<typeof admin>, message: AnyRow
   return interactionId;
 }
 
-async function sendAiReply(db: ReturnType<typeof admin>, connection: AnyRow, conversation: AnyRow, lead: AnyRow, inboundExternalId: string, waContactId: string, qualification: AnyRow, score: number) {
+async function sendAiReply(db: ReturnType<typeof admin>, providerToken: string, modelName: string, connection: AnyRow, conversation: AnyRow, lead: AnyRow, inboundExternalId: string, waContactId: string, qualification: AnyRow, score: number) {
   const idempotencyKey = `ai:${inboundExternalId}`;
-  const reservation = await db.from("whatsapp_messages").insert({ organization_id: connection.organization_id, conversation_id: conversation.id, lead_id: lead.id, direction: "OUTBOUND", sender_type: "AI", body: qualification.reply, message_type: "TEXT", status: "QUEUED", detected_intent: qualification.intent, confidence: qualification.confidence, requires_human: false, model_provider: "OPENAI", model_name: openAiModel, idempotency_key: idempotencyKey }).select("id,body,status,interaction_id,external_message_id,sent_at,created_at,error_code,error_message").maybeSingle();
+  const reservation = await db.from("whatsapp_messages").insert({ organization_id: connection.organization_id, conversation_id: conversation.id, lead_id: lead.id, direction: "OUTBOUND", sender_type: "AI", body: qualification.reply, message_type: "TEXT", status: "QUEUED", detected_intent: qualification.intent, confidence: qualification.confidence, requires_human: false, model_provider: "OPENAI", model_name: modelName, idempotency_key: idempotencyKey }).select("id,body,status,interaction_id,external_message_id,sent_at,created_at,error_code,error_message").maybeSingle();
 
   let outbound = reservation.data;
   if (reservation.error?.code === "23505") {
@@ -255,10 +315,10 @@ async function sendAiReply(db: ReturnType<typeof admin>, connection: AnyRow, con
 
   let sentId: string;
   try {
-    sentId = await sendText(connection.phone_number_id, waContactId, outbound.body);
+    sentId = await sendText(providerToken, connection.phone_number_id, waContactId, outbound.body);
   } catch (error) {
-    const providerCode = String((error as Error & { providerCode?: string }).providerCode || "PROVIDER_SEND_FAILED");
-    const providerMessage = String((error as Error & { providerMessage?: string }).providerMessage || error).slice(0, 500);
+    const providerCode = String((error as ProviderError).providerCode || "PROVIDER_SEND_FAILED");
+    const providerMessage = String((error as ProviderError).providerMessage || error).slice(0, 500);
     const explicitProviderFailure = providerCode !== "PROVIDER_SEND_FAILED";
     await db.from("whatsapp_messages").update(explicitProviderFailure ? { status: "FAILED", failed_at: new Date().toISOString(), error_code: providerCode, error_message: providerMessage } : { error_code: "PROVIDER_STATE_UNKNOWN", error_message: providerMessage }).eq("id", outbound.id);
     if (!explicitProviderFailure) return { ...outbound, error_code: "PROVIDER_STATE_UNKNOWN", error_message: providerMessage };
@@ -310,7 +370,7 @@ async function processInbound(db: ReturnType<typeof admin>, connection: AnyRow, 
       const interaction = await db.from("interactions").insert({ organization_id: connection.organization_id, lead_id: lead.id, channel: "WHATSAPP", direction: "INBOUND", actor: "LEAD", message: body, created_at: providerTimestamp });
       if (interaction.error) throw interaction.error;
     }
-    await db.from("whatsapp_connections").update({ last_webhook_at: now, webhook_status: "VERIFIED", updated_at: now, last_error: null }).eq("id", connection.id);
+    await db.from("whatsapp_connections").update({ last_webhook_at: now, webhook_status: "VERIFIED", updated_at: now }).eq("id", connection.id);
 
     const { data: settings } = await db.from("whatsapp_ai_settings").select("*").eq("organization_id", connection.organization_id).maybeSingle();
     const forceHandoff = hardHandoff(body, settings?.handoff_keywords);
@@ -338,13 +398,17 @@ async function processInbound(db: ReturnType<typeof admin>, connection: AnyRow, 
     }
 
     let qualification: ReturnType<typeof normalizedQualification> = null;
+    let qualificationModel = openAiModel;
     try {
-      const raw = await qualifyLead({ text: body, lead: { operation: lead.operation, primary_zone: lead.primary_zone, budget_max: lead.budget_max, currency: lead.currency, property_type: lead.property_type, bedrooms_min: lead.bedrooms_min, purchase_timeline: lead.purchase_timeline, financing_needed: lead.financing_needed, visit_intent: lead.visit_intent }, properties, settings });
-      qualification = normalizedQualification(raw, new Set(properties.map((p) => String(p.id))));
+      const result = await qualifyLead({ text: body, lead: { operation: lead.operation, primary_zone: lead.primary_zone, budget_max: lead.budget_max, currency: lead.currency, property_type: lead.property_type, bedrooms_min: lead.bedrooms_min, purchase_timeline: lead.purchase_timeline, financing_needed: lead.financing_needed, visit_intent: lead.visit_intent }, properties, settings });
+      if (result) {
+        qualificationModel = result.model;
+        qualification = normalizedQualification(result.raw, new Set(properties.map((p) => String(p.id))));
+      }
     } catch (error) {
-      console.error("WhatsApp qualification failed safely", error);
-      await markHumanRequired(db, connection, lead, conversation, "No se pudo clasificar la consulta con suficiente seguridad", "SYSTEM", Math.max(Number(lead.lead_score || 20), 70));
-      await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", error_message: null, processed_at: new Date().toISOString() }).eq("id", event.id);
+      console.error("WhatsApp qualification provider failure", error);
+      const detail = await markTechnicalDegradation(db, connection, lead, conversation, error);
+      await db.from("whatsapp_webhook_events").update({ processing_status: "PROCESSED", error_message: `AI_RETRY_EXHAUSTED: ${detail}`.slice(0, 1000), processed_at: new Date().toISOString() }).eq("id", event.id);
       return;
     }
 
@@ -362,12 +426,15 @@ async function processInbound(db: ReturnType<typeof admin>, connection: AnyRow, 
     const score = scoreLead({ ...lead, ...fields }, false);
     fields.lead_score = score;
     fields.lead_temperature = temperature(score);
+    fields.requires_human = false;
     fields.updated_at = now;
     const leadUpdate = await db.from("leads").update(fields).eq("id", lead.id).eq("organization_id", connection.organization_id);
     if (leadUpdate.error) throw leadUpdate.error;
+    await db.from("whatsapp_connections").update({ last_error: null, updated_at: now }).eq("id", connection.id);
 
-    if (qualification.reply && accessToken) {
-      const outbound = await sendAiReply(db, connection, conversation, lead, externalId, waContactId, qualification, score);
+    const providerToken = await resolveProviderToken(db, connection.organization_id);
+    if (qualification.reply && providerToken) {
+      const outbound = await sendAiReply(db, providerToken, qualificationModel, connection, conversation, lead, externalId, waContactId, qualification, score);
       if (outbound.status === "QUEUED" && outbound.error_code === "PROVIDER_STATE_UNKNOWN") {
         await markHumanRequired(db, connection, lead, conversation, "El estado de una respuesta automática quedó incierto; se pausó la IA para evitar duplicados", "SYSTEM", Math.max(score, 75));
       } else if (["SENT","DELIVERED","READ"].includes(outbound.status)) {

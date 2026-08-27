@@ -7,6 +7,7 @@ import { demoHref, normalizeDemoPlan, type DemoPlan } from "@/lib/demo-plan"
 const STORAGE_KEY = "revscale-demo-plan"
 
 const ROUTE_PLANS: Array<{ prefix: string; plans: readonly DemoPlan[] }> = [
+  { prefix: "/demo/distribution/mercadolibre", plans: ["enterprise"] },
   { prefix: "/demo/whatsapp", plans: ["professional", "enterprise"] },
   { prefix: "/demo/reports", plans: ["professional", "enterprise"] },
   { prefix: "/demo/analytics", plans: ["professional", "enterprise"] },

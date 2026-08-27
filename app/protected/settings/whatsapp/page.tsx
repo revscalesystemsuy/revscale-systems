@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { CheckCircle2, CircleDashed, CirclePause, MessageCircle, Radio, ShieldCheck } from "lucide-react";
 import { requireCompanyAdminFeature } from "@/lib/organization-role";
 import { activateWhatsAppLive, pauseWhatsAppLive, saveWhatsAppAiPreparation } from "./actions";
+import { MetaEmbeddedSignup } from "./meta-embedded-signup";
 
 export default async function WhatsAppAiSettingsPage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string }> }) {
   const context = await requireCompanyAdminFeature("whatsapp_ai");
@@ -17,7 +18,7 @@ export default async function WhatsAppAiSettingsPage({ searchParams }: { searchP
       .maybeSingle(),
     context.supabase
       .from("whatsapp_connections")
-      .select("status,webhook_status,display_phone_number,verified_name,phone_number_id,waba_id,connected_at,last_webhook_at,last_error")
+      .select("status,webhook_status,display_phone_number,verified_name,phone_number_id,waba_id,connected_at,last_webhook_at,last_error,credential_source")
       .eq("organization_id", context.organizationId)
       .maybeSingle(),
   ]);
@@ -37,7 +38,8 @@ export default async function WhatsAppAiSettingsPage({ searchParams }: { searchP
   const webhookVerified = connection?.webhook_status === "VERIFIED";
   const canActivate = connected && webhookVerified;
   const isLive = current.mode === "LIVE" && current.autoReply;
-  const webhookUrl = "https://pctcbawzeflnyeeiidqi.supabase.co/functions/v1/whatsapp-webhook";
+  const metaAppId = process.env.META_APP_ID || "1550241886783400";
+  const embeddedSignupConfigId = process.env.META_EMBEDDED_SIGNUP_CONFIG_ID || "";
 
   return (
     <main className="min-h-screen p-6 md:p-8 lg:p-10">
@@ -46,7 +48,7 @@ export default async function WhatsAppAiSettingsPage({ searchParams }: { searchP
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Canal comercial</p>
             <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight text-[#292722] md:text-5xl">WhatsApp Business + IA</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55] md:text-[15px]">La infraestructura de recepción, inbox, calificación y handoff ya está preparada. El canal solo pasa a LIVE cuando existe una cuenta Meta real conectada y el webhook fue verificado.</p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55] md:text-[15px]">Conectá la cuenta de la inmobiliaria, definí cómo responde el asistente y activá el canal. RevScale administra la infraestructura técnica por detrás.</p>
           </div>
           <ModePill mode={current.mode} live={isLive} />
         </div>
@@ -56,15 +58,28 @@ export default async function WhatsAppAiSettingsPage({ searchParams }: { searchP
 
         <section className="mt-7 grid gap-4 md:grid-cols-3">
           <StateCard label="Cuenta Meta" value={connected ? "Conectada" : "Pendiente"} done={connected} detail={connection?.display_phone_number || connection?.verified_name || "Sin número vinculado"} />
-          <StateCard label="Webhook" value={webhookVerified ? "Verificado" : "Pendiente"} done={webhookVerified} detail={connection?.last_webhook_at ? `Último evento ${formatDate(connection.last_webhook_at)}` : "Sin eventos reales todavía"} />
+          <StateCard label="Recepción" value={webhookVerified ? "Verificada" : "Pendiente"} done={webhookVerified} detail={connection?.last_webhook_at ? `Último evento ${formatDate(connection.last_webhook_at)}` : connected ? "Esperando el primer mensaje real" : "Se verifica automáticamente al conectar"} />
           <StateCard label="Automatización" value={isLive ? "LIVE" : current.mode === "PAUSED" ? "Pausada" : "Preparación"} done={isLive} detail={isLive ? "Puede responder automáticamente." : "No realiza auto-respuestas."} />
         </section>
+
+        <div className="mt-6">
+          {embeddedSignupConfigId ? (
+            <MetaEmbeddedSignup appId={metaAppId} configId={embeddedSignupConfigId} connectedPhone={connection?.display_phone_number || null} />
+          ) : (
+            <section className="rounded-xl border border-[#cdbfa9] bg-[#f7f0e6] p-6 shadow-[0_18px_45px_rgba(72,58,40,0.05)]">
+              <div className="flex items-start gap-4">
+                <div className="rounded-lg border border-[#cdbfa9] bg-[#eee4d5] p-2.5 text-[#705f47]"><ShieldCheck size={20} /></div>
+                <div><h2 className="font-serif text-xl font-medium text-[#37332d]">Conexión administrada por RevScale</h2><p className="mt-2 text-sm leading-6 text-[#665f56]">La conexión automática con Meta está siendo habilitada a nivel plataforma. Las inmobiliarias no tendrán que copiar tokens, configurar webhooks ni entrar a herramientas técnicas.</p></div>
+              </div>
+            </section>
+          )}
+        </div>
 
         <section className="mt-6 rounded-xl border border-[#cdbfa9] bg-[#f7f0e6] p-6 shadow-[0_18px_45px_rgba(72,58,40,0.05)]">
           <div className="flex flex-wrap items-start justify-between gap-5">
             <div className="flex max-w-3xl items-start gap-4">
               <div className="rounded-lg border border-[#cdbfa9] bg-[#eee4d5] p-2.5 text-[#705f47]"><ShieldCheck size={20} /></div>
-              <div><h2 className="font-serif text-xl font-medium text-[#37332d]">Activación segura, sin credenciales en pantalla</h2><p className="mt-2 text-sm leading-6 text-[#665f56]">Los tokens de Meta y del proveedor de IA viven únicamente como secretos del backend. Esta pantalla nunca los muestra ni los guarda en la base. Si no hay conexión real, el envío permanece bloqueado.</p></div>
+              <div><h2 className="font-serif text-xl font-medium text-[#37332d]">Credenciales protegidas</h2><p className="mt-2 text-sm leading-6 text-[#665f56]">RevScale guarda las credenciales de Meta cifradas y aisladas por inmobiliaria. La clave de IA es infraestructura de RevScale y nunca se solicita al cliente.</p>{connection?.credential_source === "EMBEDDED_SIGNUP" && <p className="mt-2 text-xs font-semibold text-[#536048]">Cuenta vinculada mediante conexión administrada.</p>}</div>
             </div>
             <Link href="/protected/inbox" className="rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#554f47]">Abrir Inbox</Link>
           </div>
@@ -81,7 +96,7 @@ export default async function WhatsAppAiSettingsPage({ searchParams }: { searchP
               <Field label="Extensión"><select name="response_length" defaultValue={current.responseLength} className="mt-2 w-full rounded-lg border border-[#cdbfa9] bg-[#fffaf2] px-3 py-2.5 text-sm"><option value="SHORT">Breve</option><option value="MEDIUM">Media</option></select></Field>
             </div>
             <div className="mt-6 space-y-3 border-t border-[#ddd1c0] pt-5">
-              <div className="flex items-start gap-3 rounded-xl border border-[#cdbfa9] bg-[#eee4d5] p-4 text-sm text-[#554f47]"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-[#705f47]" /><span><strong className="font-semibold text-[#37332d]">Handoff de seguridad obligatorio.</strong> Negociación, asuntos legales, reclamos, pedido de hablar con una persona o baja confianza siempre detienen la IA. Esta protección no puede desactivarse.</span></div>
+              <div className="flex items-start gap-3 rounded-xl border border-[#cdbfa9] bg-[#eee4d5] p-4 text-sm text-[#554f47]"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-[#705f47]" /><span><strong className="font-semibold text-[#37332d]">Handoff de seguridad obligatorio.</strong> Negociación, asuntos legales, reclamos, pedido de hablar con una persona o baja confianza detienen la IA. Las fallas técnicas se reintentan sin convertir automáticamente al lead en un caso humano.</span></div>
               <label className="flex items-start gap-3 text-sm text-[#554f47]"><input type="checkbox" name="business_hours_only" defaultChecked={current.businessHoursOnly} className="mt-1" /><span><strong className="font-semibold text-[#37332d]">Solo horario comercial.</strong> Si se activa, la IA responde de lunes a viernes de 09:00 a 18:00, hora de Uruguay.</span></label>
             </div>
             <button className="mt-6 rounded-lg bg-[#302d28] px-5 py-2.5 text-sm font-semibold !text-[#fffaf2]">Guardar configuración</button>
@@ -91,28 +106,26 @@ export default async function WhatsAppAiSettingsPage({ searchParams }: { searchP
             <section className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] p-6">
               <h2 className="font-serif text-xl font-medium text-[#37332d]">Checklist LIVE</h2>
               <div className="mt-5 space-y-4">
-                <Status done label="Base de conversaciones" detail="Inbox, mensajes, estados y RLS listos." />
-                <Status done label="Procesamiento del webhook" detail="Idempotencia, creación de leads y handoff listos." />
-                <Status done label="Envío humano" detail="Función autenticada y conectada al SLA." />
-                <Status done label="Handoff de seguridad" detail="Obligatorio y no desactivable." />
+                <Status done label="Inbox y trazabilidad" detail="Conversaciones, mensajes y estados listos." />
+                <Status done label="Calificación automática" detail="Reintentos, fallback y handoff seguro incorporados." />
+                <Status done label="Credenciales aisladas" detail="Cada inmobiliaria puede usar su propia conexión cifrada." />
                 <Status done={Boolean(settings)} label="Reglas de IA" detail={settings ? "Configuradas." : "Guardá la personalidad del asistente."} />
-                <Status done={connected} label="Cuenta Meta WhatsApp" detail={connected ? "Número vinculado." : "Falta vincular el número real del cliente."} />
-                <Status done={webhookVerified} label="Webhook Meta" detail={webhookVerified ? "Meta ya entregó un evento válido." : "Falta verificarlo con Meta."} />
+                <Status done={connected} label="Cuenta Meta WhatsApp" detail={connected ? "Número vinculado." : "Conectá la cuenta de la inmobiliaria."} />
+                <Status done={webhookVerified} label="Recepción verificada" detail={webhookVerified ? "Meta ya entregó un evento válido." : connected ? "Mandá un mensaje de prueba al número conectado." : "Se valida después de conectar."} />
               </div>
             </section>
 
             <section className="rounded-xl border border-[#d2c5b3] bg-[#eee4d5] p-6">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#806d50]">Endpoint del webhook</p>
-              <code className="mt-3 block break-all rounded-lg border border-[#cdbfa9] bg-[#fffaf2] p-3 text-xs text-[#554f47]">{webhookUrl}</code>
-              <p className="mt-3 text-xs leading-5 text-[#716a60]">Meta usa este callback. El Verify Token y App Secret no se muestran aquí.</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#806d50]">Estado del canal</p>
+              <p className="mt-3 text-sm leading-6 text-[#5f584f]">{connected ? `${connection?.verified_name || "WhatsApp Business"}${connection?.display_phone_number ? ` · ${connection.display_phone_number}` : ""}` : "Todavía no hay una cuenta de WhatsApp Business conectada."}</p>
               {isLive ? (
                 <form action={pauseWhatsAppLive}><button className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#bd9a83] bg-[#efddd1] px-4 py-2.5 text-sm font-semibold text-[#704b3c]"><CirclePause size={15} /> Pausar automatización</button></form>
               ) : (
                 <form action={activateWhatsAppLive}><button disabled={!canActivate} className={`mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold ${canActivate ? "bg-[#302d28] !text-[#fffaf2]" : "cursor-not-allowed border border-[#c9bca9] bg-[#ded2c1] text-[#766e63]"}`}><Radio size={15} /> Activar WhatsApp LIVE</button></form>
               )}
-              {!canActivate && <p className="mt-3 text-xs leading-5 text-[#7a6d5c]">El botón se habilita únicamente después de conectar el número real y verificar el webhook.</p>}
+              {!canActivate && <p className="mt-3 text-xs leading-5 text-[#7a6d5c]">LIVE se habilita después de conectar el número y recibir el primer evento válido de Meta.</p>}
             </section>
-            {connection?.last_error && <section className="rounded-xl border border-[#bd9a83] bg-[#efddd1] p-5"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#704b3c]">Último error operativo</p><p className="mt-2 text-sm text-[#805f52]">{connection.last_error}</p></section>}
+            {connection?.last_error && <section className="rounded-xl border border-[#bd9a83] bg-[#efddd1] p-5"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#704b3c]">Incidencia detectada por RevScale</p><p className="mt-2 text-sm text-[#805f52]">{connection.last_error}</p><p className="mt-2 text-xs text-[#8a6b5d]">Las fallas técnicas de IA no fuerzan por sí solas un handoff humano.</p></section>}
           </div>
         </div>
       </div>

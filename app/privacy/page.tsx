@@ -20,7 +20,7 @@ export default function PrivacyPage() {
 
         <div className="mt-8 space-y-8 text-[15px] leading-7 text-[#554f47]">
           <Section title="1. Alcance">
-            <p>Esta Política explica cómo RevScale Systems ("RevScale") trata información cuando una persona usa nuestra plataforma, nuestros sitios públicos o funcionalidades conectadas, incluida la integración con WhatsApp Business.</p>
+            <p>Esta Política explica cómo RevScale Systems (“RevScale”) trata información cuando una persona usa nuestra plataforma, nuestros sitios públicos o funcionalidades conectadas, incluida la integración con WhatsApp Business.</p>
           </Section>
 
           <Section title="2. Información que podemos tratar">

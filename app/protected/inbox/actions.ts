@@ -71,31 +71,60 @@ export async function resumeWhatsAppAutomation(formData: FormData) {
   const conversationId = String(formData.get("conversation_id") || "").trim();
   if (!conversationId) redirect("/protected/inbox");
 
-  const { data: settings } = await context.supabase
-    .from("whatsapp_ai_settings")
-    .select("mode,auto_reply_enabled")
-    .eq("organization_id", context.organizationId)
-    .maybeSingle();
+  const [{ data: settings }, { data: conversation, error: conversationLookupError }] = await Promise.all([
+    context.supabase
+      .from("whatsapp_ai_settings")
+      .select("mode,auto_reply_enabled")
+      .eq("organization_id", context.organizationId)
+      .maybeSingle(),
+    context.supabase
+      .from("whatsapp_conversations")
+      .select("id,lead_id,organization_id")
+      .eq("id", conversationId)
+      .eq("organization_id", context.organizationId)
+      .maybeSingle(),
+  ]);
 
   if (settings?.mode !== "LIVE" || settings?.auto_reply_enabled !== true) {
     redirect(inboxUrl(conversationId, "La IA de WhatsApp no está en modo LIVE para esta organización."));
   }
+  if (conversationLookupError || !conversation) {
+    redirect(inboxUrl(conversationId, "No pudimos validar la conversación antes de reactivar la IA."));
+  }
 
-  const { error } = await context.supabase
-    .from("whatsapp_conversations")
-    .update({
-      status: "OPEN",
-      automation_paused: false,
-      handoff_reason: null,
-      handoff_resolved_at: new Date().toISOString(),
-      next_action: "IA retomó la calificación",
-      unread_count: 0,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", conversationId);
+  const now = new Date().toISOString();
+  const [conversationUpdate, leadUpdate] = await Promise.all([
+    context.supabase
+      .from("whatsapp_conversations")
+      .update({
+        status: "OPEN",
+        automation_paused: false,
+        handoff_reason: null,
+        handoff_requested_at: null,
+        handoff_requested_by: null,
+        handoff_resolved_at: now,
+        next_action: "IA retomó la calificación",
+        unread_count: 0,
+        updated_at: now,
+      })
+      .eq("id", conversationId)
+      .eq("organization_id", context.organizationId),
+    context.supabase
+      .from("leads")
+      .update({
+        requires_human: false,
+        next_action: "Continuar calificación automática por WhatsApp",
+        updated_at: now,
+      })
+      .eq("id", conversation.lead_id)
+      .eq("organization_id", context.organizationId),
+  ]);
 
-  if (error) redirect(inboxUrl(conversationId, "No pudimos reactivar la IA."));
+  if (conversationUpdate.error || leadUpdate.error) {
+    redirect(inboxUrl(conversationId, "No pudimos reactivar la IA por completo."));
+  }
   revalidatePath("/protected/inbox");
+  revalidatePath(`/protected/leads/${conversation.lead_id}`);
   redirect(inboxUrl(conversationId));
 }
 

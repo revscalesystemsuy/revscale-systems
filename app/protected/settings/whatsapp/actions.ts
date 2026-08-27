@@ -14,6 +14,33 @@ function pick(value: FormDataEntryValue | null, allowed: Set<string>, fallback: 
   return allowed.has(normalized) ? normalized : fallback;
 }
 
+export async function completeWhatsAppEmbeddedSignup(input: { code: string; wabaId: string; phoneNumberId?: string | null }) {
+  const context = await requireCompanyAdminFeature("whatsapp_ai");
+  if (context.role !== "OWNER") return { ok: false, error: "Solo el propietario puede conectar WhatsApp." };
+
+  const code = String(input?.code || "").trim();
+  const wabaId = String(input?.wabaId || "").trim();
+  const phoneNumberId = String(input?.phoneNumberId || "").trim() || null;
+  if (!code || !wabaId) return { ok: false, error: "Meta no devolvió todos los datos necesarios. Volvé a intentar la conexión." };
+
+  const { data, error } = await context.supabase.functions.invoke("whatsapp-connect", {
+    body: {
+      organization_id: context.organizationId,
+      code,
+      waba_id: wabaId,
+      phone_number_id: phoneNumberId,
+    },
+  });
+
+  if (error || data?.error) {
+    return { ok: false, error: String(data?.provider_error || data?.error || error?.message || "No se pudo conectar WhatsApp con Meta.").slice(0, 220) };
+  }
+
+  revalidatePath("/protected/settings/whatsapp");
+  revalidatePath("/protected/inbox");
+  return { ok: true, phone: data?.display_phone_number || null, webhookStatus: data?.webhook_status || "PENDING" };
+}
+
 export async function saveWhatsAppAiPreparation(formData: FormData) {
   const context = await requireCompanyAdminFeature("whatsapp_ai");
   if (context.role !== "OWNER") redirect("/protected");

@@ -15,7 +15,7 @@ function json(body: unknown, status = 200) {
 function providerMessage(payload: any, fallback: string) {
   const message = String(payload?.message || payload?.error_description || fallback);
   const causes = Array.isArray(payload?.cause)
-    ? payload.cause.map((item: any) => String(item?.message || item?.code || "")).filter(Boolean).slice(0, 4)
+    ? payload.cause.map((item: any) => String(item?.message || item?.code || "")).filter(Boolean).slice(0, 5)
     : [];
   return [message, ...causes].filter(Boolean).join(" · ").slice(0, 900);
 }
@@ -75,7 +75,8 @@ function buildLocation(publication: Json, providerPayload: Json) {
   const locationId = String(providerPayload.location_id || "").trim();
   const locationType = String(providerPayload.location_type || "city").toLowerCase();
   if (!locationId) throw new Error("Falta seleccionar una ciudad o barrio de Mercado Libre.");
-  const location: Json = { address_line: publication.address_label || undefined };
+  const location: Json = {};
+  if (publication.address_label) location.address_line = publication.address_label;
   if (locationType === "neighborhood") location.neighborhood = { id: locationId };
   else location.city = { id: locationId };
   return location;
@@ -84,14 +85,17 @@ function buildLocation(publication: Json, providerPayload: Json) {
 function buildAttributes(publication: Json, providerPayload: Json) {
   const attributes = Array.isArray(providerPayload.attributes) ? [...providerPayload.attributes] : [];
   const seen = new Set(attributes.map((item: any) => String(item?.id || "")));
-  const add = (id: string, value: unknown) => {
+  const add = (id: string, value: unknown, suffix = "") => {
     if (value == null || value === "" || seen.has(id)) return;
-    attributes.push({ id, value_name: String(value) });
+    attributes.push({ id, value_name: `${value}${suffix}` });
     seen.add(id);
   };
   add("BEDROOMS", publication.bedrooms);
   add("FULL_BATHROOMS", publication.bathrooms);
-  if (publication.area_m2 != null) add("TOTAL_AREA", `${publication.area_m2} m²`);
+  add("TOTAL_AREA", publication.area_m2, " m²");
+  add("COVERED_AREA", providerPayload.covered_area, " m²");
+  add("PARKING_LOTS", providerPayload.parking_lots);
+  add("MAINTENANCE_FEE", providerPayload.maintenance_fee);
   return attributes;
 }
 
@@ -99,17 +103,19 @@ function buildCreatePayload(publication: Json) {
   const providerPayload = (publication.provider_payload || {}) as Json;
   const categoryId = String(providerPayload.category_id || "").trim();
   const listingTypeId = String(providerPayload.listing_type_id || "silver").trim();
+  const condition = String(providerPayload.condition || "not_specified").trim();
   if (!categoryId) throw new Error("Falta la categoría de Mercado Libre.");
   if (!publication.title || publication.price == null || !publication.currency) throw new Error("Título, precio y moneda son obligatorios para Mercado Libre.");
+  if (providerPayload.maintenance_fee == null) throw new Error("Falta informar gastos comunes; usá 0 cuando no correspondan.");
 
   const pictureUrls = [publication.cover_image_url, ...(publication.gallery_urls || [])]
     .map((value: unknown) => String(value || "").trim())
     .filter(Boolean)
     .filter((value: string, index: number, all: string[]) => all.indexOf(value) === index)
-    .slice(0, 10);
+    .slice(0, 30);
   if (!pictureUrls.length) throw new Error("Mercado Libre requiere al menos una imagen para esta publicación.");
 
-  const payload: Json = {
+  return {
     site_id: "MLU",
     title: String(publication.title).slice(0, 200),
     category_id: categoryId,
@@ -118,13 +124,12 @@ function buildCreatePayload(publication: Json) {
     available_quantity: 1,
     buying_mode: "classified",
     listing_type_id: listingTypeId,
-    condition: "not_specified",
+    condition,
     channels: ["marketplace"],
     pictures: pictureUrls.map((source: string) => ({ source })),
     location: buildLocation(publication, providerPayload),
     attributes: buildAttributes(publication, providerPayload),
   };
-  return payload;
 }
 
 async function logEvent(db: ReturnType<typeof createClient>, row: Json, action: string, status: "SUCCESS" | "ERROR", message: string, externalId?: string | null) {
@@ -158,7 +163,7 @@ Deno.serve(async (req: Request) => {
   if (!publicationId || !["VALIDATE","PUBLISH","SYNC","PAUSE","ACTIVATE"].includes(action)) return json({ error: "Invalid request" }, 400);
 
   const { data: publication } = await db.from("property_publications")
-    .select("id,organization_id,property_id,channel,status,title,description,address_label,price,currency,bedrooms,bathrooms,area_m2,cover_image_url,gallery_urls,contact_name,contact_phone,external_id,external_url,provider_payload")
+    .select("id,organization_id,property_id,channel,status,title,description,address_label,price,currency,bedrooms,bathrooms,area_m2,cover_image_url,gallery_urls,contact_name,contact_phone,external_id,external_url,provider_payload,published_at")
     .eq("id", publicationId).eq("channel", "MERCADOLIBRE").maybeSingle();
   if (!publication) return json({ error: "Publication not found" }, 404);
 
@@ -203,7 +208,7 @@ Deno.serve(async (req: Request) => {
     const createPayload = buildCreatePayload(publication);
     if (!publication.external_id) {
       const validation = await requestMercadoLibre("https://api.mercadolibre.com/items/validate", token, { method: "POST", body: JSON.stringify(createPayload) });
-      const validationPayload = await validation.json().catch(() => ({}));
+      const validationPayload = validation.status === 204 ? {} : await validation.json().catch(() => ({}));
       if (!validation.ok) throw new Error(providerMessage(validationPayload, "La publicación no pasó la validación de Mercado Libre."));
       if (action === "VALIDATE") {
         const now = new Date().toISOString();
@@ -219,6 +224,18 @@ Deno.serve(async (req: Request) => {
 
       const externalId = String(createdPayload.id);
       const externalUrl = String(createdPayload.permalink || "") || null;
+      const createdAt = new Date().toISOString();
+
+      const identitySave = await db.from("property_publications").update({
+        external_id: externalId,
+        external_url: externalUrl,
+        status: "PUBLISHED",
+        published_at: publication.published_at || createdAt,
+        last_synced_at: createdAt,
+        updated_at: createdAt,
+      }).eq("id", publication.id);
+      if (identitySave.error) throw new Error(`Mercado Libre creó el aviso ${externalId}, pero RevScale no pudo persistir su identidad externa. No vuelvas a publicar hasta reconciliarlo.`);
+
       if (publication.description) {
         const descriptionResponse = await requestMercadoLibre(`https://api.mercadolibre.com/items/${encodeURIComponent(externalId)}/description`, token, {
           method: "POST",
@@ -232,10 +249,7 @@ Deno.serve(async (req: Request) => {
 
       const now = new Date().toISOString();
       await db.from("property_publications").update({
-        external_id: externalId,
-        external_url: externalUrl,
         status: "PUBLISHED",
-        published_at: publication.status === "PUBLISHED" ? undefined : now,
         last_sync_status: "SUCCESS",
         sync_error: null,
         last_synced_at: now,
@@ -245,6 +259,8 @@ Deno.serve(async (req: Request) => {
       await logEvent(db, publicationWithConnection, "PUBLISH", "SUCCESS", "Publicada en Mercado Libre.", externalId);
       return json({ ok: true, published: true, external_id: externalId, external_url: externalUrl });
     }
+
+    if (action === "VALIDATE") return json({ ok: true, validated: true, already_published: true, external_id: publication.external_id });
 
     const updatePayload = {
       title: createPayload.title,

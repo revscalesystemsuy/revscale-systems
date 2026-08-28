@@ -139,22 +139,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-20 md:px-8">
-        <div className="grid gap-10 lg:grid-cols-[.8fr_1.2fr]">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8a714d]">Prueba honesta</p>
-            <h2 className="mt-4 font-serif text-4xl leading-tight text-[#302b25]">No publicamos resultados que todavía no podemos demostrar.</h2>
-            <p className="mt-5 text-sm leading-6 text-[#716a61]">Las métricas de la demo son datos simulados para mostrar el producto. La prueba comercial real se construye con baseline, activación y resultados antes/después de cada implementación.</p>
-          </div>
-          <div className="rounded-2xl border border-[#d5c8b6] bg-[#f7f1e8] p-7">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#806b4d]">Qué sí medimos</p>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {["Ownership y próximo paso", "Velocidad y SLA", "Uso operativo", "Matches y reactivaciones", "Oportunidades movidas", "Conversión pilot → pago"].map((item) => <div key={item} className="rounded-lg border border-[#ddd1c1] bg-[#efe6d8] px-4 py-3 text-sm text-[#5e574e]">{item}</div>)}
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section className="mx-auto max-w-5xl px-6 pb-20 md:px-8">
         <div className="text-center"><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8a714d]">Preguntas frecuentes</p><h2 className="mt-4 font-serif text-4xl text-[#302b25] md:text-5xl">Lo importante antes de evaluar RevScale.</h2></div>
         <div className="mt-10 divide-y divide-[#d8ccbc] rounded-2xl border border-[#d5c8b6] bg-[#f7f1e8] px-6 md:px-8">

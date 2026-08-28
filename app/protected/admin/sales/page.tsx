@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, BadgeDollarSign, Building2, Inbox, Radar, UserRound } from "lucide-react";
+import { ArrowLeft, BadgeDollarSign, Building2, CalendarClock, Inbox, Radar, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { updateB2BStage } from "./actions";
 
@@ -14,6 +14,11 @@ type Opportunity = {
   phone: string | null;
   source_status: string | null;
   stage: Stage;
+  primary_channel: string;
+  plan_interest: string;
+  next_step: string | null;
+  next_step_due_at: string | null;
+  last_contact_at: string | null;
   created_at: string;
 };
 
@@ -47,7 +52,7 @@ export default async function InternalSalesPipelinePage({ searchParams }: { sear
 
   const { data } = await supabase
     .from("b2b_opportunities")
-    .select("id,source_type,company,contact_name,email,phone,source_status,stage,created_at")
+    .select("id,source_type,company,contact_name,email,phone,source_status,stage,primary_channel,plan_interest,next_step,next_step_due_at,last_contact_at,created_at")
     .order("created_at", { ascending: false });
 
   const opportunities = (data || []) as Opportunity[];
@@ -64,7 +69,7 @@ export default async function InternalSalesPipelinePage({ searchParams }: { sear
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Ventas internas RevScale</p>
             <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight md:text-5xl">Pipeline B2B</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">Recorrido comercial desde la entrada hasta el pago. Cada cambio de etapa queda registrado automáticamente para medir después demo → pilot → pago.</p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">Recorrido comercial desde la entrada hasta el pago. Ninguna oportunidad abierta puede quedar sin responsable, próximo paso y fecha.</p>
           </div>
           <div className="rounded-xl border border-[#d2c5b3] bg-[#fffaf2] px-5 py-4"><p className="text-[10px] uppercase tracking-[0.16em] text-[#81796e]">Oportunidades totales</p><p className="mt-1 font-serif text-3xl">{opportunities.length}</p></div>
         </div>
@@ -80,9 +85,7 @@ export default async function InternalSalesPipelinePage({ searchParams }: { sear
 
         <section className="mt-8 overflow-x-auto pb-4">
           <div className="grid min-w-[2800px] grid-cols-9 gap-4">
-            {stages.map((stage) => (
-              <PipelineColumn key={stage.key} stage={stage} items={opportunities.filter((item) => item.stage === stage.key)} />
-            ))}
+            {stages.map((stage) => <PipelineColumn key={stage.key} stage={stage} items={opportunities.filter((item) => item.stage === stage.key)} />)}
           </div>
         </section>
 
@@ -104,7 +107,9 @@ function PipelineColumn({ stage, items }: { stage: { key: Stage; label: string; 
         {items.map((item) => (
           <article key={item.id} className="rounded-xl border border-[#d7caba] bg-[#fffaf2] p-4 shadow-[0_8px_24px_rgba(72,58,40,0.03)]">
             <div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#d8cbb8] bg-[#efe5d6] text-[#7a674d]"><Building2 size={16} /></span><div className="min-w-0"><h3 className="truncate font-semibold text-[#39342e]">{item.company}</h3><p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a7a67]">{sourceLabels[item.source_type]}</p></div></div>
-            <div className="mt-4 grid gap-2 text-xs text-[#665f56]"><p className="flex items-center gap-2"><UserRound size={13} /> {item.contact_name || "Sin contacto"}</p>{item.email && <p className="break-all">{item.email}</p>}{item.phone && <p>{item.phone}</p>}<p className="text-[#8a8176]">Ingreso: {new Intl.DateTimeFormat("es-UY", { dateStyle: "medium" }).format(new Date(item.created_at))}</p></div>
+            <div className="mt-4 grid gap-2 text-xs text-[#665f56]"><p className="flex items-center gap-2"><UserRound size={13} /> {item.contact_name || "Sin contacto"}</p>{item.email && <p className="break-all">{item.email}</p>}{item.phone && <p>{item.phone}</p>}<p className="text-[#8a8176]">{item.primary_channel} · {item.plan_interest === "UNKNOWN" ? "Plan sin definir" : item.plan_interest}</p></div>
+            {item.stage !== "LOST" && <div className="mt-4 rounded-lg border border-[#d6c8b5] bg-[#efe5d6] p-3"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#81796e]">Próximo paso</p><p className="mt-1 text-xs font-medium leading-5 text-[#4f493f]">{item.next_step}</p><p className="mt-2 flex items-center gap-1.5 text-[10px] text-[#786e62]"><CalendarClock size={12}/>{item.next_step_due_at ? new Intl.DateTimeFormat("es-UY", { dateStyle: "short", timeStyle: "short", timeZone: "America/Montevideo" }).format(new Date(item.next_step_due_at)) : "Sin fecha"}</p></div>}
+            <Link href={`/protected/admin/sales/${item.id}`} className="mt-3 block text-xs font-semibold text-[#675743] underline decoration-[#a89271] underline-offset-4">Editar ficha comercial</Link>
             <form action={updateB2BStage} className="mt-4 border-t border-[#e0d5c5] pt-3">
               <input type="hidden" name="opportunity_id" value={item.id} />
               <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#81796e]" htmlFor={`stage-${item.id}`}>Mover etapa</label>

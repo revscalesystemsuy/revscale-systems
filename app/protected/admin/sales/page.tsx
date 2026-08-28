@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, BadgeDollarSign, Building2, CalendarClock, Inbox, Radar, UserRound } from "lucide-react";
+import { ArrowLeft, BadgeDollarSign, BarChart3, Building2, CalendarClock, Inbox, Radar, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { updateB2BStage } from "./actions";
 
@@ -64,7 +64,10 @@ export default async function InternalSalesPipelinePage({ searchParams }: { sear
   return (
     <main className="min-h-screen bg-[#f3ecdf] p-6 text-[#302d28] md:p-8 lg:p-10">
       <div className="mx-auto max-w-[1600px]">
-        <Link href="/protected/admin" className="inline-flex items-center gap-2 text-sm text-[#7a6e5c]"><ArrowLeft size={15} /> Volver a Admin</Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link href="/protected/admin" className="inline-flex items-center gap-2 text-sm text-[#7a6e5c]"><ArrowLeft size={15} /> Volver a Admin</Link>
+          <Link href="/protected/admin/sales/metrics" className="inline-flex items-center gap-2 rounded-lg border border-[#b9aa94] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#574936]"><BarChart3 size={15}/> Ver métricas</Link>
+        </div>
         <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div><p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Ventas internas RevScale</p><h1 className="mt-3 font-serif text-4xl font-medium tracking-tight md:text-5xl">Pipeline B2B</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">Recorrido comercial desde la entrada hasta el pago. Ninguna oportunidad abierta puede quedar sin responsable, próximo paso y fecha.</p></div>
           <div className="rounded-xl border border-[#d2c5b3] bg-[#fffaf2] px-5 py-4"><p className="text-[10px] uppercase tracking-[0.16em] text-[#81796e]">Oportunidades totales</p><p className="mt-1 font-serif text-3xl">{opportunities.length}</p></div>

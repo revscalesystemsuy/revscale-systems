@@ -32,6 +32,31 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
           </div>
         </div>
 
+        <section className="mt-12 rounded-2xl border border-[#d5c8b6] bg-[#f7f1e8] p-6 shadow-[0_18px_50px_rgba(70,58,42,.04)] md:p-8">
+          <div className="max-w-3xl">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a714d]">Cómo empezar</p>
+            <h2 className="mt-3 font-serif text-3xl font-medium text-[#302b25] md:text-4xl">Diagnóstico → Revenue Recovery Pilot → Suscripción.</h2>
+            <p className="mt-3 text-sm leading-6 text-[#716a61]">Para equipos con volumen, la ruta recomendada no es probar módulos al azar: primero identificamos dónde se pierden oportunidades, después activamos el flujo comercial y finalmente dejamos el plan adecuado funcionando como operación recurrente.</p>
+          </div>
+          <div className="mt-7 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-[#d8ccbc] bg-[#efe6d8] p-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a714d]">01 · Diagnóstico</p>
+              <h3 className="mt-3 font-serif text-2xl text-[#302b25]">Encontrar la fuga</h3>
+              <p className="mt-2 text-sm leading-6 text-[#716a61]">Revisamos asignación, velocidad de respuesta, seguimientos, matching y reactivación para ubicar oportunidades que hoy quedan invisibles.</p>
+            </div>
+            <div className="rounded-xl border border-[#bda98a] bg-[#e5d7c3] p-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#745f43]">02 · 45 días</p>
+              <h3 className="mt-3 font-serif text-2xl text-[#302b25]">Revenue Recovery Pilot</h3>
+              <p className="mt-2 text-sm leading-6 text-[#665e54]">En 7 días dejamos la operación priorizada y durante 45 días medimos dónde se pierden o recuperan oportunidades concretas.</p>
+            </div>
+            <div className="rounded-xl border border-[#d8ccbc] bg-[#efe6d8] p-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a714d]">03 · Operación continua</p>
+              <h3 className="mt-3 font-serif text-2xl text-[#302b25]">Suscripción</h3>
+              <p className="mt-2 text-sm leading-6 text-[#716a61]">Una vez activado el proceso, elegís Starter, Professional o Enterprise según volumen, automatización, equipos y complejidad operativa.</p>
+            </div>
+          </div>
+        </section>
+
         <section className="mt-14 grid gap-5 md:grid-cols-3">
           {PAID_PLAN_ORDER.map((planName) => {
             const plan = PLAN_CATALOG[planName];

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, CheckCircle2, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, ShieldCheck, XCircle } from "lucide-react";
 
 const scope = [
   "Diagnóstico comercial de 30 minutos para detectar fugas en asignación, respuesta, seguimiento, matching y reactivación.",
@@ -24,6 +24,19 @@ const timeline = [
   ["Días 30–45", "Medición antes/después, conclusiones y decisión de continuidad."],
 ];
 
+const fit = [
+  "Equipo comercial con volumen real de consultas y seguimiento diario.",
+  "Dos o más fuentes de leads, WhatsApp central o información comercial fragmentada.",
+  "Owner o manager que necesita ver responsables, SLA, pendientes y oportunidades en riesgo.",
+  "Disposición a usar el sistema durante 45 días y revisar métricas con RevScale.",
+];
+
+const noFit = [
+  "Operaciones sin volumen suficiente para medir un cambio comercial.",
+  "Equipos que solo buscan una base de datos de propiedades sin proceso de leads.",
+  "Implementaciones donde nadie puede asumir ownership de pipeline y próximos pasos.",
+];
+
 export default function PilotPage() {
   return (
     <main className="min-h-screen bg-[#efe6d8] px-6 py-8 text-[#292722] md:px-8">
@@ -33,7 +46,7 @@ export default function PilotPage() {
             <span className="font-serif text-2xl tracking-tight">RevScale</span>
             <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8a714d]">PropertyOS</span>
           </Link>
-          <Link href="/pricing" className="text-sm text-[#625d55] transition hover:text-[#292722]">Ver planes</Link>
+          <div className="flex items-center gap-4"><Link href="/diagnostico" className="text-sm text-[#625d55] transition hover:text-[#292722]">Diagnóstico</Link><Link href="/pricing" className="text-sm text-[#625d55] transition hover:text-[#292722]">Ver planes</Link></div>
         </div>
 
         <section className="mx-auto max-w-4xl py-16 text-center md:py-20">
@@ -41,9 +54,23 @@ export default function PilotPage() {
           <h1 className="mt-4 font-serif text-5xl font-medium tracking-tight text-[#29251f] md:text-6xl">Activá RevScale en 7 días y medí dónde se pierden o recuperan oportunidades.</h1>
           <p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-[#6d665d]">El piloto está diseñado para inmobiliarias con operación real y volumen de consultas. No busca que explores funciones: busca dejar la operación priorizada, con responsables y próximos pasos, y medir el cambio durante 45 días.</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/pricing" className="inline-flex items-center gap-2 rounded-md bg-[#2f2b25] px-6 py-3 font-medium text-[#f5eee4] transition hover:bg-[#1f1c18]">Ver Professional <ArrowUpRight size={16} /></Link>
-            <Link href="/demos" className="rounded-md border border-[#b9aa94] px-6 py-3 font-medium text-[#39352e] transition hover:bg-[#e7dbca]">Ver demos</Link>
+            <Link href="/diagnostico" className="inline-flex items-center gap-2 rounded-md bg-[#2f2b25] px-6 py-3 font-medium text-[#f5eee4] transition hover:bg-[#1f1c18]">Evaluar si mi operación encaja <ArrowUpRight size={16} /></Link>
+            <Link href="/demos" className="rounded-md border border-[#b9aa94] px-6 py-3 font-medium text-[#39352e] transition hover:bg-[#e7dbca]">Ver el producto primero</Link>
           </div>
+          <p className="mx-auto mt-4 max-w-2xl text-xs leading-5 text-[#81796e]">El diagnóstico devuelve un score de encaje operativo. No obliga a contratar ni representa una promesa de resultados.</p>
+        </section>
+
+        <section className="mb-10 grid gap-5 lg:grid-cols-2">
+          <article className="rounded-2xl border border-[#bda98a] bg-[#e5d7c3] p-7">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#705d43]">Cuándo tiene sentido</p>
+            <h2 className="mt-3 font-serif text-3xl text-[#302b25]">El pilot necesita una operación real que podamos medir.</h2>
+            <ul className="mt-6 space-y-4 text-sm leading-6 text-[#5f5951]">{fit.map((item) => <li key={item} className="flex gap-3"><CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-[#745f43]" strokeWidth={1.7} /><span>{item}</span></li>)}</ul>
+          </article>
+          <article className="rounded-2xl border border-[#d5c8b6] bg-[#f7f1e8] p-7">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a714d]">Cuándo no</p>
+            <h2 className="mt-3 font-serif text-3xl text-[#302b25]">No forzamos una implementación si el problema todavía no existe.</h2>
+            <ul className="mt-6 space-y-4 text-sm leading-6 text-[#625d55]">{noFit.map((item) => <li key={item} className="flex gap-3"><XCircle className="mt-1 h-4 w-4 shrink-0 text-[#8a714d]" strokeWidth={1.7} /><span>{item}</span></li>)}</ul>
+          </article>
         </section>
 
         <section className="grid gap-5 lg:grid-cols-2">
@@ -89,6 +116,7 @@ export default function PilotPage() {
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#c9b99f]">Oferta recomendada</p>
           <h2 className="mt-3 font-serif text-4xl">Professional · USD 249/mes</h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-[#d8cfc4]">Para las primeras 10 implementaciones, onboarding y migración sin cargo. Sin contrato largo. El piloto se usa como activación asistida de la suscripción, no como producto separado ni descuento permanente.</p>
+          <div className="mt-7 flex flex-wrap justify-center gap-3"><Link href="/diagnostico" className="inline-flex items-center gap-2 rounded-md bg-[#f0e6d8] px-6 py-3 text-sm font-semibold text-[#302b25]">Hacer diagnóstico de encaje <ArrowUpRight size={15} /></Link><Link href="/pricing" className="rounded-md border border-[#766b5c] px-6 py-3 text-sm font-semibold text-[#f0e6d8]">Comparar planes</Link></div>
         </section>
       </div>
     </main>

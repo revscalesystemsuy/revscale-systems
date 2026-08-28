@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Mail, MessageCircle, Phone, UserRoundCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import ValidationContactCard from "./ValidationContactCard";
 
 type Prospect = {
   id: string;
@@ -110,7 +111,19 @@ export default async function ValidationQueuePage() {
           </div>
         </section>
 
-        <div className="mt-8 rounded-2xl border border-[#cdbfa9] bg-[#efe5d6] p-5 text-sm leading-6 text-[#625d55]"><strong>Regla:</strong> esta cola sirve para investigación comercial y discovery. No convierte una cuenta en Tier A por probabilidad. El Tier sigue requiriendo las 8 señales respaldadas y score final de 75–100.</div>
+        <section className="mt-10">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Paso 36 · contacto de validación</p>
+          <h2 className="mt-3 font-serif text-3xl font-medium">Primer contacto preparado, envío manual</h2>
+          <p className="mt-3 max-w-4xl text-sm leading-6 text-[#625d55]">Estos mensajes sirven únicamente para completar señales que no pueden verificarse de forma pública. No incluyen links, brochure, precio ni pedido de demo. La pregunta cambia según la primera señal pendiente de cada cuenta y el sistema prioriza WhatsApp cuando está verificado, luego email y por último teléfono.</p>
+          <div className="mt-6 grid gap-4 xl:grid-cols-2">
+            {top30.map((item, index) => {
+              const contact = buildValidationContact(item);
+              return <ValidationContactCard key={item.id} priority={index + 1} companyName={item.company_name} channel={contact.channel} destination={contact.destination} subject={contact.subject} message={contact.message} followUp={contact.followUp} disabled={!contact.destination} />;
+            })}
+          </div>
+        </section>
+
+        <div className="mt-8 rounded-2xl border border-[#cdbfa9] bg-[#efe5d6] p-5 text-sm leading-6 text-[#625d55]"><strong>Regla:</strong> esta cola sirve para investigación comercial y discovery. No convierte una cuenta en Tier A por probabilidad. El Tier sigue requiriendo las 8 señales respaldadas y score final de 75–100. El contacto de validación no inicia todavía la cadencia outbound formal.</div>
       </div>
     </main>
   );
@@ -124,6 +137,44 @@ function firstValidation(item: Prospect) {
   if (item.score_source_fragmentation === null) return "Confirmar fuentes activas de leads";
   if (item.score_decision_access === null) return "Confirmar acceso al decisor";
   return "Completar la señal restante";
+}
+
+function buildValidationContact(item: Prospect) {
+  const firstName = item.decision_maker_name?.trim().split(/\s+/)[0] || null;
+  const greeting = firstName ? `Hola ${firstName},` : "Hola,";
+  const question = validationQuestion(item);
+  const message = `${greeting} soy de RevScale, acá en Uruguay. Estuve mirando ${item.company_name} por una investigación sobre operación comercial inmobiliaria y te hago una sola pregunta: ${question} No es una propuesta comercial; estoy validando cómo lo resuelven equipos con volumen. Si me orientás con eso, me sirve muchísimo.`;
+  const followUp = validationFollowUp(item);
+
+  if (item.whatsapp_quality === "VERIFIED" && item.whatsapp_number) {
+    return { channel: "WhatsApp", destination: item.whatsapp_number, subject: null, message, followUp };
+  }
+  if (item.email_quality === "VERIFIED" && item.public_email) {
+    return { channel: "Email", destination: item.public_email, subject: `consulta corta sobre ${item.company_name}`, message, followUp };
+  }
+  if (item.public_phone) {
+    return { channel: "Teléfono", destination: item.public_phone, subject: null, message, followUp };
+  }
+  return { channel: "Sin canal", destination: null, subject: null, message, followUp };
+}
+
+function validationQuestion(item: Prospect) {
+  if (item.score_lead_volume === null) return "en un mes normal, ¿están más cerca de decenas o de cientos de consultas entrantes entre portales, web y WhatsApp?";
+  if (item.score_whatsapp_centrality === null) return "¿WhatsApp es hoy un canal que el equipo usa todos los días para atender y seguir oportunidades, o queda más como canal secundario?";
+  if (item.score_process_pain === null) return "cuando un lead queda sin próximo paso o un seguimiento se vence, ¿el sistema lo hace visible o depende bastante de que cada agente se acuerde?";
+  if (item.score_team_size === null) return "¿cuántas personas participan hoy de forma activa en ventas y seguimiento comercial?";
+  if (item.score_source_fragmentation === null) return "¿las consultas les entran desde tres o más fuentes activas, por ejemplo portales, web, campañas, Instagram o WhatsApp?";
+  if (item.score_decision_access === null) return "¿quién suele mirar el proceso comercial completo y decidir sobre herramientas o cambios de seguimiento?";
+  if (item.score_growth_investment === null) return "¿hoy están invirtiendo activamente en portales premium, campañas o desarrollos para generar demanda?";
+  if (item.score_geography === null) return "¿la operación comercial principal está concentrada en Montevideo, Maldonado o Canelones?";
+  return "¿cuál es hoy la parte más difícil de controlar después de que entra una consulta?";
+}
+
+function validationFollowUp(item: Prospect) {
+  if (item.score_process_pain === null) return "Gracias. Y una última: si mañana un lead con intención queda sin próximo paso, ¿alguien de dirección puede detectarlo sin revisar chat por chat?";
+  if (item.score_lead_volume === null) return "Gracias. Para ubicar mejor el contexto: ¿ese volumen llega concentrado en pocos canales o repartido entre portales, web, campañas y WhatsApp?";
+  if (item.score_whatsapp_centrality === null) return "Perfecto. Y cuando la conversación sigue por WhatsApp, ¿el próximo paso queda visible para el resto del equipo o vive principalmente en el chat del agente?";
+  return "Gracias, con eso ya puedo ubicar mejor cómo funciona el proceso. No te saco más tiempo.";
 }
 
 function Metric({ label, value, detail }: { label: string; value: number; detail: string }) { return <div className="rounded-xl border border-[#d2c5b3] bg-[#fffaf2] p-5"><p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#81796e]">{label}</p><p className="mt-3 font-serif text-3xl">{value}</p><p className="mt-1 text-xs text-[#81786d]">{detail}</p></div>; }

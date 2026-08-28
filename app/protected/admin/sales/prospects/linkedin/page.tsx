@@ -45,7 +45,7 @@ export default async function ProspectLinkedInPage() {
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/protected/admin/sales/prospects/email" className="inline-flex items-center gap-2 text-sm text-[#7a6e5c]"><ArrowLeft size={15}/> Volver a Email</Link>
-          <Link href="/protected/admin/sales/icp" className="rounded-lg border border-[#b9aa94] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#574936]">Ver scoring ICP</Link>
+          <div className="flex flex-wrap gap-2"><Link href="/protected/admin/sales/icp" className="rounded-lg border border-[#b9aa94] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#574936]">Ver criterios ICP</Link><Link href="/protected/admin/sales/prospects/scoring" className="rounded-lg border border-[#8f7b60] bg-[#574936] px-4 py-2.5 text-sm font-semibold text-[#fffaf2]">Paso 34 · Score 0–100</Link></div>
         </div>
 
         <div className="mt-6">

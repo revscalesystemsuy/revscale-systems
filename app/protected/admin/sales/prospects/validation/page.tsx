@@ -3,6 +3,16 @@ import { redirect } from "next/navigation";
 import { ArrowLeft, Mail, MessageCircle, Phone, UserRoundCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import ValidationContactCard from "./ValidationContactCard";
+import ValidationEvidenceForm from "./ValidationEvidenceForm";
+
+type SignalKey =
+  | "score_team_size"
+  | "score_lead_volume"
+  | "score_source_fragmentation"
+  | "score_whatsapp_centrality"
+  | "score_process_pain"
+  | "score_growth_investment"
+  | "score_decision_access";
 
 type Prospect = {
   id: string;
@@ -26,6 +36,9 @@ type Prospect = {
   score_decision_access: number | null;
   score_geography: number | null;
   score_signal_count: number;
+  icp_score: number | null;
+  score_status: "UNSCORED" | "SCORED";
+  prospect_tier: "A" | "B" | "C" | "IGNORE" | null;
 };
 
 const scoreKeys = [
@@ -49,7 +62,7 @@ export default async function ValidationQueuePage() {
 
   const { data } = await supabase
     .from("b2b_prospects")
-    .select("id,company_name,city,department,status,public_phone,public_email,whatsapp_number,whatsapp_quality,email_quality,decision_maker_name,decision_maker_quality,score_team_size,score_lead_volume,score_source_fragmentation,score_whatsapp_centrality,score_process_pain,score_growth_investment,score_decision_access,score_geography,score_signal_count")
+    .select("id,company_name,city,department,status,public_phone,public_email,whatsapp_number,whatsapp_quality,email_quality,decision_maker_name,decision_maker_quality,score_team_size,score_lead_volume,score_source_fragmentation,score_whatsapp_centrality,score_process_pain,score_growth_investment,score_decision_access,score_geography,score_signal_count,icp_score,score_status,prospect_tier")
     .eq("status", "READY");
 
   const prospects = ((data || []) as Prospect[])
@@ -57,10 +70,11 @@ export default async function ValidationQueuePage() {
       const verifiedFloor = scoreKeys.reduce((sum, [, key]) => sum + (item[key] ?? 0), 0);
       const pointsToA = Math.max(0, 75 - verifiedFloor);
       const missing = scoreKeys.filter(([, key]) => item[key] === null).map(([label]) => label);
+      const missingKeys = scoreKeys.filter(([, key]) => item[key] === null && key !== "score_geography").map(([, key]) => key as SignalKey);
       const channelScore = (item.whatsapp_quality === "VERIFIED" ? 3 : 0) + (item.email_quality === "VERIFIED" ? 2 : 0) + (item.public_phone ? 1 : 0);
       const decisionScore = item.decision_maker_quality === "VERIFIED" ? 3 : item.decision_maker_quality === "PARTIAL" ? 1 : 0;
       const priorityScore = verifiedFloor + item.score_signal_count * 4 + channelScore + decisionScore;
-      return { ...item, verifiedFloor, pointsToA, missing, priorityScore };
+      return { ...item, verifiedFloor, pointsToA, missing, missingKeys, priorityScore };
     })
     .sort((a, b) => b.priorityScore - a.priorityScore || b.verifiedFloor - a.verifiedFloor || a.company_name.localeCompare(b.company_name));
 
@@ -68,6 +82,7 @@ export default async function ValidationQueuePage() {
   const withDecisionMaker = top30.filter((p) => p.decision_maker_quality === "VERIFIED").length;
   const withWhatsapp = top30.filter((p) => p.whatsapp_quality === "VERIFIED").length;
   const withEmail = top30.filter((p) => p.email_quality === "VERIFIED").length;
+  const completed = top30.filter((p) => p.score_status === "SCORED").length;
 
   return (
     <main className="min-h-screen bg-[#f3ecdf] p-6 text-[#302d28] md:p-8 lg:p-10">
@@ -80,21 +95,22 @@ export default async function ValidationQueuePage() {
         <div className="mt-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Prospecting · Paso 36</p>
           <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight md:text-5xl">Cola de validación Tier A</h1>
-          <p className="mt-3 max-w-4xl text-sm leading-6 text-[#625d55]">Prioriza las cuentas READY por evidencia pública, acceso comercial y distancia a 75 puntos. Esta vista no asigna Tier: solo ordena qué validar primero.</p>
+          <p className="mt-3 max-w-4xl text-sm leading-6 text-[#625d55]">Prioriza las cuentas READY por evidencia pública, acceso comercial y distancia a 75 puntos. Las respuestas directas ahora pueden registrarse como evidencia auditable para completar señales y recalcular el Tier.</p>
         </div>
 
-        <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Metric label="Top cohort" value={top30.length} detail="cuentas a validar primero" />
           <Metric label="Decisor verificado" value={withDecisionMaker} detail="en el top 30" />
           <Metric label="WhatsApp verificado" value={withWhatsapp} detail="canal disponible" />
           <Metric label="Email verificado" value={withEmail} detail="canal disponible" />
+          <Metric label="Score completo" value={completed} detail="8/8 señales" />
         </section>
 
         <section className="mt-8 overflow-hidden rounded-2xl border border-[#d2c5b3] bg-[#fffaf2]">
           <div className="overflow-x-auto">
-            <table className="min-w-[1280px] w-full text-left text-sm">
+            <table className="min-w-[1320px] w-full text-left text-sm">
               <thead className="border-b border-[#ddd1c0] bg-[#eee5d8] text-[10px] font-semibold uppercase tracking-[0.14em] text-[#756b5f]">
-                <tr><th className="p-4">Prioridad</th><th className="p-4">Cuenta</th><th className="p-4">Piso público</th><th className="p-4">Faltan para A</th><th className="p-4">Cobertura</th><th className="p-4">Canal</th><th className="p-4">Qué validar primero</th></tr>
+                <tr><th className="p-4">Prioridad</th><th className="p-4">Cuenta</th><th className="p-4">Piso público</th><th className="p-4">Faltan para A</th><th className="p-4">Cobertura</th><th className="p-4">Tier</th><th className="p-4">Canal</th><th className="p-4">Qué validar primero</th></tr>
               </thead>
               <tbody className="divide-y divide-[#e4d9ca]">
                 {top30.map((item, index) => <tr key={item.id} className="align-top">
@@ -103,8 +119,9 @@ export default async function ValidationQueuePage() {
                   <td className="p-4"><span className="font-serif text-2xl">{item.verifiedFloor}</span><span className="text-xs text-[#81786d]"> / 100</span></td>
                   <td className="p-4"><span className="font-semibold">{item.pointsToA} pts</span></td>
                   <td className="p-4"><span className="font-semibold">{item.score_signal_count}/8</span><p className="mt-1 text-xs text-[#81786d]">{item.missing.length} señales pendientes</p></td>
+                  <td className="p-4"><span className="font-semibold">{item.prospect_tier ?? "—"}</span>{item.icp_score !== null && <p className="mt-1 text-xs text-[#81786d]">Score {item.icp_score}</p>}</td>
                   <td className="p-4"><div className="flex flex-wrap gap-2">{item.whatsapp_quality === "VERIFIED" && <Tag icon={<MessageCircle size={12}/>} label="WA"/>}{item.email_quality === "VERIFIED" && <Tag icon={<Mail size={12}/>} label="Email"/>}{item.public_phone && <Tag icon={<Phone size={12}/>} label="Tel"/>}</div></td>
-                  <td className="p-4 text-xs leading-5 text-[#665f56]"><strong>{firstValidation(item)}</strong><p className="mt-1 text-[#81786d]">Pendiente: {item.missing.join(" · ")}</p></td>
+                  <td className="p-4 text-xs leading-5 text-[#665f56]"><strong>{firstValidation(item)}</strong><p className="mt-1 text-[#81786d]">Pendiente: {item.missing.join(" · ") || "ninguna"}</p></td>
                 </tr>)}
               </tbody>
             </table>
@@ -112,18 +129,23 @@ export default async function ValidationQueuePage() {
         </section>
 
         <section className="mt-10">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Paso 36 · contacto de validación</p>
-          <h2 className="mt-3 font-serif text-3xl font-medium">Primer contacto preparado, envío manual</h2>
-          <p className="mt-3 max-w-4xl text-sm leading-6 text-[#625d55]">Estos mensajes sirven únicamente para completar señales que no pueden verificarse de forma pública. No incluyen links, brochure, precio ni pedido de demo. La pregunta cambia según la primera señal pendiente de cada cuenta y el sistema prioriza WhatsApp cuando está verificado, luego email y por último teléfono.</p>
-          <div className="mt-6 grid gap-4 xl:grid-cols-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Paso 36 · contacto + evidencia</p>
+          <h2 className="mt-3 font-serif text-3xl font-medium">Contactar, registrar la respuesta y recalcular</h2>
+          <p className="mt-3 max-w-4xl text-sm leading-6 text-[#625d55]">El primer contacto sigue siendo manual y sin links, brochure, precio ni pedido de demo. Cuando el prospecto responda, pegá su respuesta textual debajo de la cuenta, elegí la interpretación exacta del ICP y guardala. El registro conserva la evidencia y actualiza score, cobertura y Tier automáticamente.</p>
+          <div className="mt-6 grid gap-5 xl:grid-cols-2">
             {top30.map((item, index) => {
               const contact = buildValidationContact(item);
-              return <ValidationContactCard key={item.id} priority={index + 1} companyName={item.company_name} channel={contact.channel} destination={contact.destination} subject={contact.subject} message={contact.message} followUp={contact.followUp} disabled={!contact.destination} />;
+              return (
+                <div key={item.id} className="space-y-3">
+                  <ValidationContactCard priority={index + 1} companyName={item.company_name} channel={contact.channel} destination={contact.destination} subject={contact.subject} message={contact.message} followUp={contact.followUp} disabled={!contact.destination} />
+                  <ValidationEvidenceForm prospectId={item.id} companyName={item.company_name} missingKeys={item.missingKeys} defaultChannel={defaultEvidenceChannel(contact.channel)} />
+                </div>
+              );
             })}
           </div>
         </section>
 
-        <div className="mt-8 rounded-2xl border border-[#cdbfa9] bg-[#efe5d6] p-5 text-sm leading-6 text-[#625d55]"><strong>Regla:</strong> esta cola sirve para investigación comercial y discovery. No convierte una cuenta en Tier A por probabilidad. El Tier sigue requiriendo las 8 señales respaldadas y score final de 75–100. El contacto de validación no inicia todavía la cadencia outbound formal.</div>
+        <div className="mt-8 rounded-2xl border border-[#cdbfa9] bg-[#efe5d6] p-5 text-sm leading-6 text-[#625d55]"><strong>Regla:</strong> una respuesta no convierte una cuenta en Tier A por intuición. Cada señal se registra con la respuesta que la respalda y una opción cerrada del scoring. Tier A sigue requiriendo 8/8 señales y score final 75–100. Este flujo todavía no inicia la cadencia outbound formal del Paso 38.</div>
       </div>
     </main>
   );
@@ -136,11 +158,12 @@ function firstValidation(item: Prospect) {
   if (item.score_team_size === null) return "Confirmar cantidad de agentes";
   if (item.score_source_fragmentation === null) return "Confirmar fuentes activas de leads";
   if (item.score_decision_access === null) return "Confirmar acceso al decisor";
-  return "Completar la señal restante";
+  if (item.score_growth_investment === null) return "Confirmar inversión / crecimiento";
+  return "Señales de discovery completas";
 }
 
 function buildValidationContact(item: Prospect) {
-  const firstName = item.decision_maker_name?.trim().split(/\s+/)[0] || null;
+  const firstName = item.decision_maker_quality === "VERIFIED" ? item.decision_maker_name?.trim().split(/\s+/)[0] || null : null;
   const greeting = firstName ? `Hola ${firstName},` : "Hola,";
   const question = validationQuestion(item);
   const message = `${greeting} soy de RevScale, acá en Uruguay. Estuve mirando ${item.company_name} por una investigación sobre operación comercial inmobiliaria y te hago una sola pregunta: ${question} No es una propuesta comercial; estoy validando cómo lo resuelven equipos con volumen. Si me orientás con eso, me sirve muchísimo.`;
@@ -163,10 +186,9 @@ function validationQuestion(item: Prospect) {
   if (item.score_whatsapp_centrality === null) return "¿WhatsApp es hoy un canal que el equipo usa todos los días para atender y seguir oportunidades, o queda más como canal secundario?";
   if (item.score_process_pain === null) return "cuando un lead queda sin próximo paso o un seguimiento se vence, ¿el sistema lo hace visible o depende bastante de que cada agente se acuerde?";
   if (item.score_team_size === null) return "¿cuántas personas participan hoy de forma activa en ventas y seguimiento comercial?";
-  if (item.score_source_fragmentation === null) return "¿las consultas les entran desde tres o más fuentes activas, por ejemplo portales, web, campañas, Instagram o WhatsApp?";
+  if (item.score_source_fragmentation === null) return "¿las consultas les entran desde dos o más fuentes activas, por ejemplo portales, web, campañas, Instagram o WhatsApp?";
   if (item.score_decision_access === null) return "¿quién suele mirar el proceso comercial completo y decidir sobre herramientas o cambios de seguimiento?";
   if (item.score_growth_investment === null) return "¿hoy están invirtiendo activamente en portales premium, campañas o desarrollos para generar demanda?";
-  if (item.score_geography === null) return "¿la operación comercial principal está concentrada en Montevideo, Maldonado o Canelones?";
   return "¿cuál es hoy la parte más difícil de controlar después de que entra una consulta?";
 }
 
@@ -175,6 +197,13 @@ function validationFollowUp(item: Prospect) {
   if (item.score_lead_volume === null) return "Gracias. Para ubicar mejor el contexto: ¿ese volumen llega concentrado en pocos canales o repartido entre portales, web, campañas y WhatsApp?";
   if (item.score_whatsapp_centrality === null) return "Perfecto. Y cuando la conversación sigue por WhatsApp, ¿el próximo paso queda visible para el resto del equipo o vive principalmente en el chat del agente?";
   return "Gracias, con eso ya puedo ubicar mejor cómo funciona el proceso. No te saco más tiempo.";
+}
+
+function defaultEvidenceChannel(channel: string): "WHATSAPP" | "EMAIL" | "PHONE" | "OTHER" {
+  if (channel === "WhatsApp") return "WHATSAPP";
+  if (channel === "Email") return "EMAIL";
+  if (channel === "Teléfono") return "PHONE";
+  return "OTHER";
 }
 
 function Metric({ label, value, detail }: { label: string; value: number; detail: string }) { return <div className="rounded-xl border border-[#d2c5b3] bg-[#fffaf2] p-5"><p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#81796e]">{label}</p><p className="mt-3 font-serif text-3xl">{value}</p><p className="mt-1 text-xs text-[#81786d]">{detail}</p></div>; }

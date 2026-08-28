@@ -8,6 +8,7 @@ const STAGES = ["NEW","CONTACTED","QUALIFIED","DEMO_BOOKED","DEMO_COMPLETED","PI
 const CHANNELS = ["WEB","WHATSAPP","EMAIL","LINKEDIN","PHONE","OTHER"] as const;
 const PLANS = ["STARTER","PROFESSIONAL","ENTERPRISE","UNKNOWN"] as const;
 const FOLLOWUP_OUTCOMES = ["CONTACTED","NO_RESPONSE","RESCHEDULED","OTHER"] as const;
+const LOSS_REASONS = ["NO_FIT","NO_RESPONSE","PRICE","TIMING","COMPETITOR","NO_DECISION","INTERNAL_PRIORITY","TECHNICAL_GAP","OTHER"] as const;
 type Stage = (typeof STAGES)[number];
 
 async function requireAdmin() {
@@ -41,15 +42,55 @@ function parseUruguayDateTime(raw: string) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function revalidateSalesOpportunity(opportunityId: string) {
+  revalidatePath("/protected/admin/sales");
+  revalidatePath("/protected/admin/sales/metrics");
+  revalidatePath("/protected/admin/sales/followups");
+  revalidatePath(`/protected/admin/sales/${opportunityId}`);
+}
+
 export async function updateB2BStage(formData: FormData) {
   const opportunityId = String(formData.get("opportunity_id") || "").trim();
   const stage = String(formData.get("stage") || "").trim().toUpperCase() as Stage;
   if (!opportunityId || !STAGES.includes(stage)) redirect("/protected/admin/sales?error=Etapa+oportunidad+inválida");
+  if (stage === "LOST") {
+    redirect(`/protected/admin/sales/${opportunityId}?error=${encodeURIComponent("Para marcar una oportunidad como perdida registrá un motivo desde la ficha")}`);
+  }
+
   const supabase = await requireAdmin();
-  const { error } = await supabase.from("b2b_opportunities").update({ stage }).eq("id", opportunityId);
+  const { data: opportunity } = await supabase.from("b2b_opportunities").select("stage").eq("id", opportunityId).maybeSingle();
+  if (!opportunity) redirect(`/protected/admin/sales?error=${encodeURIComponent("Oportunidad no encontrada")}`);
+
+  const payload = opportunity.stage === "LOST"
+    ? { stage, loss_reason: null, loss_notes: null, lost_at: null }
+    : { stage };
+
+  const { error } = await supabase.from("b2b_opportunities").update(payload).eq("id", opportunityId);
   if (error) redirect(`/protected/admin/sales?error=${encodeURIComponent("No se pudo cambiar la etapa")}`);
-  revalidatePath("/protected/admin/sales");
-  redirect(`/protected/admin/sales?success=${encodeURIComponent("Etapa actualizada")}`);
+  revalidateSalesOpportunity(opportunityId);
+  redirect(`/protected/admin/sales?success=${encodeURIComponent(opportunity.stage === "LOST" ? "Oportunidad reabierta" : "Etapa actualizada")}`);
+}
+
+export async function markB2BLost(formData: FormData) {
+  const opportunityId = String(formData.get("opportunity_id") || "").trim();
+  const reason = String(formData.get("loss_reason") || "").trim().toUpperCase();
+  const notes = String(formData.get("loss_notes") || "").trim();
+
+  if (!opportunityId || !LOSS_REASONS.includes(reason as (typeof LOSS_REASONS)[number])) {
+    redirect(`/protected/admin/sales/${opportunityId}?error=${encodeURIComponent("Seleccioná un motivo de pérdida válido")}`);
+  }
+
+  const supabase = await requireAdmin();
+  const { error } = await supabase.from("b2b_opportunities").update({
+    stage: "LOST",
+    loss_reason: reason,
+    loss_notes: notes || null,
+    lost_at: new Date().toISOString(),
+  }).eq("id", opportunityId);
+
+  if (error) redirect(`/protected/admin/sales/${opportunityId}?error=${encodeURIComponent("No se pudo registrar la pérdida")}`);
+  revalidateSalesOpportunity(opportunityId);
+  redirect(`/protected/admin/sales/${opportunityId}?success=${encodeURIComponent("Oportunidad marcada como perdida con motivo registrado")}`);
 }
 
 export async function updateB2BCommercialFields(formData: FormData) {
@@ -83,8 +124,7 @@ export async function updateB2BCommercialFields(formData: FormData) {
   }).eq("id", opportunityId);
 
   if (error) redirect(`/protected/admin/sales/${opportunityId}?error=${encodeURIComponent("No se pudo guardar la ficha comercial")}`);
-  revalidatePath("/protected/admin/sales");
-  revalidatePath(`/protected/admin/sales/${opportunityId}`);
+  revalidateSalesOpportunity(opportunityId);
   redirect(`/protected/admin/sales/${opportunityId}?success=${encodeURIComponent("Ficha comercial actualizada")}`);
 }
 
@@ -112,8 +152,7 @@ export async function updateB2BScoringSignals(formData: FormData) {
   const { error } = await supabase.from("b2b_opportunities").update(signals!).eq("id", opportunityId);
   if (error) redirect(`/protected/admin/sales/${opportunityId}?error=${encodeURIComponent("No se pudo recalcular el ICP")}`);
 
-  revalidatePath("/protected/admin/sales");
-  revalidatePath(`/protected/admin/sales/${opportunityId}`);
+  revalidateSalesOpportunity(opportunityId);
   redirect(`/protected/admin/sales/${opportunityId}?success=${encodeURIComponent("Scoring ICP actualizado")}`);
 }
 
@@ -143,8 +182,6 @@ export async function completeB2BFollowup(formData: FormData) {
   const { error } = await supabase.from("b2b_opportunities").update(payload).eq("id", opportunityId);
   if (error) redirect(`/protected/admin/sales/followups?error=${encodeURIComponent("No se pudo registrar el seguimiento")}`);
 
-  revalidatePath("/protected/admin/sales");
-  revalidatePath("/protected/admin/sales/followups");
-  revalidatePath(`/protected/admin/sales/${opportunityId}`);
+  revalidateSalesOpportunity(opportunityId);
   redirect(`/protected/admin/sales/followups?success=${encodeURIComponent("Seguimiento registrado y próximo paso actualizado")}`);
 }

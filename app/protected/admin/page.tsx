@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Activity, Building2, CircleAlert, CircleCheck, PauseCircle, PlayCircle, ShieldCheck, UserRound } from "lucide-react";
+import { Activity, BriefcaseBusiness, Building2, CircleAlert, CircleCheck, PauseCircle, PlayCircle, ShieldCheck, UserRound } from "lucide-react";
 import {
   activatePlan,
   rejectPlan,
@@ -62,9 +62,14 @@ export default async function AdminPage({
             <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight md:text-5xl">Admin RevScale</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">Gestión de clientes, activaciones, suspensiones y preparación operativa para pilotos reales.</p>
           </div>
-          <Link href="/protected/admin/pilots" className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#302d28] px-5 py-3 text-sm font-semibold !text-[#fffaf2]">
-            <Activity size={16}/> Pilot readiness
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/protected/admin/sales" className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#b9aa94] bg-[#fffaf2] px-5 py-3 text-sm font-semibold text-[#4f4436]">
+              <BriefcaseBusiness size={16}/> Ventas B2B
+            </Link>
+            <Link href="/protected/admin/pilots" className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#302d28] px-5 py-3 text-sm font-semibold !text-[#fffaf2]">
+              <Activity size={16}/> Pilot readiness
+            </Link>
+          </div>
         </div>
 
         <section className="mt-8 grid gap-4 md:grid-cols-3">

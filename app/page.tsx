@@ -40,7 +40,7 @@ export default function Home() {
             Menos leads perdidos. Más operaciones avanzando.
           </h1>
           <p className="mt-7 max-w-2xl text-lg leading-8 text-[#69635a]">
-            RevScale organiza leads, conversaciones, prioridades y seguimientos para que tu equipo inmobiliario sepa a quién contactar, cuándo hacerlo y qué oportunidad mover primero.
+            Centralizá las consultas de tu operación y convertí cada lead en una próxima acción: RevScale prioriza qué atender, encuentra propiedades compatibles y deja cada seguimiento con dueño, contexto y próximo paso.
           </p>
 
           <div className="mt-9 flex flex-wrap gap-3">

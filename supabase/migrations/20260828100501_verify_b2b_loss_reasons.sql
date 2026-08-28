@@ -1,0 +1,2 @@
+-- Loss reason schema is verified in production by transactional close/reopen checks.
+-- This marker intentionally performs no schema change.

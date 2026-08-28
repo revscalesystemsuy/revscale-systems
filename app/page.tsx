@@ -58,7 +58,7 @@ export default function Home() {
 
           <div className="mt-9 flex flex-wrap gap-3">
             <Link href="/demos" className="inline-flex items-center gap-2 rounded-md bg-[#2f2b25] px-6 py-3 font-medium text-[#f5eee4] transition hover:bg-[#1f1c18]">Ver cómo funciona en 7 minutos <ArrowUpRight size={16} /></Link>
-            <Link href="/pilot" className="rounded-md border border-[#b9aa94] px-6 py-3 font-medium text-[#39352e] transition hover:bg-[#e7dbca]">Diagnosticar mi operación</Link>
+            <Link href="/diagnostico" className="rounded-md border border-[#b9aa94] px-6 py-3 font-medium text-[#39352e] transition hover:bg-[#e7dbca]">Diagnosticar mi operación</Link>
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-[#81796e]">Primero entendé cómo se priorizan las oportunidades. Si tiene sentido para tu equipo, seguimos con un diagnóstico y una activación asistida.</p>
         </div>
@@ -167,7 +167,7 @@ export default function Home() {
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#c8b99f]">Siguiente paso</p>
           <h2 className="mx-auto mt-4 max-w-3xl font-serif text-4xl leading-tight md:text-5xl">Encontrá primero dónde se están perdiendo tus oportunidades.</h2>
           <p className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-[#d5ccc0]">Mirá el flujo completo y después evaluamos si tu operación tiene suficiente volumen y fricción para justificar una activación asistida.</p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3"><Link href="/demos" className="inline-flex items-center gap-2 rounded-md bg-[#f0e6d8] px-6 py-3 font-medium text-[#302b25]">Ver cómo funciona en 7 minutos <ArrowUpRight size={16} /></Link><Link href="/pilot" className="rounded-md border border-[#766b5c] px-6 py-3 font-medium text-[#f0e6d8]">Diagnosticar mi operación</Link></div>
+          <div className="mt-8 flex flex-wrap justify-center gap-3"><Link href="/demos" className="inline-flex items-center gap-2 rounded-md bg-[#f0e6d8] px-6 py-3 font-medium text-[#302b25]">Ver cómo funciona en 7 minutos <ArrowUpRight size={16} /></Link><Link href="/diagnostico" className="rounded-md border border-[#766b5c] px-6 py-3 font-medium text-[#f0e6d8]">Diagnosticar mi operación</Link></div>
         </div>
       </section>
     </main>

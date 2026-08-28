@@ -19,7 +19,7 @@ export default function Home() {
               href="/demos"
               className="rounded-md border border-[#b9aa94] px-4 py-2 text-sm font-medium text-[#38342d] transition hover:bg-[#e7dbca]"
             >
-              Ver demos
+              Ver cómo funciona
             </Link>
             <Link
               href="/auth/login"
@@ -48,16 +48,19 @@ export default function Home() {
               href="/demos"
               className="inline-flex items-center gap-2 rounded-md bg-[#2f2b25] px-6 py-3 font-medium text-[#f5eee4] transition hover:bg-[#1f1c18]"
             >
-              Ver demos
+              Ver cómo funciona en 7 minutos
               <ArrowUpRight size={16} />
             </Link>
             <Link
-              href="/pricing"
+              href="/pilot"
               className="rounded-md border border-[#b9aa94] px-6 py-3 font-medium text-[#39352e] transition hover:bg-[#e7dbca]"
             >
-              Ver planes
+              Diagnosticar mi operación
             </Link>
           </div>
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-[#81796e]">
+            Primero entendé cómo se priorizan las oportunidades. Si tiene sentido para tu equipo, seguimos con un diagnóstico y una activación asistida.
+          </p>
         </div>
 
         <div className="rounded-2xl border border-[#d5c8b6] bg-[#f7f1e8] p-5 shadow-[0_24px_70px_rgba(70,58,42,.08)] md:p-7">

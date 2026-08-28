@@ -7,13 +7,18 @@ type Opportunity = {
   id: string;
   stage: string;
   tier: string;
-  source_type: string;
   acquisition_source: string;
   next_step_due_at: string | null;
+  demo_booked_at: string | null;
+  demo_attendance: string | null;
+  demo_completed_at: string | null;
+  pilot_proposed_at: string | null;
+  pilot_started_at: string | null;
+  paid_at: string | null;
   created_at: string;
 };
 
-type StageEvent = { opportunity_id: string; to_stage: string; changed_at: string };
+type ConversionEvent = { opportunity_id: string; event_type: string; occurred_at: string };
 
 const stageOrder = ["NEW","CONTACTED","QUALIFIED","DEMO_BOOKED","DEMO_COMPLETED","PILOT_PROPOSED","PILOT_ACTIVE","PAID","LOST"];
 const stageLabels: Record<string, string> = { NEW:"Nuevo", CONTACTED:"Contactado", QUALIFIED:"Calificado", DEMO_BOOKED:"Demo agendada", DEMO_COMPLETED:"Demo realizada", PILOT_PROPOSED:"Pilot propuesto", PILOT_ACTIVE:"Pilot activo", PAID:"Pago", LOST:"Perdido" };
@@ -29,31 +34,28 @@ export default async function B2BSalesMetricsPage() {
   const { data: admin } = await supabase.from("platform_admins").select("user_id").eq("user_id", userId).maybeSingle();
   if (!admin) redirect("/protected");
 
-  const [{ data: opportunityData }, { data: historyData }] = await Promise.all([
-    supabase.from("b2b_opportunities").select("id,stage,tier,source_type,acquisition_source,next_step_due_at,created_at"),
-    supabase.from("b2b_stage_history").select("opportunity_id,to_stage,changed_at").order("changed_at", { ascending: true }),
+  const [{ data: opportunityData }, { data: conversionData }] = await Promise.all([
+    supabase.from("b2b_opportunities").select("id,stage,tier,acquisition_source,next_step_due_at,demo_booked_at,demo_attendance,demo_completed_at,pilot_proposed_at,pilot_started_at,paid_at,created_at"),
+    supabase.from("b2b_conversion_events").select("opportunity_id,event_type,occurred_at").order("occurred_at", { ascending:true }),
   ]);
 
   const opportunities = (opportunityData || []) as Opportunity[];
-  const history = (historyData || []) as StageEvent[];
+  const conversionEvents = (conversionData || []) as ConversionEvent[];
   const now = Date.now();
   const open = opportunities.filter((item) => !["PAID", "LOST"].includes(item.stage));
   const overdue = open.filter((item) => item.next_step_due_at && new Date(item.next_step_due_at).getTime() < now);
   const scored = opportunities.filter((item) => item.tier !== "UNSCORED");
   const tierA = opportunities.filter((item) => item.tier === "A").length;
 
-  const reached = new Map<string, Set<string>>();
-  for (const event of history) {
-    const set = reached.get(event.opportunity_id) || new Set<string>();
-    set.add(event.to_stage);
-    reached.set(event.opportunity_id, set);
-  }
-  const observedDemoCompleted = [...reached.values()].filter((set) => set.has("DEMO_COMPLETED")).length;
-  const observedPilotProposed = [...reached.values()].filter((set) => set.has("PILOT_PROPOSED") || set.has("PILOT_ACTIVE") || set.has("PAID")).length;
-  const observedPilotActive = [...reached.values()].filter((set) => set.has("PILOT_ACTIVE")).length;
-  const observedPaidAfterPilot = [...reached.values()].filter((set) => set.has("PILOT_ACTIVE") && set.has("PAID")).length;
-  const demoToPilot = percent(observedPilotProposed, observedDemoCompleted);
-  const pilotToPaid = percent(observedPaidAfterPilot, observedPilotActive);
+  const booked = opportunities.filter((item) => item.demo_booked_at).length;
+  const shown = opportunities.filter((item) => item.demo_completed_at).length;
+  const shownWithPilot = opportunities.filter((item) => item.demo_completed_at && item.pilot_proposed_at).length;
+  const pilotStarted = opportunities.filter((item) => item.pilot_started_at).length;
+  const pilotPaid = opportunities.filter((item) => item.pilot_started_at && item.paid_at).length;
+  const noShowEvents = conversionEvents.filter((event) => event.event_type === "DEMO_NO_SHOW").length;
+  const bookedToShow = percent(shown, booked);
+  const showToPilot = percent(shownWithPilot, shown);
+  const pilotToPaid = percent(pilotPaid, pilotStarted);
 
   const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
   const newLast7 = opportunities.filter((item) => new Date(item.created_at).getTime() >= sevenDaysAgo).length;
@@ -66,9 +68,9 @@ export default async function B2BSalesMetricsPage() {
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/protected/admin/sales" className="inline-flex items-center gap-2 text-sm text-[#7a6e5c]"><ArrowLeft size={15}/> Volver al pipeline</Link>
-          <Link href="/protected/admin/sales/sources" className="rounded-lg border border-[#b9aa94] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#574936]">Gestionar fuentes</Link>
+          <div className="flex flex-wrap gap-2"><Link href="/protected/admin/sales/conversion" className="rounded-lg bg-[#302d28] px-4 py-2.5 text-sm font-semibold text-[#fffaf2]">Demo → Pilot → Pago</Link><Link href="/protected/admin/sales/sources" className="rounded-lg border border-[#b9aa94] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#574936]">Gestionar fuentes</Link></div>
         </div>
-        <div className="mt-6"><p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Sales Ops interno</p><h1 className="mt-3 font-serif text-4xl font-medium tracking-tight md:text-5xl">Métricas B2B</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">Estado actual del pipeline y conversiones realmente observadas. Las tasas históricas solo aparecen cuando existe recorrido registrado suficiente para calcularlas.</p></div>
+        <div className="mt-6"><p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Sales Ops interno</p><h1 className="mt-3 font-serif text-4xl font-medium tracking-tight md:text-5xl">Métricas B2B</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">Estado actual del pipeline y conversiones realmente observadas. Las tasas solo aparecen cuando existe un hito explícito y trazable.</p></div>
 
         <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Metric icon={<Radar size={17}/>} label="Oportunidades" value={opportunities.length} detail={`${open.length} abiertas`} />
@@ -77,15 +79,23 @@ export default async function B2BSalesMetricsPage() {
           <Metric icon={<BarChart3 size={17}/>} label="Entradas últimos 7 días" value={newLast7} detail="nuevas oportunidades B2B" />
         </section>
 
-        <section className="mt-8 grid gap-5 lg:grid-cols-2">
-          <div className="rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8d7553]">Conversión observada</p><h2 className="mt-2 font-serif text-2xl">Demo → Pilot → Pago</h2><div className="mt-6 grid gap-3 sm:grid-cols-2"><Conversion label="Demo realizada → Pilot propuesto" value={demoToPilot} numerator={observedPilotProposed} denominator={observedDemoCompleted}/><Conversion label="Pilot activo → Pago" value={pilotToPaid} numerator={observedPaidAfterPilot} denominator={observedPilotActive}/></div><p className="mt-4 text-xs leading-5 text-[#81786d]">Las oportunidades pagas preexistentes no se cuentan retroactivamente como demo o pilot si el historial no demuestra que pasaron por esas etapas.</p></div>
-          <div className="rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8d7553]">Calidad de pipeline</p><h2 className="mt-2 font-serif text-2xl">Tier y cobertura de datos</h2><div className="mt-5 space-y-3">{tierRows.map((row) => <Row key={row.tier} label={row.tier === "UNSCORED" ? "Sin score" : `Tier ${row.tier}`} value={row.count}/>)}</div></div>
+        <section className="mt-8 rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8d7553]">Conversión observada</p>
+          <h2 className="mt-2 font-serif text-2xl">Demo → Pilot → Pago</h2>
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
+            <Conversion label="Demo agendada → Show" value={bookedToShow} numerator={shown} denominator={booked}/>
+            <Conversion label="Show → Pilot propuesto" value={showToPilot} numerator={shownWithPilot} denominator={shown}/>
+            <Conversion label="Pilot activo → Pago" value={pilotToPaid} numerator={pilotPaid} denominator={pilotStarted}/>
+          </div>
+          <p className="mt-4 text-xs leading-5 text-[#81786d]">No-shows registrados: <strong>{noShowEvents}</strong>. De los pagos históricos existentes, solo se conserva fecha cuando hay evidencia verificable; no se reconstruyen demos o pilots inexistentes.</p>
         </section>
 
-        <section className="mt-8 grid gap-5 lg:grid-cols-[1.5fr_.8fr]">
-          <div className="rounded-2xl border border-[#d2c5b3] bg-[#fffaf2] p-6"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8d7553]">Pipeline actual</p><h2 className="mt-2 font-serif text-2xl">Distribución por etapa</h2><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{stageOrder.map((stage) => <Row key={stage} label={stageLabels[stage]} value={stageCounts[stage] || 0}/>)}</div></div>
-          <div className="rounded-2xl border border-[#d2c5b3] bg-[#fffaf2] p-6"><p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8d7553]"><CircleDollarSign size={14}/> Adquisición</p><h2 className="mt-2 font-serif text-2xl">Fuentes comerciales</h2><div className="mt-5 space-y-3">{sourceRows.map((row) => <Row key={row.source} label={sourceLabels[row.source] || row.source} value={row.count}/>)}{!sourceRows.length && <p className="text-sm text-[#81786d]">Sin datos todavía.</p>}</div><p className="mt-4 text-xs leading-5 text-[#81786d]">Esta vista usa el origen comercial, no el tipo técnico de registro.</p></div>
+        <section className="mt-8 grid gap-5 lg:grid-cols-2">
+          <div className="rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8d7553]">Calidad de pipeline</p><h2 className="mt-2 font-serif text-2xl">Tier y cobertura de datos</h2><div className="mt-5 space-y-3">{tierRows.map((row) => <Row key={row.tier} label={row.tier === "UNSCORED" ? "Sin score" : `Tier ${row.tier}`} value={row.count}/>)}</div></div>
+          <div className="rounded-2xl border border-[#d2c5b3] bg-[#fffaf2] p-6"><p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8d7553]"><CircleDollarSign size={14}/> Adquisición</p><h2 className="mt-2 font-serif text-2xl">Fuentes comerciales</h2><div className="mt-5 space-y-3">{sourceRows.map((row) => <Row key={row.source} label={sourceLabels[row.source] || row.source} value={row.count}/>)}{!sourceRows.length && <p className="text-sm text-[#81786d]">Sin datos todavía.</p>}</div></div>
         </section>
+
+        <section className="mt-8 rounded-2xl border border-[#d2c5b3] bg-[#fffaf2] p-6"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8d7553]">Pipeline actual</p><h2 className="mt-2 font-serif text-2xl">Distribución por etapa</h2><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{stageOrder.map((stage) => <Row key={stage} label={stageLabels[stage]} value={stageCounts[stage] || 0}/>)}</div></section>
       </div>
     </main>
   );

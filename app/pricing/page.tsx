@@ -25,7 +25,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         <div className="mx-auto mt-16 max-w-4xl text-center">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a714d]">Planes</p>
           <h1 className="mt-4 font-serif text-5xl font-medium tracking-tight text-[#29251f] md:text-6xl">Elegí cuánto querés que RevScale haga por tu operación.</h1>
-          <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-[#6d665d]">{params.new === "1" ? "Tu cuenta fue creada. Ahora elegí el nivel de operación que querés activar." : "Starter ordena. Professional automatiza y convierte. Enterprise escala equipos, captación y procesos complejos."}</p>
+          <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-[#6d665d]">{params.new === "1" ? "Tu cuenta fue creada. Ahora elegí el nivel de operación que querés activar." : "Starter ordena. Professional es la ruta recomendada para equipos con volumen. Enterprise se configura con venta e implementación asistida."}</p>
           <div className="mx-auto mt-7 inline-flex rounded-xl border border-[#cdbfa9] bg-[#f7f1e8] p-1">
             <Link href={cycleHref("MONTHLY")} className={`rounded-lg px-5 py-2 text-sm font-medium transition ${cycle === "MONTHLY" ? "bg-[#302b25] text-[#fffaf2]" : "text-[#625d55]"}`}>Mensual</Link>
             <Link href={cycleHref("ANNUAL")} className={`rounded-lg px-5 py-2 text-sm font-medium transition ${cycle === "ANNUAL" ? "bg-[#302b25] text-[#fffaf2]" : "text-[#625d55]"}`}>Anual · 2 meses gratis</Link>
@@ -61,8 +61,12 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
         <section className="mt-14 grid gap-5 md:grid-cols-3">
           {PAID_PLAN_ORDER.map((planName) => {
             const plan = PLAN_CATALOG[planName];
+            const isEnterprise = plan.name === "ENTERPRISE";
+            const isProfessional = plan.name === "PROFESSIONAL";
             const totalPrice = cycle === "ANNUAL" ? plan.annual : plan.monthly;
             const requestHref = `/request?plan=${plan.name}&cycle=${cycle}${email ? `&email=${encodeURIComponent(email)}` : ""}`;
+            const actionHref = isEnterprise ? "/pilot" : requestHref;
+            const actionLabel = isEnterprise ? "Evaluar Enterprise" : isProfessional ? "Activar Professional" : "Elegir Starter";
             return (
               <article key={plan.name} className={`flex h-full flex-col rounded-2xl border p-6 shadow-[0_18px_50px_rgba(70,58,42,.05)] ${plan.popular ? "border-[#a99270] bg-[#e5d7c3]" : "border-[#d5c8b6] bg-[#f7f1e8]"}`}>
                 <div className="flex min-h-7 items-center justify-between gap-4">
@@ -74,9 +78,12 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                 <p className="mt-4 min-h-20 text-sm leading-6 text-[#716a61]">{plan.description}</p>
 
                 <div className="mt-6 border-y border-[#d3c6b4] py-6">
+                  {isEnterprise && <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a714d]">Desde</p>}
                   <span className="font-serif text-5xl font-medium tracking-tight text-[#2d2923]">${totalPrice.toLocaleString("en-US")}</span>
                   <span className="ml-1 text-sm text-[#787168]">{cycle === "ANNUAL" ? "/año" : "/mes"}</span>
                   {cycle === "ANNUAL" && <p className="mt-2 text-xs font-medium text-[#806c4d]">Equivale a ${Math.round(plan.annual / 12)}/mes · 2 meses bonificados</p>}
+                  {isProfessional && <p className="mt-3 text-xs leading-5 text-[#6f604c]">Primeras 10 implementaciones: onboarding y migración sin cargo, con activación asistida.</p>}
+                  {isEnterprise && <p className="mt-3 text-xs leading-5 text-[#716a61]">Venta asistida: alcance, equipos, integraciones e implementación se validan antes de activar la suscripción.</p>}
                 </div>
 
                 <ul className="mt-6 space-y-3 text-sm text-[#5f5951]">
@@ -92,7 +99,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                   </div>
                 )}
 
-                <Link href={requestHref} className={`mt-auto block rounded-md px-5 py-3 text-center text-sm font-medium transition ${plan.popular ? "bg-[#302b25] text-[#f5eee4] hover:bg-[#211e1a]" : "border border-[#b9aa94] text-[#3c3730] hover:bg-[#e9dece]"}`}>Elegir {plan.title}</Link>
+                <Link href={actionHref} className={`mt-auto block rounded-md px-5 py-3 text-center text-sm font-medium transition ${plan.popular ? "bg-[#302b25] text-[#f5eee4] hover:bg-[#211e1a]" : "border border-[#b9aa94] text-[#3c3730] hover:bg-[#e9dece]"}`}>{actionLabel}</Link>
               </article>
             );
           })}
@@ -113,7 +120,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
           </div>
         </section>
 
-        <p className="mx-auto mt-8 max-w-3xl text-center text-xs leading-5 text-[#8a8379]">Importes en USD. El plan anual se cobra una vez por 12 meses e incluye el equivalente a 2 meses sin cargo.</p>
+        <p className="mx-auto mt-8 max-w-3xl text-center text-xs leading-5 text-[#8a8379]">Importes en USD. Starter y Professional pueden contratarse mensualmente o en modalidad anual. Enterprise parte de la tarifa publicada y se confirma con alcance asistido antes de la activación.</p>
       </div>
     </main>
   );

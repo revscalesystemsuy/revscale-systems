@@ -104,7 +104,7 @@ export default async function DemoLeadDetailPage({
           </Card>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-[#cdbfa9] bg-[#f2eadf] p-6">
+        <section id="matching" className="mt-6 scroll-mt-6 rounded-2xl border border-[#cdbfa9] bg-[#f2eadf] p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Sparkles size={18} strokeWidth={1.7} className="text-[#725d40]" />

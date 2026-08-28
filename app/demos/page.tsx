@@ -86,6 +86,7 @@ export default function DemosPage() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a714d]">Demos por plan</p>
           <h2 className="mt-4 font-serif text-4xl font-medium tracking-tight text-[#29251f] md:text-5xl">Elegí el nivel de operación que querés recorrer.</h2>
           <p className="mx-auto mt-4 max-w-3xl text-base leading-7 text-[#6d665d]">Starter ordena. Professional prioriza, automatiza y convierte. Enterprise agrega gobierno para equipos y operaciones complejas. Cada demo respeta el alcance real del plan.</p>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-[#81796e]">Todas empiezan en <strong className="font-semibold text-[#5f5548]">Qué hacer hoy</strong>: primero ves qué requiere acción; después podés abrir el lead, revisar matching, WhatsApp, reactivación y dirección desde el menú.</p>
         </div>
 
         <section className="mt-10 grid gap-5 lg:grid-cols-3">
@@ -129,10 +130,10 @@ export default function DemosPage() {
 
                 <div className="mt-auto pt-7">
                   <Link
-                    href={`/demo?plan=${demoKey}`}
+                    href={`/demo/today?plan=${demoKey}`}
                     className={`flex items-center justify-center gap-2 rounded-md px-5 py-3 text-sm font-semibold transition ${plan.popular ? "bg-[#302b25] text-[#f5eee4] hover:bg-[#211e1a]" : "border border-[#b9aa94] text-[#3c3730] hover:bg-[#e9dece]"}`}
                   >
-                    Ver demo {plan.title}
+                    Empezar recorrido {plan.title}
                     <ArrowUpRight size={15} />
                   </Link>
                 </div>

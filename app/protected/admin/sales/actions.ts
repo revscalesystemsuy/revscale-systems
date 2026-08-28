@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 const STAGES = ["NEW","CONTACTED","QUALIFIED","DEMO_BOOKED","DEMO_COMPLETED","PILOT_PROPOSED","PILOT_ACTIVE","PAID","LOST"] as const;
 const CHANNELS = ["WEB","WHATSAPP","EMAIL","LINKEDIN","PHONE","OTHER"] as const;
 const PLANS = ["STARTER","PROFESSIONAL","ENTERPRISE","UNKNOWN"] as const;
+const FOLLOWUP_OUTCOMES = ["CONTACTED","NO_RESPONSE","RESCHEDULED","OTHER"] as const;
 type Stage = (typeof STAGES)[number];
 
 async function requireAdmin() {
@@ -33,6 +34,11 @@ function optionalBoolean(value: FormDataEntryValue | null) {
   if (raw === "YES") return true;
   if (raw === "NO") return false;
   throw new Error("invalid-boolean");
+}
+
+function parseUruguayDateTime(raw: string) {
+  const date = new Date(`${raw}:00-03:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 export async function updateB2BStage(formData: FormData) {
@@ -109,4 +115,36 @@ export async function updateB2BScoringSignals(formData: FormData) {
   revalidatePath("/protected/admin/sales");
   revalidatePath(`/protected/admin/sales/${opportunityId}`);
   redirect(`/protected/admin/sales/${opportunityId}?success=${encodeURIComponent("Scoring ICP actualizado")}`);
+}
+
+export async function completeB2BFollowup(formData: FormData) {
+  const opportunityId = String(formData.get("opportunity_id") || "").trim();
+  const outcome = String(formData.get("outcome") || "").trim().toUpperCase();
+  const nextStep = String(formData.get("next_step") || "").trim();
+  const dueRaw = String(formData.get("next_step_due_at") || "").trim();
+  const nextDueAt = parseUruguayDateTime(dueRaw);
+
+  if (!opportunityId || !FOLLOWUP_OUTCOMES.includes(outcome as (typeof FOLLOWUP_OUTCOMES)[number]) || !nextStep || !nextDueAt) {
+    redirect(`/protected/admin/sales/followups?error=${encodeURIComponent("Resultado, próximo paso y fecha son obligatorios")}`);
+  }
+
+  const supabase = await requireAdmin();
+  const { data: opportunity } = await supabase.from("b2b_opportunities").select("stage").eq("id", opportunityId).maybeSingle();
+  if (!opportunity) redirect(`/protected/admin/sales/followups?error=${encodeURIComponent("Oportunidad no encontrada")}`);
+
+  const payload: Record<string, string> = {
+    last_contact_at: new Date().toISOString(),
+    last_contact_outcome: outcome,
+    next_step: nextStep,
+    next_step_due_at: nextDueAt.toISOString(),
+  };
+  if (opportunity.stage === "NEW" && outcome === "CONTACTED") payload.stage = "CONTACTED";
+
+  const { error } = await supabase.from("b2b_opportunities").update(payload).eq("id", opportunityId);
+  if (error) redirect(`/protected/admin/sales/followups?error=${encodeURIComponent("No se pudo registrar el seguimiento")}`);
+
+  revalidatePath("/protected/admin/sales");
+  revalidatePath("/protected/admin/sales/followups");
+  revalidatePath(`/protected/admin/sales/${opportunityId}`);
+  redirect(`/protected/admin/sales/followups?success=${encodeURIComponent("Seguimiento registrado y próximo paso actualizado")}`);
 }

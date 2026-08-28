@@ -45,21 +45,21 @@ export async function scheduleB2BDemo(formData: FormData) {
 
   const supabase = await requireAdmin();
   const { data: opportunity } = await supabase.from("b2b_opportunities").select("stage").eq("id", opportunityId).maybeSingle();
-  if (!opportunity || ["PAID","LOST"].includes(opportunity.stage)) {
-    redirect(`/protected/admin/sales/conversion?error=${encodeURIComponent("La oportunidad no admite una nueva demo")}`);
-  }
+  if (!opportunity) redirect(`/protected/admin/sales/conversion?error=${encodeURIComponent("Oportunidad no encontrada")}`);
 
   const currentIndex = STAGE_ORDER.indexOf(opportunity.stage as Stage);
   const bookedIndex = STAGE_ORDER.indexOf("DEMO_BOOKED");
-  const payload: Record<string, string | null> = {
+  if (currentIndex < 0 || currentIndex > bookedIndex) {
+    redirect(`/protected/admin/sales/conversion?error=${encodeURIComponent("La oportunidad ya superó la etapa de agenda de demo")}`);
+  }
+
+  const { error } = await supabase.from("b2b_opportunities").update({
+    stage: "DEMO_BOOKED",
     demo_scheduled_for: scheduledFor.toISOString(),
     demo_attendance: null,
     next_step: nextStep,
     next_step_due_at: nextDueAt.toISOString(),
-  };
-  if (currentIndex < bookedIndex) payload.stage = "DEMO_BOOKED";
-
-  const { error } = await supabase.from("b2b_opportunities").update(payload).eq("id", opportunityId);
+  }).eq("id", opportunityId);
   if (error) redirect(`/protected/admin/sales/conversion?error=${encodeURIComponent("No se pudo agendar la demo")}`);
 
   revalidateConversion(opportunityId);
@@ -82,22 +82,17 @@ export async function recordB2BDemoOutcome(formData: FormData) {
 
   const supabase = await requireAdmin();
   const { data: opportunity } = await supabase.from("b2b_opportunities").select("stage").eq("id", opportunityId).maybeSingle();
-  if (!opportunity || !["DEMO_BOOKED","DEMO_COMPLETED"].includes(opportunity.stage)) {
-    redirect(`/protected/admin/sales/conversion?error=${encodeURIComponent("La oportunidad no está en etapa de demo")}`);
+  if (!opportunity || opportunity.stage !== "DEMO_BOOKED") {
+    redirect(`/protected/admin/sales/conversion?error=${encodeURIComponent("La oportunidad no está esperando resultado de demo")}`);
   }
 
   const payload: Record<string, string> = {
     demo_attendance: outcome,
     next_step: nextStep,
     next_step_due_at: nextDueAt.toISOString(),
+    stage: outcome === "SHOW" ? "DEMO_COMPLETED" : "DEMO_BOOKED",
   };
-
-  if (outcome === "SHOW") {
-    payload.stage = "DEMO_COMPLETED";
-  } else {
-    payload.stage = "DEMO_BOOKED";
-  }
-  if (rescheduledFor) payload.demo_scheduled_for = rescheduledFor.toISOString();
+  if (outcome === "RESCHEDULED" && rescheduledFor) payload.demo_scheduled_for = rescheduledFor.toISOString();
 
   const { error } = await supabase.from("b2b_opportunities").update(payload).eq("id", opportunityId);
   if (error) redirect(`/protected/admin/sales/conversion?error=${encodeURIComponent("No se pudo registrar el resultado de la demo")}`);

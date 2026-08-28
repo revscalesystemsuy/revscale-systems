@@ -32,6 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: ORIGIN, changeFrequency: "weekly", priority: 0.8 },
     { url: `${ORIGIN}/pricing`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${ORIGIN}/diagnostico`, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${ORIGIN}/roi`, changeFrequency: "monthly", priority: 0.5 },
   ];
 
   for (const site of hostedSites.values()) {

@@ -14,6 +14,29 @@ const DEMO_KEYS: Record<PaidPlanName, "starter" | "professional" | "enterprise">
   ENTERPRISE: "enterprise",
 };
 
+const SALES_NARRATIVE = [
+  {
+    step: "01 · El problema",
+    title: "La oportunidad invisible",
+    description: "El lead ya existe, pero queda repartido entre mensajes, memoria, planillas y seguimientos sin dueño. El problema no es generar más actividad: es no saber qué oportunidad necesita acción ahora.",
+  },
+  {
+    step: "02 · El mecanismo",
+    title: "Prioridad + contexto + próximo paso",
+    description: "RevScale convierte cada oportunidad en una unidad operativa: responsable claro, prioridad, contexto comercial y una próxima acción visible para el equipo.",
+  },
+  {
+    step: "03 · El avance",
+    title: "Mover lo que puede convertirse",
+    description: "Qué hacer hoy, matching, WhatsApp y Opportunity Radar ayudan a decidir qué mover primero, por qué y quién debe hacerse cargo, sin sumar trabajo manual innecesario.",
+  },
+  {
+    step: "04 · La dirección",
+    title: "Medir proceso, no actividad",
+    description: "Dirección puede ver SLA, seguimientos, riesgo, reactivaciones y oportunidades avanzando. La pregunta deja de ser cuántos leads entraron y pasa a ser qué oportunidades estamos moviendo.",
+  },
+];
+
 export default function DemosPage() {
   return (
     <main className="min-h-screen bg-[#efe6d8] px-6 py-8 text-[#292722] md:px-8">
@@ -33,16 +56,39 @@ export default function DemosPage() {
           <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-[#d2c4b0] bg-[#f7f1e8] text-[#806b4d]">
             <Layers3 size={19} strokeWidth={1.6} />
           </div>
-          <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a714d]">Demos por plan</p>
+          <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a714d]">Cómo funciona RevScale</p>
           <h1 className="mt-4 font-serif text-5xl font-medium tracking-tight text-[#29251f] md:text-6xl">
-            Probá RevScale según la etapa de tu inmobiliaria.
+            De la oportunidad invisible al próximo paso.
           </h1>
           <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-[#6d665d]">
-            Starter ordena. Professional automatiza y convierte. Enterprise escala equipos, captación y procesos complejos. Cada demo respeta el alcance real del plan.
+            RevScale no intenta sumar otro lugar donde mirar leads. Ordena qué oportunidad mover ahora, por qué importa y qué debería pasar después.
           </p>
         </div>
 
-        <section className="mt-14 grid gap-5 lg:grid-cols-3">
+        <section className="mt-12 rounded-2xl border border-[#d5c8b6] bg-[#f7f1e8] p-6 shadow-[0_18px_50px_rgba(70,58,42,.04)] md:p-8">
+          <div className="max-w-3xl">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8a714d]">Narrativa comercial</p>
+            <h2 className="mt-3 font-serif text-3xl font-medium text-[#302b25] md:text-4xl">El recorrido que vas a ver en la demo.</h2>
+            <p className="mt-3 text-sm leading-6 text-[#716a61]">La demo sigue una sola historia: detectar una oportunidad que hoy puede quedar oculta, darle prioridad y contexto, ejecutar el próximo paso y mostrarle a dirección qué cambió.</p>
+          </div>
+          <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {SALES_NARRATIVE.map((item) => (
+              <article key={item.step} className="rounded-xl border border-[#d8ccbc] bg-[#efe6d8] p-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a714d]">{item.step}</p>
+                <h3 className="mt-3 font-serif text-2xl leading-tight text-[#302b25]">{item.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-[#716a61]">{item.description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <div className="mx-auto mt-14 max-w-4xl text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a714d]">Demos por plan</p>
+          <h2 className="mt-4 font-serif text-4xl font-medium tracking-tight text-[#29251f] md:text-5xl">Elegí el nivel de operación que querés recorrer.</h2>
+          <p className="mx-auto mt-4 max-w-3xl text-base leading-7 text-[#6d665d]">Starter ordena. Professional prioriza, automatiza y convierte. Enterprise agrega gobierno para equipos y operaciones complejas. Cada demo respeta el alcance real del plan.</p>
+        </div>
+
+        <section className="mt-10 grid gap-5 lg:grid-cols-3">
           {PAID_PLAN_ORDER.map((planName) => {
             const plan = PLAN_CATALOG[planName];
             const Icon = ICONS[planName];

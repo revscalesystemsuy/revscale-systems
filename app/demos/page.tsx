@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Building2, CheckCircle2, Layers3, Sparkles, UsersRound } from "lucide-react";
+import { ArrowUpRight, Building2, CheckCircle2, Layers3, PlayCircle, Sparkles, UsersRound } from "lucide-react";
 import { PLAN_CATALOG, PAID_PLAN_ORDER, type PaidPlanName } from "@/lib/plan-catalog";
 
 const ICONS: Record<PaidPlanName, typeof Building2> = {
@@ -63,6 +63,10 @@ export default function DemosPage() {
           <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-[#6d665d]">
             RevScale no intenta sumar otro lugar donde mirar leads. Ordena qué oportunidad mover ahora, por qué importa y qué debería pasar después.
           </p>
+          <Link href="/demo/recorrido?plan=professional" className="mx-auto mt-7 inline-flex items-center gap-2 rounded-md bg-[#2f2b25] px-6 py-3 font-semibold text-[#f5eee4] transition hover:bg-[#1f1c18]">
+            <PlayCircle size={17} strokeWidth={1.7} /> Empezar recorrido guiado de 7 minutos <ArrowUpRight size={15} />
+          </Link>
+          <p className="mx-auto mt-3 max-w-2xl text-xs leading-5 text-[#81796e]">El recorrido recomendado usa Professional y datos 100% ficticios de demo. No representa resultados de clientes.</p>
         </div>
 
         <section className="mt-12 rounded-2xl border border-[#d5c8b6] bg-[#f7f1e8] p-6 shadow-[0_18px_50px_rgba(70,58,42,.04)] md:p-8">
@@ -83,8 +87,8 @@ export default function DemosPage() {
         </section>
 
         <div className="mx-auto mt-14 max-w-4xl text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a714d]">Demos por plan</p>
-          <h2 className="mt-4 font-serif text-4xl font-medium tracking-tight text-[#29251f] md:text-5xl">Elegí el nivel de operación que querés recorrer.</h2>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8a714d]">Exploración libre por plan</p>
+          <h2 className="mt-4 font-serif text-4xl font-medium tracking-tight text-[#29251f] md:text-5xl">O elegí el nivel de operación que querés recorrer.</h2>
           <p className="mx-auto mt-4 max-w-3xl text-base leading-7 text-[#6d665d]">Starter ordena. Professional prioriza, automatiza y convierte. Enterprise agrega gobierno para equipos y operaciones complejas. Cada demo respeta el alcance real del plan.</p>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-[#81796e]">Todas empiezan en <strong className="font-semibold text-[#5f5548]">Qué hacer hoy</strong>: primero ves qué requiere acción; después podés abrir el lead, revisar matching, WhatsApp, reactivación y dirección desde el menú.</p>
         </div>

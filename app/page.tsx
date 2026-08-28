@@ -34,7 +34,7 @@ export default function Home() {
       <section className="mx-auto grid min-h-[72vh] max-w-7xl items-center gap-14 px-6 py-16 md:px-8 lg:grid-cols-[1.12fr_.88fr] lg:py-24">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#8a714d]">
-            Operación comercial inmobiliaria
+            Inteligencia comercial inmobiliaria
           </p>
           <h1 className="mt-5 max-w-4xl font-serif text-5xl font-medium leading-[1.02] tracking-tight text-[#29251f] md:text-7xl">
             Menos leads perdidos. Más operaciones avanzando.

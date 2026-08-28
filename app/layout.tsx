@@ -8,9 +8,9 @@ const defaultUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` 
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "RevScale Systems",
-  description: "Plataforma de inteligencia comercial con IA para inmobiliarias.",
-  keywords: ["RevScale", "inteligencia artificial", "CRM inmobiliario", "ventas inmobiliarias", "matching IA"],
+  title: "RevScale PropertyOS | Inteligencia comercial inmobiliaria",
+  description: "RevScale PropertyOS prioriza oportunidades, organiza seguimientos, conecta demanda con propiedades y da visibilidad comercial a equipos inmobiliarios.",
+  keywords: ["RevScale", "inteligencia comercial inmobiliaria", "CRM inmobiliario", "software inmobiliario", "seguimiento de leads", "matching inmobiliario"],
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -18,8 +18,8 @@ export const metadata: Metadata = {
     title: "RevScale",
   },
   openGraph: {
-    title: "RevScale Systems",
-    description: "Transformá tu inmobiliaria con inteligencia artificial.",
+    title: "RevScale PropertyOS | Inteligencia comercial inmobiliaria",
+    description: "Menos leads perdidos. Más operaciones avanzando. Priorizá qué oportunidad mover ahora y qué hacer después.",
     type: "website",
   },
 };

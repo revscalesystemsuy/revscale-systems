@@ -48,6 +48,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#745f43]">02 · 45 días</p>
               <h3 className="mt-3 font-serif text-2xl text-[#302b25]">Revenue Recovery Pilot</h3>
               <p className="mt-2 text-sm leading-6 text-[#665e54]">En 7 días dejamos la operación priorizada y durante 45 días medimos dónde se pierden o recuperan oportunidades concretas.</p>
+              <Link href="/pilot" className="mt-4 inline-block text-sm font-semibold text-[#5f513f] underline decoration-[#a89271] underline-offset-4 transition hover:text-[#302b25]">Ver alcance y garantía</Link>
             </div>
             <div className="rounded-xl border border-[#d8ccbc] bg-[#efe6d8] p-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a714d]">03 · Operación continua</p>

@@ -19,6 +19,8 @@ type Opportunity = {
   next_step: string | null;
   next_step_due_at: string | null;
   last_contact_at: string | null;
+  icp_score: number | null;
+  tier: "A" | "B" | "C" | "LOW" | "UNSCORED";
   created_at: string;
 };
 
@@ -46,13 +48,12 @@ export default async function InternalSalesPipelinePage({ searchParams }: { sear
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
   if (!userId) redirect("/auth/login");
-
   const { data: platformAdmin } = await supabase.from("platform_admins").select("user_id").eq("user_id", userId).maybeSingle();
   if (!platformAdmin) redirect("/protected");
 
   const { data } = await supabase
     .from("b2b_opportunities")
-    .select("id,source_type,company,contact_name,email,phone,source_status,stage,primary_channel,plan_interest,next_step,next_step_due_at,last_contact_at,created_at")
+    .select("id,source_type,company,contact_name,email,phone,source_status,stage,primary_channel,plan_interest,next_step,next_step_due_at,last_contact_at,icp_score,tier,created_at")
     .order("created_at", { ascending: false });
 
   const opportunities = (data || []) as Opportunity[];
@@ -64,40 +65,24 @@ export default async function InternalSalesPipelinePage({ searchParams }: { sear
     <main className="min-h-screen bg-[#f3ecdf] p-6 text-[#302d28] md:p-8 lg:p-10">
       <div className="mx-auto max-w-[1600px]">
         <Link href="/protected/admin" className="inline-flex items-center gap-2 text-sm text-[#7a6e5c]"><ArrowLeft size={15} /> Volver a Admin</Link>
-
         <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Ventas internas RevScale</p>
-            <h1 className="mt-3 font-serif text-4xl font-medium tracking-tight md:text-5xl">Pipeline B2B</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">Recorrido comercial desde la entrada hasta el pago. Ninguna oportunidad abierta puede quedar sin responsable, próximo paso y fecha.</p>
-          </div>
+          <div><p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8d7553]">Ventas internas RevScale</p><h1 className="mt-3 font-serif text-4xl font-medium tracking-tight md:text-5xl">Pipeline B2B</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-[#625d55]">Recorrido comercial desde la entrada hasta el pago. Ninguna oportunidad abierta puede quedar sin responsable, próximo paso y fecha.</p></div>
           <div className="rounded-xl border border-[#d2c5b3] bg-[#fffaf2] px-5 py-4"><p className="text-[10px] uppercase tracking-[0.16em] text-[#81796e]">Oportunidades totales</p><p className="mt-1 font-serif text-3xl">{opportunities.length}</p></div>
         </div>
 
         {params.success && <div className="mt-6 rounded-xl border border-[#b7c5aa] bg-[#e5eadf] px-4 py-3 text-sm text-[#4d5c46]">{params.success}</div>}
         {params.error && <div className="mt-6 rounded-xl border border-[#d9b7aa] bg-[#f4e4dc] px-4 py-3 text-sm text-[#7b4539]">{params.error}</div>}
 
-        <section className="mt-8 grid gap-4 md:grid-cols-3">
-          <Stat icon={<Inbox size={17} />} label="Nuevas" value={newCount} detail="pendientes de primer contacto" />
-          <Stat icon={<Radar size={17} />} label="En proceso" value={activeCount} detail="entre contacto y pilot" />
-          <Stat icon={<BadgeDollarSign size={17} />} label="Pagas" value={paidCount} detail="clientes activados o pagos" />
-        </section>
+        <section className="mt-8 grid gap-4 md:grid-cols-3"><Stat icon={<Inbox size={17} />} label="Nuevas" value={newCount} detail="pendientes de primer contacto" /><Stat icon={<Radar size={17} />} label="En proceso" value={activeCount} detail="entre contacto y pilot" /><Stat icon={<BadgeDollarSign size={17} />} label="Pagas" value={paidCount} detail="clientes activados o pagos" /></section>
 
-        <section className="mt-8 overflow-x-auto pb-4">
-          <div className="grid min-w-[2800px] grid-cols-9 gap-4">
-            {stages.map((stage) => <PipelineColumn key={stage.key} stage={stage} items={opportunities.filter((item) => item.stage === stage.key)} />)}
-          </div>
-        </section>
-
+        <section className="mt-8 overflow-x-auto pb-4"><div className="grid min-w-[2800px] grid-cols-9 gap-4">{stages.map((stage) => <PipelineColumn key={stage.key} stage={stage} items={opportunities.filter((item) => item.stage === stage.key)} />)}</div></section>
         {!opportunities.length && <div className="mt-8 rounded-2xl border border-dashed border-[#cdbfa9] bg-[#f7f0e6] p-10 text-center text-sm text-[#716a61]">Todavía no hay oportunidades B2B.</div>}
       </div>
     </main>
   );
 }
 
-function Stat({ icon, label, value, detail }: { icon: React.ReactNode; label: string; value: number; detail: string }) {
-  return <div className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] p-5"><div className="flex items-center gap-2 text-[#7a674d]">{icon}<p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a7a67]">{label}</p></div><p className="mt-2 font-serif text-3xl">{value}</p><p className="mt-1 text-xs text-[#81786d]">{detail}</p></div>;
-}
+function Stat({ icon, label, value, detail }: { icon: React.ReactNode; label: string; value: number; detail: string }) { return <div className="rounded-xl border border-[#d2c5b3] bg-[#f7f0e6] p-5"><div className="flex items-center gap-2 text-[#7a674d]">{icon}<p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a7a67]">{label}</p></div><p className="mt-2 font-serif text-3xl">{value}</p><p className="mt-1 text-xs text-[#81786d]">{detail}</p></div>; }
 
 function PipelineColumn({ stage, items }: { stage: { key: Stage; label: string; description: string }; items: Opportunity[] }) {
   return (
@@ -106,15 +91,11 @@ function PipelineColumn({ stage, items }: { stage: { key: Stage; label: string; 
       <div className="mt-4 space-y-3">
         {items.map((item) => (
           <article key={item.id} className="rounded-xl border border-[#d7caba] bg-[#fffaf2] p-4 shadow-[0_8px_24px_rgba(72,58,40,0.03)]">
-            <div className="flex items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#d8cbb8] bg-[#efe5d6] text-[#7a674d]"><Building2 size={16} /></span><div className="min-w-0"><h3 className="truncate font-semibold text-[#39342e]">{item.company}</h3><p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a7a67]">{sourceLabels[item.source_type]}</p></div></div>
+            <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#d8cbb8] bg-[#efe5d6] text-[#7a674d]"><Building2 size={16} /></span><div className="min-w-0"><h3 className="truncate font-semibold text-[#39342e]">{item.company}</h3><p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8a7a67]">{sourceLabels[item.source_type]}</p></div></div><span className="shrink-0 rounded-full border border-[#cbbda8] bg-[#efe5d6] px-2 py-1 text-[10px] font-semibold text-[#665642]">{item.tier === "UNSCORED" ? "Sin score" : `${item.tier} · ${item.icp_score}`}</span></div>
             <div className="mt-4 grid gap-2 text-xs text-[#665f56]"><p className="flex items-center gap-2"><UserRound size={13} /> {item.contact_name || "Sin contacto"}</p>{item.email && <p className="break-all">{item.email}</p>}{item.phone && <p>{item.phone}</p>}<p className="text-[#8a8176]">{item.primary_channel} · {item.plan_interest === "UNKNOWN" ? "Plan sin definir" : item.plan_interest}</p></div>
             {item.stage !== "LOST" && <div className="mt-4 rounded-lg border border-[#d6c8b5] bg-[#efe5d6] p-3"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#81796e]">Próximo paso</p><p className="mt-1 text-xs font-medium leading-5 text-[#4f493f]">{item.next_step}</p><p className="mt-2 flex items-center gap-1.5 text-[10px] text-[#786e62]"><CalendarClock size={12}/>{item.next_step_due_at ? new Intl.DateTimeFormat("es-UY", { dateStyle: "short", timeStyle: "short", timeZone: "America/Montevideo" }).format(new Date(item.next_step_due_at)) : "Sin fecha"}</p></div>}
             <Link href={`/protected/admin/sales/${item.id}`} className="mt-3 block text-xs font-semibold text-[#675743] underline decoration-[#a89271] underline-offset-4">Editar ficha comercial</Link>
-            <form action={updateB2BStage} className="mt-4 border-t border-[#e0d5c5] pt-3">
-              <input type="hidden" name="opportunity_id" value={item.id} />
-              <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#81796e]" htmlFor={`stage-${item.id}`}>Mover etapa</label>
-              <div className="mt-2 flex gap-2"><select id={`stage-${item.id}`} name="stage" defaultValue={item.stage} className="min-w-0 flex-1 rounded-lg border border-[#cfc1ad] bg-[#f7f0e6] px-2 py-2 text-xs text-[#4e483f]">{stages.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select><button className="rounded-lg bg-[#302d28] px-3 py-2 text-xs font-semibold text-[#fffaf2]">Guardar</button></div>
-            </form>
+            <form action={updateB2BStage} className="mt-4 border-t border-[#e0d5c5] pt-3"><input type="hidden" name="opportunity_id" value={item.id} /><label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#81796e]" htmlFor={`stage-${item.id}`}>Mover etapa</label><div className="mt-2 flex gap-2"><select id={`stage-${item.id}`} name="stage" defaultValue={item.stage} className="min-w-0 flex-1 rounded-lg border border-[#cfc1ad] bg-[#f7f0e6] px-2 py-2 text-xs text-[#4e483f]">{stages.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select><button className="rounded-lg bg-[#302d28] px-3 py-2 text-xs font-semibold text-[#fffaf2]">Guardar</button></div></form>
           </article>
         ))}
         {!items.length && <div className="rounded-xl border border-dashed border-[#cdbfa9] bg-[#f7f0e6] p-5 text-center text-xs text-[#81786d]">Sin oportunidades.</div>}

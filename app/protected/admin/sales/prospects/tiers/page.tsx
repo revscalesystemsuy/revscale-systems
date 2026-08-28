@@ -41,7 +41,10 @@ export default async function ProspectTiersPage() {
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/protected/admin/sales/prospects/scoring" className="inline-flex items-center gap-2 text-sm text-[#7a6e5c]"><ArrowLeft size={15}/> Volver a scoring</Link>
-          <Link href="/protected/admin/sales/icp" className="rounded-lg border border-[#b9aa94] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#574936]">Criterios ICP</Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/protected/admin/sales/prospects/validation" className="rounded-lg border border-[#8f7b5f] bg-[#5f503d] px-4 py-2.5 text-sm font-semibold text-[#fffaf2]">Cola Paso 36</Link>
+            <Link href="/protected/admin/sales/icp" className="rounded-lg border border-[#b9aa94] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#574936]">Criterios ICP</Link>
+          </div>
         </div>
 
         <div className="mt-6">
@@ -77,7 +80,7 @@ export default async function ProspectTiersPage() {
           </div>
         </section>
 
-        <div className="mt-8 rounded-2xl border border-[#cdbfa9] bg-[#efe5d6] p-5 text-sm leading-6 text-[#625d55]"><strong>Regla operativa:</strong> A = 75–100, B = 60–74, C = 45–59, IGNORE = menos de 45 salvo inbound. Sin score completo no hay Tier. Paso 36 solo puede comenzar cuando existan cuentas Tier A reales.</div>
+        <div className="mt-8 rounded-2xl border border-[#cdbfa9] bg-[#efe5d6] p-5 text-sm leading-6 text-[#625d55]"><strong>Regla operativa:</strong> A = 75–100, B = 60–74, C = 45–59, IGNORE = menos de 45 salvo inbound. Sin score completo no hay Tier. La cola del Paso 36 prioriza investigación, pero no sustituye esta regla.</div>
       </div>
     </main>
   );

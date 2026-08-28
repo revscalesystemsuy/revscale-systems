@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, CalendarClock, Mail, Phone, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarClock, Mail, Phone, Target, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { updateB2BCommercialFields } from "../actions";
+import { updateB2BCommercialFields, updateB2BScoringSignals } from "../actions";
 
 function localInputValue(value: string | null) {
   if (!value) return "";
-  const date = new Date(value);
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
+  return new Date(value).toISOString().slice(0, 16);
+}
+
+function signalValue(value: boolean | null) {
+  if (value === true) return "YES";
+  if (value === false) return "NO";
+  return "UNKNOWN";
 }
 
 export default async function B2BOpportunityPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ success?: string; error?: string }> }) {
@@ -23,17 +27,12 @@ export default async function B2BOpportunityPage({ params, searchParams }: { par
 
   const { data: opportunity } = await supabase
     .from("b2b_opportunities")
-    .select("id,company,contact_name,email,phone,stage,primary_channel,plan_interest,next_step,next_step_due_at,last_contact_at,notes,source_type,created_at")
+    .select("id,company,contact_name,email,phone,stage,primary_channel,plan_interest,next_step,next_step_due_at,last_contact_at,notes,source_type,created_at,icp_team_size,icp_monthly_inquiries,icp_lead_sources,icp_whatsapp_daily,icp_followup_pain,icp_growth_investment,icp_decision_access,icp_geography_fit,icp_score,tier,score_updated_at")
     .eq("id", id)
     .maybeSingle();
   if (!opportunity) notFound();
 
-  const { data: history } = await supabase
-    .from("b2b_stage_history")
-    .select("id,from_stage,to_stage,changed_at")
-    .eq("opportunity_id", id)
-    .order("changed_at", { ascending: false })
-    .limit(10);
+  const { data: history } = await supabase.from("b2b_stage_history").select("id,from_stage,to_stage,changed_at").eq("opportunity_id", id).order("changed_at", { ascending: false }).limit(10);
 
   return (
     <main className="min-h-screen bg-[#f3ecdf] p-6 text-[#302d28] md:p-8 lg:p-10">
@@ -41,7 +40,10 @@ export default async function B2BOpportunityPage({ params, searchParams }: { par
         <Link href="/protected/admin/sales" className="inline-flex items-center gap-2 text-sm text-[#7a6e5c]"><ArrowLeft size={15}/> Volver al pipeline</Link>
         <div className="mt-6 rounded-2xl border border-[#d2c5b3] bg-[#fffaf2] p-6 md:p-8">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8d7553]">Ficha comercial B2B</p>
-          <div className="mt-3 flex flex-wrap items-end justify-between gap-4"><div><h1 className="font-serif text-4xl">{opportunity.company}</h1><p className="mt-2 text-sm text-[#746c62]">Etapa actual: <strong>{opportunity.stage}</strong></p></div><span className="rounded-full border border-[#cbbda8] bg-[#efe5d6] px-3 py-1 text-xs font-semibold text-[#6d5d48]">{opportunity.source_type}</span></div>
+          <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
+            <div><h1 className="font-serif text-4xl">{opportunity.company}</h1><p className="mt-2 text-sm text-[#746c62]">Etapa actual: <strong>{opportunity.stage}</strong></p></div>
+            <div className="flex gap-2"><span className="rounded-full border border-[#cbbda8] bg-[#efe5d6] px-3 py-1 text-xs font-semibold text-[#6d5d48]">{opportunity.source_type}</span><span className="rounded-full border border-[#b7aa94] bg-[#e6dac8] px-3 py-1 text-xs font-semibold text-[#5c4d3a]">{opportunity.tier === "UNSCORED" ? "Sin score" : `Tier ${opportunity.tier} · ${opportunity.icp_score}`}</span></div>
+          </div>
           <div className="mt-6 grid gap-3 md:grid-cols-3"><Info icon={<UserRound size={14}/>} label="Contacto" value={opportunity.contact_name}/><Info icon={<Mail size={14}/>} label="Email" value={opportunity.email}/><Info icon={<Phone size={14}/>} label="Teléfono" value={opportunity.phone}/></div>
         </div>
 
@@ -50,21 +52,39 @@ export default async function B2BOpportunityPage({ params, searchParams }: { par
 
         <form action={updateB2BCommercialFields} className="mt-6 rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6 md:p-8">
           <input type="hidden" name="opportunity_id" value={opportunity.id}/>
-          <div className="grid gap-5 md:grid-cols-2">
+          <h2 className="font-serif text-2xl">Operación comercial</h2>
+          <div className="mt-5 grid gap-5 md:grid-cols-2">
             <Field label="Canal principal"><select name="primary_channel" defaultValue={opportunity.primary_channel} className="field"><option value="WEB">Web</option><option value="WHATSAPP">WhatsApp</option><option value="EMAIL">Email</option><option value="LINKEDIN">LinkedIn</option><option value="PHONE">Teléfono</option><option value="OTHER">Otro</option></select></Field>
             <Field label="Plan de interés"><select name="plan_interest" defaultValue={opportunity.plan_interest} className="field"><option value="UNKNOWN">Sin definir</option><option value="STARTER">Starter</option><option value="PROFESSIONAL">Professional</option><option value="ENTERPRISE">Enterprise</option></select></Field>
             <Field label="Próximo paso"><input name="next_step" defaultValue={opportunity.next_step || ""} required className="field"/></Field>
             <Field label="Fecha del próximo paso"><input type="datetime-local" name="next_step_due_at" defaultValue={localInputValue(opportunity.next_step_due_at)} required className="field"/></Field>
             <Field label="Último contacto"><input type="datetime-local" name="last_contact_at" defaultValue={localInputValue(opportunity.last_contact_at)} className="field"/></Field>
-            <div className="rounded-xl border border-[#d8cbb8] bg-[#efe5d6] p-4"><p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#81796e]"><CalendarClock size={13}/> Regla operativa</p><p className="mt-2 text-sm leading-6 text-[#625d55]">Toda oportunidad que no esté perdida debe conservar un próximo paso y una fecha. La base de datos lo exige.</p></div>
+            <div className="rounded-xl border border-[#d8cbb8] bg-[#efe5d6] p-4"><p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#81796e]"><CalendarClock size={13}/> Regla operativa</p><p className="mt-2 text-sm leading-6 text-[#625d55]">Toda oportunidad que no esté perdida debe conservar un próximo paso y una fecha.</p></div>
           </div>
-          <Field label="Notas comerciales" wide><textarea name="notes" defaultValue={opportunity.notes || ""} rows={5} className="field resize-y" placeholder="Contexto útil para la próxima acción, objeciones o decisión pendiente."/></Field>
+          <Field label="Notas comerciales" wide><textarea name="notes" defaultValue={opportunity.notes || ""} rows={5} className="field resize-y"/></Field>
           <button className="mt-6 rounded-lg bg-[#302d28] px-6 py-3 text-sm font-semibold text-[#fffaf2]">Guardar ficha comercial</button>
+        </form>
+
+        <form action={updateB2BScoringSignals} className="mt-6 rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6 md:p-8">
+          <input type="hidden" name="opportunity_id" value={opportunity.id}/>
+          <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8d7553]"><Target size={14}/> Scoring ICP</p><h2 className="mt-2 font-serif text-2xl">Tier A/B/C basado en señales reales.</h2></div><div className="rounded-xl border border-[#cdbfa9] bg-[#efe5d6] px-4 py-3 text-right"><p className="text-[10px] uppercase tracking-[0.12em] text-[#81796e]">Resultado</p><p className="mt-1 font-serif text-2xl">{opportunity.tier === "UNSCORED" ? "Sin score" : `${opportunity.icp_score}/100 · ${opportunity.tier}`}</p></div></div>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-[#716a61]">Si falta una sola señal, no asignamos tier. A = 75–100, B = 60–74, C = 45–59; menos de 45 queda como bajo encaje.</p>
+          <div className="mt-6 grid gap-5 md:grid-cols-2">
+            <Field label="Tamaño del equipo"><input type="number" name="icp_team_size" min="1" max="500" defaultValue={opportunity.icp_team_size ?? ""} className="field" placeholder="Ej. 10"/></Field>
+            <Field label="Consultas por mes"><input type="number" name="icp_monthly_inquiries" min="0" max="1000000" defaultValue={opportunity.icp_monthly_inquiries ?? ""} className="field" placeholder="Ej. 300"/></Field>
+            <Field label="Cantidad de fuentes de leads"><input type="number" name="icp_lead_sources" min="1" max="100" defaultValue={opportunity.icp_lead_sources ?? ""} className="field" placeholder="Ej. 3"/></Field>
+            <Signal label="WhatsApp diario" name="icp_whatsapp_daily" value={signalValue(opportunity.icp_whatsapp_daily)}/>
+            <Signal label="Dolor de seguimiento visible" name="icp_followup_pain" value={signalValue(opportunity.icp_followup_pain)}/>
+            <Signal label="Inversión / intención de crecer" name="icp_growth_investment" value={signalValue(opportunity.icp_growth_investment)}/>
+            <Signal label="Acceso a owner / manager" name="icp_decision_access" value={signalValue(opportunity.icp_decision_access)}/>
+            <Signal label="Geografía prioritaria" name="icp_geography_fit" value={signalValue(opportunity.icp_geography_fit)}/>
+          </div>
+          <button className="mt-6 rounded-lg bg-[#302d28] px-6 py-3 text-sm font-semibold text-[#fffaf2]">Calcular / actualizar ICP</button>
         </form>
 
         <section className="mt-6 rounded-2xl border border-[#d2c5b3] bg-[#f7f0e6] p-6 md:p-8">
           <h2 className="font-serif text-2xl">Historial de etapas</h2>
-          <div className="mt-4 divide-y divide-[#ded2c1]">{history?.map((event) => <div key={event.id} className="flex flex-wrap justify-between gap-3 py-3 text-sm"><span><strong>{event.from_stage || "—"}</strong> → <strong>{event.to_stage}</strong></span><span className="text-[#81786d]">{new Intl.DateTimeFormat("es-UY", { dateStyle: "medium", timeStyle: "short" }).format(new Date(event.changed_at))}</span></div>)}{!history?.length && <p className="py-4 text-sm text-[#81786d]">Todavía no hay cambios manuales de etapa.</p>}</div>
+          <div className="mt-4 divide-y divide-[#ded2c1]">{history?.map((event) => <div key={event.id} className="flex flex-wrap justify-between gap-3 py-3 text-sm"><span><strong>{event.from_stage || "—"}</strong> → <strong>{event.to_stage}</strong></span><span className="text-[#81786d]">{new Intl.DateTimeFormat("es-UY", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Montevideo" }).format(new Date(event.changed_at))}</span></div>)}{!history?.length && <p className="py-4 text-sm text-[#81786d]">Todavía no hay cambios manuales de etapa.</p>}</div>
         </section>
       </div>
       <style>{`.field{width:100%;border:1px solid #cfc1ad;background:#fffaf2;border-radius:.5rem;padding:.7rem .8rem;color:#403b34;outline:none}.field:focus{border-color:#9d8767}`}</style>
@@ -73,4 +93,5 @@ export default async function B2BOpportunityPage({ params, searchParams }: { par
 }
 
 function Field({ label, children, wide=false }: { label: string; children: React.ReactNode; wide?: boolean }) { return <label className={wide ? "mt-5 block" : "block"}><span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[#81796e]">{label}</span>{children}</label> }
+function Signal({ label, name, value }: { label: string; name: string; value: string }) { return <Field label={label}><select name={name} defaultValue={value} className="field"><option value="UNKNOWN">Sin dato</option><option value="YES">Sí</option><option value="NO">No</option></select></Field> }
 function Info({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | null }) { return <div className="rounded-xl border border-[#ddd1c0] bg-[#f7f0e6] p-4"><p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#81796e]">{icon}{label}</p><p className="mt-2 break-words text-sm font-medium">{value || "—"}</p></div> }

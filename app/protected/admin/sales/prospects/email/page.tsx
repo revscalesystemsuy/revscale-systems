@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, CheckCircle2, CircleDashed, ExternalLink, Mail } from "lucide-react";
+import { ArrowLeft, CheckCircle2, CircleDashed, ExternalLink, Linkedin, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 type Prospect = {
@@ -39,7 +39,7 @@ export default async function ProspectEmailPage() {
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/protected/admin/sales/prospects/phone-whatsapp" className="inline-flex items-center gap-2 text-sm text-[#7a6e5c]"><ArrowLeft size={15}/> Volver a Teléfono / WhatsApp</Link>
-          <Link href="/protected/admin/sales/prospects" className="rounded-lg border border-[#b9aa94] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#574936]">Base de prospectos</Link>
+          <div className="flex flex-wrap gap-2"><Link href="/protected/admin/sales/prospects/linkedin" className="inline-flex items-center gap-2 rounded-lg bg-[#302d28] px-4 py-2.5 text-sm font-semibold text-[#fffaf2]"><Linkedin size={15}/> LinkedIn</Link><Link href="/protected/admin/sales/prospects" className="rounded-lg border border-[#b9aa94] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#574936]">Base de prospectos</Link></div>
         </div>
 
         <div className="mt-6">

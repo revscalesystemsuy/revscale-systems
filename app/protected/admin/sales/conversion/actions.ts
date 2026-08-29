@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 
 const STAGE_ORDER = ["NEW","CONTACTED","QUALIFIED","DEMO_BOOKED","DEMO_COMPLETED","PILOT_PROPOSED","PILOT_ACTIVE","PAID","LOST"] as const;
 const DEMO_OUTCOMES = ["SHOW","NO_SHOW","RESCHEDULED"] as const;
-const ADVANCE_TARGETS = ["PILOT_PROPOSED","PILOT_ACTIVE","PAID"] as const;
+const ADVANCE_TARGETS = ["PILOT_PROPOSED","PILOT_ACTIVE"] as const;
 const QUALIFICATION_FIELDS = ["qualification_pain_explicit","qualification_volume_sufficient","qualification_sponsor_authority","qualification_urgency_trigger","qualification_stack_fit","qualification_habit_change","qualification_economic_value"] as const;
 
 type Stage = (typeof STAGE_ORDER)[number];
@@ -108,7 +108,7 @@ export async function advanceB2BConversion(formData: FormData) {
   const target = String(formData.get("target_stage") || "").trim().toUpperCase();
   const nextStep = String(formData.get("next_step") || "").trim();
   const nextDueAt = parseMontevideoDateTime(String(formData.get("next_step_due_at") || "").trim());
-  if (!opportunityId || !ADVANCE_TARGETS.includes(target as (typeof ADVANCE_TARGETS)[number]) || !nextStep || !nextDueAt) redirect(`/protected/admin/sales/conversion?error=${encodeURIComponent("Hito, próximo paso y fecha son obligatorios")}`);
+  if (!opportunityId || !ADVANCE_TARGETS.includes(target as (typeof ADVANCE_TARGETS)[number]) || !nextStep || !nextDueAt) redirect(`/protected/admin/sales/conversion?error=${encodeURIComponent("Hito inválido. Los pagos nuevos se confirman exclusivamente desde Cierre con referencia verificable.")}`);
 
   const supabase = await requireAdmin();
   const { data: opportunity } = await supabase.from("b2b_opportunities").select("stage").eq("id", opportunityId).maybeSingle();

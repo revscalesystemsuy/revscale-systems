@@ -43,13 +43,14 @@ export async function saveDiscovery(formData: FormData) {
   if (result.error) redirect(`/protected/admin/sales/discovery/${opportunityId}?error=${encodeURIComponent(result.error.message)}`);
 
   if (complete) {
-    const stage = disposition === "QUALIFIED" ? "QUALIFIED" : disposition === "DISQUALIFIED" ? "LOST" : "CONTACTED";
-    const nextStep = payload.next_step_recommendation || (disposition === "QUALIFIED" ? "Agendar Perfect Demo de 7 minutos." : disposition === "NURTURE" ? "Mantener en nurture hasta nuevo trigger." : "Cerrar oportunidad con motivo de p%C3%A9rdida.");
+    const stage = disposition === "QUALIFIED" ? "QUALIFIED" : "CONTACTED";
+    const nextStep = payload.next_step_recommendation || (disposition === "QUALIFIED" ? "Agendar Perfect Demo de 7 minutos." : disposition === "NURTURE" ? "Mantener en nurture hasta nuevo trigger." : "Abrir ficha y registrar motivo de pérdida antes de cerrar la oportunidad.");
     await supabase.from("b2b_opportunities").update({ stage, next_step: nextStep, updated_at: new Date().toISOString() }).eq("id", opportunityId);
   }
 
   revalidatePath(`/protected/admin/sales/discovery/${opportunityId}`);
   revalidatePath(`/protected/admin/sales/${opportunityId}`);
+  revalidatePath("/protected/admin/sales/discovery");
   revalidatePath("/protected/admin/sales");
   redirect(`/protected/admin/sales/discovery/${opportunityId}?success=${complete ? "Discovery%20cerrado" : "Discovery%20guardado"}`);
 }

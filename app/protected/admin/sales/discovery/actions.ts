@@ -39,6 +39,21 @@ export async function saveDiscovery(formData: FormData) {
     qualification_pain_explicit: bool(formData, "qualification_pain_explicit"), qualification_volume_sufficient: bool(formData, "qualification_volume_sufficient"), qualification_sponsor_authority: bool(formData, "qualification_sponsor_authority"), qualification_urgency_trigger: bool(formData, "qualification_urgency_trigger"), qualification_stack_fit: bool(formData, "qualification_stack_fit"), qualification_habit_change: bool(formData, "qualification_habit_change"), qualification_economic_value: bool(formData, "qualification_economic_value"), disposition,
   };
 
+  if (complete && disposition === "QUALIFIED") {
+    const qualificationGate = [
+      payload.qualification_pain_explicit,
+      payload.qualification_volume_sufficient,
+      payload.qualification_sponsor_authority,
+      payload.qualification_urgency_trigger,
+      payload.qualification_stack_fit,
+      payload.qualification_habit_change,
+      payload.qualification_economic_value,
+    ];
+    if (qualificationGate.some((value) => value !== true)) {
+      redirect(`/protected/admin/sales/discovery/${opportunityId}?error=Para%20marcar%20QUALIFIED%20los%207%20criterios%20de%20calificaci%C3%B3n%20deben%20estar%20confirmados%20en%20S%C3%AD`);
+    }
+  }
+
   const result = existing ? await supabase.from("b2b_discovery_sessions").update(payload).eq("id", existing.id) : await supabase.from("b2b_discovery_sessions").insert(payload);
   if (result.error) redirect(`/protected/admin/sales/discovery/${opportunityId}?error=${encodeURIComponent(result.error.message)}`);
 
@@ -51,6 +66,7 @@ export async function saveDiscovery(formData: FormData) {
   revalidatePath(`/protected/admin/sales/discovery/${opportunityId}`);
   revalidatePath(`/protected/admin/sales/${opportunityId}`);
   revalidatePath("/protected/admin/sales/discovery");
+  revalidatePath("/protected/admin/sales/qualification");
   revalidatePath("/protected/admin/sales");
   redirect(`/protected/admin/sales/discovery/${opportunityId}?success=${complete ? "Discovery%20cerrado" : "Discovery%20guardado"}`);
 }

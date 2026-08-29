@@ -69,6 +69,7 @@ export default async function EmailOutboundPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/protected/admin/sales" className="inline-flex items-center gap-2 text-sm text-[#7a6e5c]"><ArrowLeft size={15}/> Volver al pipeline B2B</Link>
           <div className="flex flex-wrap gap-2">
+            <Link href="/protected/admin/sales/outbound/channels" className="rounded-lg border border-[#a99a84] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#574936]">WhatsApp + LinkedIn</Link>
             <Link href="/protected/admin/sales/outbound/playbook" className="rounded-lg border border-[#a99a84] bg-[#302d28] px-4 py-2.5 text-sm font-semibold text-[#fffaf2]">CTA + video</Link>
             <Link href="/protected/admin/sales/prospects/validation" className="rounded-lg border border-[#b9aa94] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#574936]">Validación ICP</Link>
           </div>

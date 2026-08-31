@@ -33,6 +33,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${ORIGIN}/pricing`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${ORIGIN}/diagnostico`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${ORIGIN}/roi`, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${ORIGIN}/demos`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${ORIGIN}/pilot`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${ORIGIN}/auditoria-fugas`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${ORIGIN}/casos-de-uso`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${ORIGIN}/crm-inmobiliario-uruguay`, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${ORIGIN}/software-inmobiliario`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${ORIGIN}/seguimiento-leads-inmobiliarios`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${ORIGIN}/whatsapp-inmobiliarias`, changeFrequency: "monthly", priority: 0.8 },
   ];
 
   for (const site of hostedSites.values()) {

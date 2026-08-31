@@ -67,7 +67,7 @@ export default async function B2BFollowupsPage({ searchParams }: { searchParams:
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/protected/admin/sales" className="inline-flex items-center gap-2 text-sm text-[#7a6e5c]"><ArrowLeft size={15}/> Volver al pipeline</Link>
-          <Link href="/protected/admin/sales/metrics" className="text-sm font-semibold text-[#675743] underline decoration-[#a89271] underline-offset-4">Ver métricas</Link>
+          <div className="flex flex-wrap gap-3"><Link href="/protected/admin/sales/followups/commercial" className="rounded-lg bg-[#302d28] px-4 py-2.5 text-sm font-semibold text-[#fffaf2]">Seguimiento comercial</Link><Link href="/protected/admin/sales/metrics" className="rounded-lg border border-[#b9aa94] bg-[#fffaf2] px-4 py-2.5 text-sm font-semibold text-[#574936]">Ver métricas</Link></div>
         </div>
 
         <div className="mt-6">

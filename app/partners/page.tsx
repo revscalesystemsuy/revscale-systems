@@ -1,0 +1,25 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Partners | RevScale PropertyOS",
+  description: "Operación Comercial 360: workshops, diagnósticos y materiales para cámaras, agencias y consultores del sector inmobiliario.",
+  alternates: { canonical: "/partners" },
+};
+
+const benefits = [
+  ["Workshop gratuito", "Sesión práctica para miembros o clientes sobre seguimiento, SLA, matching y control comercial."],
+  ["Auditoría de Fugas", "Diagnóstico operativo con una muestra anonimizada para detectar owner faltante, próximos pasos y vencimientos."],
+  ["Material co-branded", "Recursos educativos que el partner puede distribuir con su propia audiencia sin convertirlos en un pitch genérico."],
+  ["Reporte agregado", "Resumen de hallazgos sin datos personales, cuando exista una muestra válida para compartir de forma responsable."],
+  ["Implementación prioritaria", "Las cuentas calificadas referidas por partners pueden entrar a una implementación coordinada con RevScale."],
+];
+
+export default function PartnersPage() {
+  return <main className="min-h-screen bg-[#efe6d8] text-[#292722]">
+    <nav className="border-b border-[#d5c8b6] bg-[#f5eee4]"><div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 md:px-8"><Link href="/" className="font-serif text-2xl">RevScale <span className="text-[10px] uppercase tracking-[.18em] text-[#8a714d]">PropertyOS</span></Link><Link href="/casos-de-uso" className="text-sm font-medium text-[#625d55]">Casos de uso</Link></div></nav>
+    <section className="mx-auto grid max-w-7xl gap-12 px-6 py-16 md:px-8 lg:grid-cols-[1.05fr_.95fr] lg:py-24"><div><p className="text-[11px] font-semibold uppercase tracking-[.22em] text-[#8a714d]">Programa de partnerships</p><h1 className="mt-5 font-serif text-5xl leading-[1.04] md:text-7xl">Operación Comercial 360.</h1><p className="mt-6 max-w-2xl text-lg leading-8 text-[#69635a]">Una propuesta para cámaras, agencias, consultores y actores del ecosistema que quieran ayudar a inmobiliarias a ordenar seguimiento, respuesta, matching y control comercial.</p><p className="mt-5 max-w-2xl text-base leading-7 text-[#716a61]">La alianza empieza con valor educativo. No necesitás vender RevScale para que el primer encuentro sea útil.</p><div className="mt-8 flex flex-wrap gap-3"><a href="mailto:hola@revscale.uy?subject=Operaci%C3%B3n%20Comercial%20360" className="rounded-xl bg-[#302d28] px-5 py-3 text-sm font-semibold text-white">Proponer una colaboración</a><Link href="/auditoria-fugas" className="rounded-xl border border-[#b9aa94] px-5 py-3 text-sm font-semibold">Ver Auditoría de Fugas</Link></div></div><div className="rounded-2xl border border-[#d5c8b6] bg-[#f7f1e8] p-7"><p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[#8a714d]">Para quién</p><div className="mt-5 space-y-3 text-sm leading-6 text-[#625d55]">{["Cámaras y asociaciones inmobiliarias","Agencias de performance/marketing inmobiliario","Consultores y capacitadores de ventas","Proveedores de WhatsApp/Meta e integradores","Portales, desarrolladores y espacios de educación sectorial"].map(x => <div key={x} className="rounded-xl border border-[#ddd1c1] bg-[#efe6d8] p-4">{x}</div>)}</div></div></section>
+    <section className="border-y border-[#d5c8b6] bg-[#f5eee4]"><div className="mx-auto max-w-7xl px-6 py-16 md:px-8"><p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[#8a714d]">Qué recibe el partner</p><div className="mt-7 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{benefits.map(([title,text]) => <article key={title} className="rounded-2xl border border-[#d5c8b6] bg-[#fffaf2] p-6"><h2 className="font-serif text-2xl">{title}</h2><p className="mt-3 text-sm leading-6 text-[#6d665d]">{text}</p></article>)}</div></div></section>
+    <section className="mx-auto max-w-5xl px-6 py-16 md:px-8"><h2 className="font-serif text-4xl">Cómo funciona</h2><div className="mt-7 grid gap-4 md:grid-cols-3">{[["01","Elegimos el formato","Workshop, diagnóstico o recurso según la audiencia."],["02","Entregamos valor","La sesión se centra en problemas operativos reales, no en una demo comercial eterna."],["03","Seguimos solo el fit","Si aparece una inmobiliaria con dolor real, evaluamos piloto e implementación."]].map(([n,t,d]) => <div key={n} className="rounded-2xl border border-[#d5c8b6] bg-[#f7f1e8] p-6"><p className="text-xs text-[#8a714d]">{n}</p><h3 className="mt-3 font-serif text-2xl">{t}</h3><p className="mt-3 text-sm leading-6 text-[#6d665d]">{d}</p></div>)}</div><div className="mt-10 rounded-2xl border border-[#cbb99f] bg-[#e8ddce] p-7"><h2 className="font-serif text-3xl">Incentivo sin contaminar el fit.</h2><p className="mt-4 text-sm leading-6 text-[#625d55]">Para agencias y consultores puede acordarse 15–20% del revenue del primer año o un bounty equivalente, pagado después de activación y segunda mensualidad. No pagamos por leads no calificados y no incentivamos cuentas que no encajen.</p></div></section>
+  </main>;
+}

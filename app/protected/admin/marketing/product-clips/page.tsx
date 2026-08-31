@@ -1,0 +1,33 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { saveProductClip, updateProductClipStatus } from "./actions";
+
+const CLIPS = [
+  {key:"clip-01",title:"El lead invisible",surface:"Qué hacer hoy",duration:45,hook:"Tu CRM puede tener el lead y haberlo perdido igual.",voice:"Una consulta puede seguir cargada y aun así estar comercialmente perdida. Si no tiene responsable, próxima acción o seguimiento vigente, nadie sabe qué mover primero. En RevScale, Qué hacer hoy convierte esa información en una cola operativa clara.",shots:["0-5s: CRM/WhatsApp con lead guardado","5-15s: lead sin próxima acción","15-32s: vista Qué hacer hoy priorizada","32-40s: abrir lead y siguiente paso","40-45s: CTA"],screen:["Guardado ≠ trabajado","Owner · prioridad · próxima acción","Qué hacer hoy","Ver demo"],cta:"Ver Qué hacer hoy."},
+  {key:"clip-02",title:"Entró una propiedad nueva",surface:"Matching",duration:40,hook:"Tu inventario y tu demanda ya existen. El problema es conectarlos.",voice:"Cuando entra una propiedad nueva, el trabajo no debería depender de que un agente recuerde qué cliente podría interesarse. RevScale cruza criterios de búsqueda con inventario y explica por qué existe cada match para convertirlo en una acción concreta.",shots:["0-6s: alta de propiedad","6-16s: criterios de demanda","16-28s: lista de matches explicados","28-35s: abrir cliente compatible","35-40s: CTA"],screen:["Nueva propiedad","Demanda compatible","Match explicable","Probar matching"],cta:"Probar el matching."},
+  {key:"clip-03",title:"Bajó el precio",surface:"Opportunity Radar",duration:30,hook:"Un lead dormido necesita un motivo, no un mensaje genérico.",voice:"Si una propiedad baja de precio, cambia una condición relevante. Opportunity Radar usa ese evento como motivo real para revisar demanda anterior y detectar a quién vale la pena recontactar.",shots:["0-5s: cambio de precio","5-13s: evento detectado","13-23s: clientes relacionados","23-27s: motivo de reactivación","27-30s: CTA"],screen:["Bajó el precio","Evento comercial","Demanda para reactivar","Ver reactivación"],cta:"Ver reactivación."},
+  {key:"clip-04",title:"La reunión comercial",surface:"Manager",duration:45,hook:"La reunión comercial no debería empezar con ‘contame qué tenés’.",voice:"Dirección debería llegar a la reunión sabiendo qué seguimientos vencieron, qué oportunidades están frenadas y qué agentes necesitan atención. La vista Manager convierte la reunión en decisiones, no en reconstrucción de memoria.",shots:["0-8s: reunión con notas dispersas","8-18s: tablero Manager","18-30s: SLA y vencidos","30-39s: oportunidades por etapa","39-45s: CTA"],screen:["Antes: memoria","SLA · vencidos · etapas","Después: decisiones","Ver tablero"],cta:"Ver tablero Manager."},
+  {key:"clip-05",title:"WhatsApp es canal, no pipeline",surface:"Inbox + Lead",duration:40,hook:"WhatsApp no debería ser tu pipeline.",voice:"Las conversaciones pueden vivir en WhatsApp. El seguimiento comercial no debería depender de buscar chats. RevScale conserva contexto, responsable y próxima acción para que el canal no se convierta en la base de datos de la operación.",shots:["0-7s: lista de chats","7-16s: conversación aislada","16-29s: Inbox + ficha de lead","29-35s: próxima acción visible","35-40s: CTA"],screen:["Chat ≠ pipeline","Contexto + owner","Próxima acción","Ver flujo"],cta:"Ver el flujo completo."}
+];
+
+export default async function ProductClipsPage() {
+  const supabase = await createClient();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
+  if (!userId) redirect("/auth/login");
+  const { data: admin } = await supabase.from("platform_admins").select("user_id").eq("user_id", userId).maybeSingle();
+  if (!admin) redirect("/protected");
+  const { data: rows } = await supabase.from("b2b_product_clips").select("*").order("created_at", { ascending: false });
+  const existing = new Set((rows || []).map((x) => x.clip_key));
+  return <main style={{padding:24,maxWidth:1180,margin:"0 auto"}}>
+    <p style={{opacity:.65,margin:0}}>GTM · Paso 67</p><h1>Clips de producto</h1>
+    <p style={{maxWidth:820,opacity:.78}}>Guiones listos para grabar desde la demo. Usar datos DEMO claramente simulados o datos reales anonimizados con permiso. Cadencia objetivo: 2 clips de demo por semana.</p>
+    <div style={{display:"grid",gap:14,marginTop:22}}>{CLIPS.map(c=><form key={c.key} action={saveProductClip} style={{border:"1px solid #ddd",borderRadius:14,padding:18}}>
+      <input type="hidden" name="clip_key" value={c.key}/><input type="hidden" name="title" value={c.title}/><input type="hidden" name="product_surface" value={c.surface}/><input type="hidden" name="duration_seconds" value={c.duration}/><input type="hidden" name="aspect_ratio" value="9:16"/><input type="hidden" name="hook" value={c.hook}/><input type="hidden" name="voiceover" value={c.voice}/><input type="hidden" name="shot_list" value={JSON.stringify(c.shots)}/><input type="hidden" name="on_screen_text" value={JSON.stringify(c.screen)}/><input type="hidden" name="cta" value={c.cta}/><input type="hidden" name="data_mode" value="DEMO_SIMULATED"/><input type="hidden" name="evidence_note" value="Si la captura es de demo, rotularla como simulación. No presentar métricas ficticias como resultados de cliente."/>
+      <div style={{display:"flex",justifyContent:"space-between",gap:12}}><div><strong>{c.title}</strong><div style={{opacity:.65}}>{c.surface} · {c.duration}s · 9:16</div></div>{!existing.has(c.key)&&<button type="submit">Guardar guion</button>}</div>
+      <p><strong>Hook:</strong> {c.hook}</p><p>{c.voice}</p><ol>{c.shots.map(s=><li key={s}>{s}</li>)}</ol><small>CTA: {c.cta}</small>
+    </form>)}</div>
+    <h2 style={{marginTop:28}}>Producción</h2>
+    <div style={{display:"grid",gap:12}}>{(rows||[]).map(r=><div key={r.id} style={{border:"1px solid #ddd",borderRadius:14,padding:16}}><strong>{r.title}</strong><div style={{opacity:.65}}>{r.status} · {r.duration_seconds}s · {r.product_surface}</div><p>{r.hook}</p><form action={updateProductClipStatus} style={{display:"flex",gap:8,flexWrap:"wrap"}}><input type="hidden" name="id" value={r.id}/><select name="status" defaultValue={r.status}><option>SCRIPT_READY</option><option>FOOTAGE_READY</option><option>EDIT_READY</option><option>PUBLISHED</option><option>BLOCKED</option><option>ARCHIVED</option></select><input name="reference" placeholder="Archivo / URL / referencia" style={{flex:1,minWidth:220}}/><button type="submit">Actualizar</button></form></div>)}{!rows?.length&&<div style={{border:"1px dashed #ccc",borderRadius:14,padding:18,opacity:.7}}>Guardá los guiones base para iniciar producción.</div>}</div>
+  </main>;
+}

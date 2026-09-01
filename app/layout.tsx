@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { PwaRegister } from "./pwa-register";
+import { MetaPixelConsent } from "@/components/marketing/meta-pixel-consent";
 import "./globals.css";
 
 const defaultUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000";
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <PwaRegister />
           {children}
+          <MetaPixelConsent />
         </ThemeProvider>
       </body>
     </html>

@@ -29,8 +29,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_metrics" }, { status: 400 });
   }
 
+  const attribution = body.attribution && typeof body.attribution === "object" ? body.attribution as Record<string, unknown> : {};
+  let refererUrl: URL | null = null;
+  const referer = request.headers.get("referer");
+  if (referer) {
+    try {
+      refererUrl = new URL(referer);
+    } catch {
+      refererUrl = null;
+    }
+  }
+  const attributionValue = (keys: string[], queryKey: string, max: number) => {
+    for (const key of keys) {
+      const explicit = text(attribution[key], max);
+      if (explicit) return explicit;
+    }
+    return text(refererUrl?.searchParams.get(queryKey), max);
+  };
+
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("submit_leak_audit", {
+  const { data, error } = await supabase.rpc("submit_leak_audit_attributed", {
     p_company: text(body.company, 160),
     p_contact_name: text(body.contact_name, 120),
     p_contact_email: text(body.contact_email, 320).toLowerCase(),
@@ -46,6 +64,14 @@ export async function POST(request: Request) {
     p_median_first_response_minutes: num(body.median_first_response_minutes),
     p_stage_distribution: body.stage_distribution && typeof body.stage_distribution === "object" ? body.stage_distribution : {},
     p_metric_snapshot: body.metric_snapshot && typeof body.metric_snapshot === "object" ? body.metric_snapshot : {},
+    p_attribution_source: attributionValue(["source", "utm_source"], "utm_source", 120),
+    p_attribution_medium: attributionValue(["medium", "utm_medium"], "utm_medium", 120),
+    p_attribution_campaign: attributionValue(["campaign", "utm_campaign"], "utm_campaign", 160),
+    p_attribution_term: attributionValue(["term", "utm_term"], "utm_term", 200),
+    p_attribution_content: attributionValue(["content", "utm_content"], "utm_content", 200),
+    p_attribution_gclid: attributionValue(["gclid"], "gclid", 255),
+    p_attribution_fbclid: attributionValue(["fbclid"], "fbclid", 255),
+    p_attribution_landing_path: text(attribution.landing_path, 255) || text(refererUrl?.pathname, 255),
   });
 
   if (error) return NextResponse.json({ error: "save_failed" }, { status: 500 });

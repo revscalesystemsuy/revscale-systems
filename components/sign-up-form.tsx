@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getPasswordSecurityError } from "@/lib/password-security";
 
 const PRODUCTION_ORIGIN = "https://revscale-systems-eta.vercel.app";
 
@@ -27,6 +28,12 @@ export function SignUpForm({ initialEmail = "" }: { initialEmail?: string }) {
     }
 
     try {
+      const passwordSecurityError = await getPasswordSecurityError(password);
+      if (passwordSecurityError) {
+        setError(passwordSecurityError);
+        return;
+      }
+
       const supabase = createClient();
       const origin = window.location.hostname === "localhost" ? window.location.origin : PRODUCTION_ORIGIN;
       const { error: signUpError } = await supabase.auth.signUp({
@@ -67,6 +74,8 @@ export function SignUpForm({ initialEmail = "" }: { initialEmail?: string }) {
               id={String(id)}
               type={String(type)}
               required
+              minLength={String(type) === "password" ? 12 : undefined}
+              autoComplete={String(type) === "password" ? "new-password" : "email"}
               value={String(value)}
               onChange={(e) => (setter as (value: string) => void)(e.target.value)}
               className="mt-2 w-full rounded-xl border border-[#cdbfaa] bg-[#fffaf2] px-4 py-3 text-[#292722] outline-none transition focus:border-[#8a714d]"
@@ -74,10 +83,12 @@ export function SignUpForm({ initialEmail = "" }: { initialEmail?: string }) {
           </div>
         ))}
 
+        <p className="text-xs leading-5 text-[#716a61]">Usá 12+ caracteres con mayúscula, minúscula, número y símbolo. También rechazamos contraseñas presentes en filtraciones conocidas.</p>
+
         {error && <div className="rounded-xl border border-[#d7b7aa] bg-[#f7e8df] p-3 text-sm text-[#7a3f32]">{error}</div>}
 
         <button type="submit" disabled={isLoading} className="w-full rounded-xl bg-[#2f2b25] px-5 py-3 font-semibold text-[#fffaf2] transition hover:bg-[#1f1c18] disabled:opacity-60">
-          {isLoading ? "Creando cuenta..." : "Registrarme y elegir plan"}
+          {isLoading ? "Validando seguridad..." : "Registrarme y elegir plan"}
         </button>
       </form>
 

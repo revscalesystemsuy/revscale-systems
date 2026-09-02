@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { getPasswordSecurityError } from "@/lib/password-security";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,12 +32,17 @@ export function UpdatePasswordForm({
     setError(null);
 
     try {
+      const passwordSecurityError = await getPasswordSecurityError(password);
+      if (passwordSecurityError) {
+        setError(passwordSecurityError);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
       router.push("/protected");
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+      setError(error instanceof Error ? error.message : "Ocurrió un error");
     } finally {
       setIsLoading(false);
     }
@@ -46,28 +52,30 @@ export function UpdatePasswordForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Reset Your Password</CardTitle>
+          <CardTitle className="text-2xl">Elegí una nueva contraseña</CardTitle>
           <CardDescription>
-            Please enter your new password below.
+            Debe tener 12 o más caracteres, mayúscula, minúscula, número y símbolo. También validamos que no aparezca en filtraciones conocidas.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleForgotPassword}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="password">New password</Label>
+                <Label htmlFor="password">Nueva contraseña</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="New password"
+                  placeholder="Nueva contraseña"
                   required
+                  minLength={12}
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Saving..." : "Save new password"}
+                {isLoading ? "Validando seguridad..." : "Guardar nueva contraseña"}
               </Button>
             </div>
           </form>

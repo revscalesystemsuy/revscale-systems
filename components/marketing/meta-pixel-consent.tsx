@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import Script from "next/script";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -13,11 +14,34 @@ export function MetaPixelConsent() {
   const privateRoute = pathname?.startsWith("/protected") || pathname?.startsWith("/auth");
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(CONSENT_KEY);
-    if (stored === "accepted" || stored === "rejected") setConsent(stored);
+    const sync = () => {
+      const stored = window.localStorage.getItem(CONSENT_KEY);
+      if (stored === "accepted" || stored === "rejected") setConsent(stored);
+      else setConsent(null);
+    };
+    sync();
+    window.addEventListener("revscale:cookie-preferences", sync);
+    return () => window.removeEventListener("revscale:cookie-preferences", sync);
   }, []);
 
   if (privateRoute || !pixelId) return null;
+
+  function accept() {
+    window.localStorage.setItem(CONSENT_KEY, "accepted");
+    setConsent("accepted");
+  }
+
+  function reject() {
+    window.localStorage.setItem(CONSENT_KEY, "rejected");
+    setConsent("rejected");
+    // Reload removes a Pixel that may already have been loaded under prior consent.
+    window.location.reload();
+  }
+
+  function reopen() {
+    window.localStorage.removeItem(CONSENT_KEY);
+    setConsent(null);
+  }
 
   return (
     <>
@@ -32,13 +56,15 @@ export function MetaPixelConsent() {
 
       {consent === null ? (
         <div className="fixed inset-x-4 bottom-4 z-[100] mx-auto max-w-3xl rounded-2xl border border-[#c9baa4] bg-[#fffaf2] p-4 shadow-2xl md:flex md:items-center md:justify-between md:gap-6">
-          <p className="text-sm leading-6 text-[#5e574e]">Usamos medición publicitaria opcional para saber si nuestras páginas y demos ayudan a generar conversaciones. Solo se activa si aceptás.</p>
+          <p className="text-sm leading-6 text-[#5e574e]">Usamos medición publicitaria opcional para saber si nuestras páginas y demos ayudan a generar conversaciones. Solo se activa si aceptás. <Link href="/cookies" className="font-semibold underline underline-offset-2">Ver detalles</Link>.</p>
           <div className="mt-3 flex shrink-0 gap-2 md:mt-0">
-            <button onClick={() => { window.localStorage.setItem(CONSENT_KEY, "rejected"); setConsent("rejected"); }} className="rounded-xl border border-[#c9baa4] px-4 py-2 text-sm font-semibold text-[#4e4942]">Rechazar</button>
-            <button onClick={() => { window.localStorage.setItem(CONSENT_KEY, "accepted"); setConsent("accepted"); }} className="rounded-xl bg-[#302d28] px-4 py-2 text-sm font-semibold text-white">Aceptar</button>
+            <button onClick={reject} className="rounded-xl border border-[#c9baa4] px-4 py-2 text-sm font-semibold text-[#4e4942]">Rechazar</button>
+            <button onClick={accept} className="rounded-xl bg-[#302d28] px-4 py-2 text-sm font-semibold text-white">Aceptar</button>
           </div>
         </div>
-      ) : null}
+      ) : (
+        <button type="button" onClick={reopen} className="fixed bottom-3 left-3 z-[90] rounded-full border border-[#c9baa4] bg-[#fffaf2]/95 px-3 py-2 text-[11px] font-semibold text-[#5e574e] shadow-lg backdrop-blur">Cookies</button>
+      )}
     </>
   );
 }

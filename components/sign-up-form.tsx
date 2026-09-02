@@ -7,11 +7,13 @@ import { createClient } from "@/lib/supabase/client";
 import { getPasswordSecurityError } from "@/lib/password-security";
 
 const PRODUCTION_ORIGIN = "https://revscale-systems-eta.vercel.app";
+const LEGAL_VERSION = "2026-09-01";
 
 export function SignUpForm({ initialEmail = "" }: { initialEmail?: string }) {
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -23,6 +25,12 @@ export function SignUpForm({ initialEmail = "" }: { initialEmail?: string }) {
 
     if (password !== repeatPassword) {
       setError("Las contraseñas no coinciden");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!acceptedLegal) {
+      setError("Para crear la cuenta tenés que aceptar las Condiciones del servicio y confirmar que leíste la Política de privacidad.");
       setIsLoading(false);
       return;
     }
@@ -39,7 +47,14 @@ export function SignUpForm({ initialEmail = "" }: { initialEmail?: string }) {
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${origin}/auth/login?confirmed=1` },
+        options: {
+          emailRedirectTo: `${origin}/auth/login?confirmed=1`,
+          data: {
+            revscale_legal_acceptance: "true",
+            revscale_terms_version: LEGAL_VERSION,
+            revscale_privacy_version: LEGAL_VERSION,
+          },
+        },
       });
 
       if (signUpError) throw signUpError;
@@ -84,6 +99,19 @@ export function SignUpForm({ initialEmail = "" }: { initialEmail?: string }) {
         ))}
 
         <p className="text-xs leading-5 text-[#716a61]">Usá 12+ caracteres con mayúscula, minúscula, número y símbolo. También rechazamos contraseñas presentes en filtraciones conocidas.</p>
+
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#d8ccbb] bg-[#fffaf2] p-4 text-xs leading-5 text-[#625c53]">
+          <input
+            type="checkbox"
+            checked={acceptedLegal}
+            onChange={(e) => setAcceptedLegal(e.target.checked)}
+            required
+            className="mt-1 h-4 w-4 shrink-0 accent-[#302d28]"
+          />
+          <span>
+            Acepto las <Link href="/terms" target="_blank" className="font-semibold underline underline-offset-2">Condiciones del servicio</Link> y confirmo que leí la <Link href="/privacy" target="_blank" className="font-semibold underline underline-offset-2">Política de privacidad</Link>.
+          </span>
+        </label>
 
         {error && <div className="rounded-xl border border-[#d7b7aa] bg-[#f7e8df] p-3 text-sm text-[#7a3f32]">{error}</div>}
 
